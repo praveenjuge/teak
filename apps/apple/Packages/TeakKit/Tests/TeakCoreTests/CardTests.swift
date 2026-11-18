@@ -362,6 +362,7 @@ private func card(_ type: CardType, content: String = "", url: String? = nil, no
 
     @Test func plainTextDropsMarkers() {
         #expect(MarkdownBlocks.plainText("## Hello **world**\n- [link](https://x.y)") == "Hello world\n• link")
+        #expect(MarkdownBlocks.plainText("***both*** and **~~gone~~** but 2 * 3 * 4") == "both and gone but 2 * 3 * 4")
     }
 }
 

@@ -58,5 +58,9 @@ class MarkdownBlocksTest {
             "Trip plan\n• Book train tickets\nThings the Mac app does, see docs",
             MarkdownBlocks.toPlainText("# Trip plan\n- Book **train** tickets\n\nThings the **Mac app** does, see [docs](https://x.test)"),
         )
+        assertEquals(
+            "both and gone but 2 * 3 * 4",
+            MarkdownBlocks.toPlainText("***both*** and **~~gone~~** but 2 * 3 * 4"),
+        )
     }
 }

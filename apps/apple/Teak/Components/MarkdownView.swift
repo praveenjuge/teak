@@ -3,9 +3,10 @@ import TeakCore
 
 struct MarkdownView: View {
     let markdown: String
-    var baseFont: Font = .body
+    var textStyle: Font.TextStyle = .body
     var cardLinks: [String: CardLinkTarget]?
     var toggleTask: ((MarkdownListItem) -> Void)?
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -20,58 +21,74 @@ struct MarkdownView: View {
     @ViewBuilder private func view(for block: MarkdownBlock) -> some View {
         switch block {
         case let .heading(level, text):
-            inline(text).font(headingFont(level)).fontWeight(.semibold)
+            let style = headingStyle(level)
+            inline(text, style, weight: .semibold).font(.system(style)).fontWeight(.semibold)
         case let .paragraph(text):
-            inline(text).font(baseFont)
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(Array(Self.pieces(text).enumerated()), id: \.offset) { _, piece in inline(piece, textStyle) }
+            }
+            .font(.system(textStyle))
         case let .quote(text):
             HStack(alignment: .top, spacing: 10) {
                 Capsule().fill(.tertiary).frame(width: 3)
-                inline(text).font(baseFont).foregroundStyle(.secondary)
+                inline(text, textStyle).font(.system(textStyle)).foregroundStyle(.secondary)
             }
             .fixedSize(horizontal: false, vertical: true)
         case let .code(text):
             ScrollView(.horizontal, showsIndicators: false) {
-                Text(text).font(.system(.callout, design: .monospaced)).padding(12)
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(Array(Self.pieces(text).enumerated()), id: \.offset) { _, piece in Text(piece) }
+                }
+                .font(.callout.monospaced())
+                .padding(12)
             }
             .background(.fill.tertiary, in: .rect(cornerRadius: 10))
         case .rule:
             Divider()
         case let .list(items):
             VStack(alignment: .leading, spacing: 6) {
-                ForEach(Array(items.enumerated()), id: \.offset) { _, item in
+                // Keyed by text rather than position, so a ticked task moves to its new place.
+                ForEach(KeyedItem.keyed(items)) { keyed in
+                    let item = keyed.item
                     if let checked = item.checked {
                         task(item, checked: checked)
                     } else {
                         HStack(alignment: .firstTextBaseline, spacing: 8) {
                             Text(item.marker).foregroundStyle(.secondary).monospacedDigit()
-                            inline(item.text)
+                            inline(item.text, textStyle)
                         }
-                        .font(baseFont)
+                        .font(.system(textStyle))
                         .padding(.leading, Double(item.depth) * 16)
                     }
                 }
             }
         case let .table(table):
-            MarkdownTableView(table: table, cell: inline).font(baseFont)
+            MarkdownTableView(table: table) { inline($0, textStyle, weight: $1) }.font(.system(textStyle))
         }
     }
 
     private func task(_ item: MarkdownListItem, checked: Bool) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
+        HStack(alignment: .firstTextBaseline, spacing: 0) {
             Button {
                 toggleTask?(item)
             } label: {
+                // The box alone is a small target, so the button takes the gap up to the text, and on iOS a little
+                // above and below too (macOS hit-tests a button within its frame).
                 Image(systemName: checked ? "checkmark.square.fill" : "square")
                     .foregroundStyle(checked ? Color.accentColor : .secondary)
                     .contentTransition(.symbolEffect(.replace))
+                    .padding(.trailing, 8)
+                    .padding(.vertical, 4)
+                    .contentShape(.rect)
+                    .padding(.vertical, -4)
             }
             .buttonStyle(.plain)
             .disabled(toggleTask == nil)
-            inline(item.text)
+            inline(item.text, textStyle)
                 .strikethrough(checked)
                 .foregroundStyle(checked ? .secondary : .primary)
         }
-        .font(baseFont)
+        .font(.system(textStyle))
         .padding(.leading, Double(item.depth) * 16)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(Text(MarkdownBlocks.plainText(CardLinks.tokensToText(item.text))))
@@ -80,23 +97,75 @@ struct MarkdownView: View {
         .accessibilityAction { toggleTask?(item) }
     }
 
-    private func inline(_ text: String) -> Text {
-        guard let cardLinks, CardLinks.mayHaveCardLinks(text) else { return Text(attributed(text)) }
+    /// `weight` is the weight the surrounding text is set in, which runs with a font of their own keep.
+    private func inline(_ text: String, _ style: Font.TextStyle, weight: Font.Weight? = nil) -> Text {
+        guard let cardLinks, CardLinks.mayHaveCardLinks(text) else { return Text(attributed(text, style, weight)) }
         let source = text as NSString
         var result = AttributedString()
         var cursor = 0
         for match in CardLinks.matches(text) {
-            result += attributed(source.substring(with: NSRange(location: cursor, length: match.start - cursor)))
+            result += attributed(source.substring(with: NSRange(location: cursor, length: match.start - cursor)), style, weight)
             result += pill(match, target: cardLinks[match.id])
             cursor = match.end
         }
-        result += attributed(source.substring(from: cursor))
+        result += attributed(source.substring(from: cursor), style, weight)
         return Text(result)
     }
 
-    private func attributed(_ text: String) -> AttributedString {
+    private func attributed(_ text: String, _ style: Font.TextStyle, _ weight: Font.Weight?) -> AttributedString {
         let options = AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)
-        return (try? AttributedString(markdown: text, options: options)) ?? AttributedString(text)
+        var result = (try? AttributedString(markdown: text, options: options)) ?? AttributedString(text)
+        // SF Rounded has no italic, and the app's rounded design overrides a text style's italic and monospaced
+        // design, so emphasis and code name their font at the text style's size: SF Pro Italic and SF Mono.
+        for run in result.runs {
+            guard let intent = run.inlinePresentationIntent, !intent.isDisjoint(with: [.emphasized, .code]) else { continue }
+            let code = intent.contains(.code)
+            // SF Mono sets larger than SF Pro at one size, so code steps down, as on the web.
+            var font = code ? Font.system(size: pointSize(style) * 0.9, design: .monospaced) : Font.system(size: pointSize(style)).italic()
+            if intent.contains(.stronglyEmphasized) {
+                font = font.bold()
+            } else if let weight {
+                font = font.weight(weight)
+            }
+            result[run.range].font = font
+            if code { result[run.range].backgroundColor = Color.primary.opacity(0.08) }
+        }
+        return result
+    }
+
+    private func pointSize(_ style: Font.TextStyle) -> CGFloat {
+        #if os(macOS)
+        NSFont.preferredFont(forTextStyle: style.platform).pointSize
+        #else
+        UIFont.preferredFont(forTextStyle: style.platform,
+                             compatibleWith: UITraitCollection(preferredContentSizeCategory: UIContentSizeCategory(dynamicTypeSize)))
+            .pointSize
+        #endif
+    }
+
+    private static let pieceLength = 40000
+
+    /// `text` in pieces of at most `pieceLength` characters, split at a line break, a sentence or a word: a single
+    /// Text taller than the largest layer the system draws comes out blank.
+    private static func pieces(_ text: String) -> [String] {
+        guard text.utf16.count > pieceLength else { return [text] }
+        var pieces: [String] = []
+        var rest = Substring(text)
+        while rest.count > pieceLength {
+            let head = rest.prefix(pieceLength)
+            let space = head.lastIndex(of: "\n")
+                ?? head.range(of: ". ", options: .backwards).map { rest.index(before: $0.upperBound) }
+                ?? head.lastIndex(of: " ")
+            if let space {
+                pieces.append(String(rest[..<space]))
+                rest = rest[rest.index(after: space)...]
+            } else {
+                pieces.append(String(head))
+                rest = rest[head.endIndex...]
+            }
+        }
+        pieces.append(String(rest))
+        return pieces
     }
 
     private func pill(_ match: CardLinks.Match, target: CardLinkTarget?) -> AttributedString {
@@ -115,7 +184,7 @@ struct MarkdownView: View {
         return pill
     }
 
-    private func headingFont(_ level: Int) -> Font {
+    private func headingStyle(_ level: Int) -> Font.TextStyle {
         switch level {
         case 1: .title2
         case 2: .title3
@@ -124,23 +193,62 @@ struct MarkdownView: View {
     }
 }
 
+private struct KeyedItem: Identifiable {
+    let id: String
+    let item: MarkdownListItem
+
+    /// Each item keyed by its depth and text, numbered when the same text repeats.
+    static func keyed(_ items: [MarkdownListItem]) -> [KeyedItem] {
+        var seen: [String: Int] = [:]
+        return items.map { item in
+            let key = "\(item.depth) \(item.text)"
+            seen[key, default: 0] += 1
+            return KeyedItem(id: "\(key) \(seen[key, default: 1])", item: item)
+        }
+    }
+}
+
+#if os(macOS)
+private typealias PlatformTextStyle = NSFont.TextStyle
+#else
+private typealias PlatformTextStyle = UIFont.TextStyle
+#endif
+
+private extension Font.TextStyle {
+    var platform: PlatformTextStyle {
+        switch self {
+        case .largeTitle: .largeTitle
+        case .title: .title1
+        case .title2: .title2
+        case .title3: .title3
+        case .headline: .headline
+        case .subheadline: .subheadline
+        case .callout: .callout
+        case .footnote: .footnote
+        case .caption: .caption1
+        case .caption2: .caption2
+        default: .body
+        }
+    }
+}
+
 private struct MarkdownTableView: View {
     let table: MarkdownTable
-    let cell: (String) -> Text
+    let cell: (String, Font.Weight?) -> Text
 
     var body: some View {
         ScrollView(.horizontal) {
             Grid(alignment: .leading, horizontalSpacing: 0, verticalSpacing: 0) {
                 GridRow {
                     ForEach(Array(table.header.enumerated()), id: \.offset) { _, text in
-                        cellView(text).fontWeight(.semibold)
+                        cellView(text, weight: .semibold).fontWeight(.semibold)
                     }
                 }
                 .background(.fill.tertiary)
                 ForEach(Array(table.rows.enumerated()), id: \.offset) { _, row in
                     Divider()
                     GridRow {
-                        ForEach(Array(row.enumerated()), id: \.offset) { _, text in cellView(text) }
+                        ForEach(Array(row.enumerated()), id: \.offset) { _, text in cellView(text, weight: nil) }
                     }
                 }
             }
@@ -152,9 +260,10 @@ private struct MarkdownTableView: View {
         .accessibilityLabel(tr("native.notes.table", count: table.rows.count))
     }
 
-    private func cellView(_ text: String) -> some View {
-        CappedWidth(maxWidth: 280) { cell(text) }
-            .frame(minWidth: 48, alignment: .leading)
+    private func cellView(_ text: String, weight: Font.Weight?) -> some View {
+        // Filling the column's width lets the header row's fill run edge to edge.
+        CappedWidth(maxWidth: 280) { cell(text, weight) }
+            .frame(minWidth: 48, maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
     }

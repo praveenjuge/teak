@@ -388,10 +388,10 @@ struct DocumentPreview: View {
             }
             if let text {
                 switch CardSheet.textPreviewKind(card) {
-                case .markdown: MarkdownView(markdown: text, baseFont: .callout)
+                case .markdown: MarkdownView(markdown: text, textStyle: .callout)
                 case .code:
                     ScrollView(.horizontal) {
-                        Text(text).font(.system(.footnote, design: .monospaced)).textSelection(.enabled).padding(12)
+                        Text(text).font(.footnote.monospaced()).textSelection(.enabled).padding(12)
                     }
                     .background(.fill.tertiary, in: .rect(cornerRadius: 12))
                 case nil: EmptyView()

@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import SwiftUI
 import TeakCore
 import TeakSync
 
@@ -84,7 +85,8 @@ final class CardDetailModel {
     func toggleTask(_ item: MarkdownListItem) async {
         guard let card = displayedCard, card.type == .text, !card.deleted,
               let next = TaskLists.toggle(card.content, item: item) else { return }
-        contentOverride = next
+        // Animated, so the ticked item slides to its new place instead of the rows changing text under the finger.
+        withAnimation(.snappy) { contentOverride = next }
         message = nil
         taskSaves += 1
         defer { taskSaves -= 1 }

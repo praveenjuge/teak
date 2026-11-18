@@ -238,9 +238,14 @@ public enum MarkdownBlocks {
             case .rule: ""
             case let .paragraph(text): text
             }
-            return text
-                .replacing(/\[([^\]]+)\]\([^)]*\)/) { String($0.1) }
-                .replacing(/(\*\*|__|\*|_|~~|`)(\S(?:.*?\S)?)\1/) { String($0.2) }
+            var plain = text.replacing(/\[([^\]]+)\]\([^)]*\)/) { String($0.1) }
+            // Again until nothing changes, so nested markers (`***both***`, `**~~gone~~**`) all go.
+            var previous: String
+            repeat {
+                previous = plain
+                plain = plain.replacing(/(\*\*|__|\*|_|~~|`)(\S(?:.*?\S)?)\1/) { String($0.2) }
+            } while plain != previous
+            return plain
         }
         .joined(separator: "\n")
         .trimmingCharacters(in: .whitespacesAndNewlines)

@@ -129,7 +129,8 @@ object MarkdownBlocks {
             MarkdownBlock.Rule -> ""
             is MarkdownBlock.Paragraph -> block.text
         }
-        text.replace(inlineLink, "$1").replace(emphasis, "$2")
+        // Emphasis goes again until nothing changes, so nested markers (`***both***`, `**~~gone~~**`) all go.
+        generateSequence(text.replace(inlineLink, "$1")) { plain -> plain.replace(emphasis, "$2").takeIf { it != plain } }.last()
     }.trim()
 
     fun parse(markdown: String): List<MarkdownBlock> {
