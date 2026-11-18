@@ -58,12 +58,17 @@ def rename(font: TTFont) -> None:
         record.string = text
 
 
-OUT.mkdir(parents=True, exist_ok=True)
-shutil.copy(WEB / "Allo-OFL.txt", OUT / "Allo-OFL.txt")
+# Every face is built before any is written, so a failed check never leaves a mixed set.
+fonts = {}
 for name, source in SOURCES.items():
     font = TTFont(source, recalcTimestamp=False)
     font.flavor = None
     turn_on_ss01(font)
     rename(font)
+    fonts[name] = font
+
+OUT.mkdir(parents=True, exist_ok=True)
+shutil.copy(WEB / "Allo-OFL.txt", OUT / "Allo-OFL.txt")
+for name, font in fonts.items():
     font.save(OUT / name)
     print(f"{name} ({font['name'].getDebugName(6)})")
