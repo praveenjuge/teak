@@ -53,7 +53,7 @@ test("every dev seed pack seeds its first page and reports what it seeded", {
   const seeded: Record<string, unknown> = {};
   for (const scenario of names) {
     const t = await setup();
-    seeded[scenario] = await t
+    const result = await t
       .mutation(internal.devSeed.seedScenario, {
         workosUserId: WORKOS_USER_ID,
         scenario,
@@ -62,6 +62,22 @@ test("every dev seed pack seeds its first page and reports what it seeded", {
       .catch((error: unknown) => ({
         error: error instanceof Error ? error.message : String(error),
       }));
+    // What the pack reports must be what it wrote.
+    const stored = await t.run(
+      async (ctx) =>
+        (
+          await ctx.db
+            .query("cards")
+            .withIndex("by_user_deleted_archived_created", (q) =>
+              q.eq("userId", "teak_dev")
+            )
+            .collect()
+        ).length
+    );
+    if ("cards" in result && typeof result.cards === "number") {
+      expect({ scenario, stored }).toEqual({ scenario, stored: result.cards });
+    }
+    seeded[scenario] = result;
   }
   expect(seeded).toMatchSnapshot();
 });

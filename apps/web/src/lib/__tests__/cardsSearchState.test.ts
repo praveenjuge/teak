@@ -159,6 +159,8 @@ describe("cardsSearchState", () => {
     const keys = [
       baseState(),
       { ...baseState(), searchQuery: "focus" },
+      { ...baseState(), keywordTags: ["design"] },
+      { ...baseState(), qualifierChips: ["-site:example.com"] },
       { ...baseState(), filterTags: ["image" as const] },
       { ...baseState(), styleFilters: ["vintage" as const] },
       { ...baseState(), hueFilters: ["purple" as const] },
