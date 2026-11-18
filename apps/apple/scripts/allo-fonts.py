@@ -35,7 +35,8 @@ def turn_on_ss01(font: TTFont) -> None:
     features = font["GSUB"].table.FeatureList.FeatureRecord
     ss01 = {i for r in features if r.FeatureTag == "ss01" for i in r.Feature.LookupListIndex}
     calt = [r.Feature for r in features if r.FeatureTag == "calt"]
-    assert ss01 and calt, "Allo has lost ss01 or calt"
+    if not (ss01 and calt):
+        raise SystemExit("Allo has lost ss01 or calt")
     for feature in calt:
         # Lookups run in list order, so ss01 keeps its place after calt's own.
         feature.LookupListIndex = sorted(set(feature.LookupListIndex) | ss01)
