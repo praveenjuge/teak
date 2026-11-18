@@ -18,8 +18,8 @@ const backgroundImage =
 const taglineLineOne = "Personal knowledge hub";
 const taglineLineTwo = "for creative minds.";
 
-const snPro = readFile(
-  path.join(process.cwd(), "src/app/assets/SNPro-ExtraBold.ttf")
+const allo = readFile(
+  path.join(process.cwd(), "src/app/assets/Allo-ExtraBold.otf")
 ).then(
   (font) =>
     font.buffer.slice(
@@ -29,7 +29,7 @@ const snPro = readFile(
 );
 
 export default async function Image() {
-  const snProData = await snPro;
+  const alloData = await allo;
 
   return new ImageResponse(
     <div
@@ -64,7 +64,7 @@ export default async function Image() {
           flexDirection: "column",
           alignItems: "center",
           textAlign: "center",
-          fontFamily: "SN Pro",
+          fontFamily: "Allo",
           fontSize: 80,
           fontWeight: 800,
           letterSpacing: "-0.035em",
@@ -102,8 +102,8 @@ export default async function Image() {
       ...size,
       fonts: [
         {
-          name: "SN Pro",
-          data: snProData,
+          name: "Allo",
+          data: alloData,
           style: "normal",
           weight: 800,
         },

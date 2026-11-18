@@ -6,7 +6,11 @@ export type StoreId =
   | "raycast";
 
 export interface Shot {
-  /** Short and catchy. One line on Mac, at most two on phones. */
+  /**
+   * Short and catchy. render.ts sets every headline in exactly two balanced
+   * lines, so write it as one sentence with no line break; wrap a phrase in
+   * keep() when it mustn't split across the lines.
+   */
   headline: string;
   name: string;
   overlay?: string;
@@ -25,24 +29,27 @@ export interface Store {
   window?: { app: string; title: string };
 }
 
+/** Joins words with no-break spaces so a headline never splits them. */
+const keep = (words: string) => words.replaceAll(" ", "\u00a0");
+
 const IPHONE_FRAME = {
   device: "iPhone 17 Pro Max - Silver - Portrait",
   size: [1520, 3100] as [number, number],
 };
 
 const PHONE_SHOTS: Shot[] = [
-  { name: "01-library", headline: "Inspiration,\nin your pocket." },
-  { name: "02-detail", headline: "Notes that\nremember why." },
-  { name: "03-search", headline: "Find it in seconds." },
-  { name: "04-palette", headline: "Colors, one tap away." },
+  { name: "01-library", headline: `Inspiration, ${keep("in your pocket.")}` },
+  { name: "02-detail", headline: "Notes that remember why." },
+  { name: "03-search", headline: `Find it ${keep("in seconds.")}` },
+  { name: "04-palette", headline: `Colors, ${keep("one tap away.")}` },
   { name: "05-share", headline: "Save from any app." },
-  { name: "06-add", headline: "Save anything,\nanywhere." },
+  { name: "06-add", headline: "Save anything, anywhere." },
 ];
 
 const MAC_SHOTS: Shot[] = [
   { name: "01-library", headline: "Keep every spark." },
   { name: "02-detail", headline: "Notes that remember why." },
-  { name: "03-search", headline: "Find it in seconds." },
+  { name: "03-search", headline: `Find it ${keep("in seconds.")}` },
   { name: "04-palette", headline: "Keep the colors you love." },
   {
     name: "05-capture",
@@ -76,9 +83,12 @@ export const STORES: Record<StoreId, Store> = {
     viewport: { width: 1032, height: 1376 },
     scale: 2,
     shots: [
-      { name: "01-library", headline: "Every spark, on a bigger canvas." },
+      {
+        name: "01-library",
+        headline: `Every spark, ${keep("on a bigger canvas.")}`,
+      },
       { name: "02-detail", headline: "Notes that remember why." },
-      { name: "03-search", headline: "Find it in seconds." },
+      { name: "03-search", headline: `Find it ${keep("in seconds.")}` },
       { name: "04-palette", headline: "Keep the colors you love." },
       { name: "05-add", headline: "Save anything, anywhere." },
     ],
@@ -99,11 +109,14 @@ export const STORES: Record<StoreId, Store> = {
     viewport: { width: 360, height: 640 },
     scale: 3,
     shots: [
-      { name: "01-library", headline: "Inspiration,\nin your pocket." },
-      { name: "02-detail", headline: "Notes that\nremember why." },
-      { name: "03-search", headline: "Find it in seconds." },
-      { name: "04-palette", headline: "Colors, one tap away." },
-      { name: "05-add", headline: "Save anything,\nanywhere." },
+      {
+        name: "01-library",
+        headline: `Inspiration, ${keep("in your pocket.")}`,
+      },
+      { name: "02-detail", headline: "Notes that remember why." },
+      { name: "03-search", headline: `Find it ${keep("in seconds.")}` },
+      { name: "04-palette", headline: `Colors, ${keep("one tap away.")}` },
+      { name: "05-add", headline: "Save anything, anywhere." },
     ],
   },
   // Raycast's store wants up to six 2000 × 1250 PNGs in the extension's
@@ -125,7 +138,10 @@ export const STORES: Record<StoreId, Store> = {
         headline: "Save anything without switching apps.",
       },
       { name: "teak-raycast-5", headline: "See what's close in meaning." },
-      { name: "teak-raycast-6", headline: "Narrow it down by type." },
+      {
+        name: "teak-raycast-6",
+        headline: `Narrow ${keep("it down")} by type.`,
+      },
     ],
   },
 };
@@ -133,6 +149,6 @@ export const STORES: Record<StoreId, Store> = {
 export const FEATURE_GRAPHIC = {
   output: "apps/android/store/listing/en-US/graphics/feature_graphic.png",
   capture: "01-library",
-  headline: "Save anything.\nFind it later.",
+  headline: "Save anything. Find it later.",
   subtitle: "Your inspiration library",
 };

@@ -45,17 +45,30 @@ function teakDevProxy() {
   };
 }
 
-const SN_PRO = {
-  name: "SN Pro",
+// Allo by Josh Puckett (SIL OFL 1.1, public/fonts/Allo-OFL.txt). The upright
+// face is variable; italics use Allo's drawn obliques, as in the web app.
+const ALLO = {
+  name: "Allo",
   variants: [
     {
-      src: "./public/fonts/SNPro-VariableRegular.woff2",
-      weight: "200..900",
+      src: "./public/fonts/AlloVariableFriendly.woff2",
+      weight: "100..900",
       style: "normal",
     },
+    { src: "./public/fonts/Allo-Oblique.woff2", weight: 400, style: "italic" },
     {
-      src: "./public/fonts/SNPro-VariableItalic.woff2",
-      weight: "200..900",
+      src: "./public/fonts/Allo-MediumOblique.woff2",
+      weight: 500,
+      style: "italic",
+    },
+    {
+      src: "./public/fonts/Allo-SemiBoldOblique.woff2",
+      weight: 600,
+      style: "italic",
+    },
+    {
+      src: "./public/fonts/Allo-BoldOblique.woff2",
+      weight: 700,
       style: "italic",
     },
   ],
@@ -88,8 +101,8 @@ export default defineConfig({
   theme: {
     accent: "oklch(0.58 0.22 27)",
     fonts: {
-      display: SN_PRO,
-      body: SN_PRO,
+      display: ALLO,
+      body: ALLO,
     },
   },
   footer: {

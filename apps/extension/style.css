@@ -3,20 +3,45 @@
 /* Test strings are not styles; AMO's rebuild from the sources zip has no tests. */
 @source not "./__tests__";
 
+/* Allo by Josh Puckett (SIL OFL 1.1, assets/fonts/Allo-OFL.txt), the web
+   app's font. Italics use its drawn obliques, as the web app does. */
 @font-face {
-  font-family: "SN Pro";
-  src: url("./assets/fonts/SNPro-VariableRegular.woff2")
+  font-family: "Allo";
+  src: url("./assets/fonts/AlloVariableFriendly.woff2")
     format("woff2-variations");
-  font-weight: 200 900;
+  font-weight: 100 900;
   font-style: normal;
   font-display: swap;
 }
 
 @font-face {
-  font-family: "SN Pro";
-  src: url("./assets/fonts/SNPro-VariableItalic.woff2")
-    format("woff2-variations");
-  font-weight: 200 900;
+  font-family: "Allo";
+  src: url("./assets/fonts/Allo-Oblique.woff2") format("woff2");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Allo";
+  src: url("./assets/fonts/Allo-MediumOblique.woff2") format("woff2");
+  font-weight: 500;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Allo";
+  src: url("./assets/fonts/Allo-SemiBoldOblique.woff2") format("woff2");
+  font-weight: 600;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Allo";
+  src: url("./assets/fonts/Allo-BoldOblique.woff2") format("woff2");
+  font-weight: 700;
   font-style: italic;
   font-display: swap;
 }
@@ -31,7 +56,7 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
   --font-sans:
-    "SN Pro", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Allo", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -106,25 +131,32 @@
   }
 }
 
-/* Chinese, Japanese and Korean: system fonts after SN Pro, which has no CJK
+/* Chrome gives extension pages its own body font in a stylesheet outside any
+   layer, which beats the layered font-sans utility, so set Allo outside one
+   too, with more specificity than Chrome's `body`. */
+html body {
+  @apply font-sans;
+}
+
+/* Chinese, Japanese and Korean: system fonts after Allo, which has no CJK
    glyphs, and each language's line-breaking rules. */
 :root:lang(ja) {
   --font-sans:
-    "SN Pro", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI",
+    "Allo", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI",
     Meiryo, "Noto Sans JP", system-ui, sans-serif;
   line-break: strict;
 }
 
 :root:lang(ko) {
   --font-sans:
-    "SN Pro", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", system-ui,
+    "Allo", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", system-ui,
     sans-serif;
   word-break: keep-all;
 }
 
 :root:lang(zh) {
   --font-sans:
-    "SN Pro", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
+    "Allo", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
     "Noto Sans SC", system-ui, sans-serif;
 }
 
