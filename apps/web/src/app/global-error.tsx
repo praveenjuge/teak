@@ -54,7 +54,7 @@ export default function GlobalError({
     // global-error must include html and body tags. CookieLocaleProvider
     // sets lang once it knows the language.
     <html className={fontClassName} lang="en">
-      <body className="font-sans text-sm antialiased">
+      <body className='font-features-["ss01"] font-sans text-sm antialiased'>
         <CookieLocaleProvider>
           <GlobalErrorScreen retry={retry} />
         </CookieLocaleProvider>

@@ -50,6 +50,14 @@ val Allo: FontFamily = alloFamily(ALLO_TEXT_OPTICAL_SIZE)
 
 private fun TextStyle.allo() = copy(fontFamily = alloFamily(alloOpticalSize(fontSize)))
 
+/**
+ * Re-picks Allo's optical size for this style's own font size. Use it after
+ * changing the size of a type-scale style, such as a Markdown heading grown
+ * from body text. A style in another family is returned as it is.
+ */
+fun TextStyle.withAlloOpticalSize(): TextStyle =
+    if (fontFamily in alloFamilies.values) allo() else this
+
 internal val TeakTypography: Typography = Typography().run {
     Typography(
         displayLarge = displayLarge.allo(),

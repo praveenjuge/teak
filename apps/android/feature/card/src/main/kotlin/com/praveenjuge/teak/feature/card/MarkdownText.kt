@@ -26,6 +26,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextOverflow
+import com.praveenjuge.teak.core.designsystem.theme.withAlloOpticalSize
 import com.praveenjuge.teak.core.i18n.tr
 import com.praveenjuge.teak.core.model.CardLinkTarget
 import com.praveenjuge.teak.core.model.CardLinks
@@ -103,7 +104,7 @@ private fun MarkdownBlockView(block: MarkdownBlock, style: TextStyle, inline: In
                 fontSize = (style.fontSize.value + (headingSteps.getOrNull(block.level - 1) ?: 0)).sp,
                 fontWeight = FontWeight.Bold,
                 lineHeight = 1.3.em,
-            ),
+            ).withAlloOpticalSize(),
             inline = inline,
             modifier = Modifier.semantics { heading() },
         )

@@ -1,5 +1,6 @@
 package com.praveenjuge.teak.core.designsystem.theme
 
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontListFontFamily
 import androidx.compose.ui.text.font.ResourceFont
 import androidx.compose.ui.unit.Density
@@ -55,5 +56,13 @@ class TypeTest {
     fun `styles at the same size share one family`() {
         assertSame(TeakTypography.titleSmall.fontFamily, TeakTypography.labelLarge.fontFamily)
         assertSame(Allo, TeakTypography.bodyMedium.fontFamily)
+    }
+
+    @Test
+    fun `a style grown past its type-scale size takes the optical size of its new size`() {
+        val heading = TeakTypography.bodyLarge.copy(fontSize = 24.sp).withAlloOpticalSize()
+        assertEquals(setOf(24f), opticalSizes(heading))
+        val code = TeakTypography.bodyLarge.copy(fontFamily = FontFamily.Monospace, fontSize = 24.sp)
+        assertSame(FontFamily.Monospace, code.withAlloOpticalSize().fontFamily)
     }
 }
