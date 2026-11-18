@@ -1,6 +1,5 @@
 import { LOCALE_COOKIE, SUPPORTED_LOCALES } from "@teak/i18n";
 import type { Metadata, Viewport } from "next";
-import localFont from "next/font/local";
 import "./globals.css";
 import type { PropsWithChildren } from "react";
 import { JsonLd } from "@/components/JsonLd";
@@ -21,47 +20,9 @@ import {
   SIDEBAR_MIN_WIDTH,
   SIDEBAR_WIDTH_COOKIE_NAME,
 } from "@/lib/sidebarState";
+import { fontClassName } from "@/styles/fonts";
 
 const FILES_ORIGIN = filesOrigin();
-
-const allo = localFont({
-  src: "../styles/fonts/AlloVariableFriendly.woff2",
-  weight: "100 900",
-  style: "normal",
-  variable: "--font-allo",
-  display: "swap",
-  adjustFontFallback: false,
-  declarations: [{ prop: "font-family", value: "Allo" }],
-});
-const alloOblique = localFont({
-  src: [
-    {
-      path: "../styles/fonts/Allo-Oblique.woff2",
-      weight: "400",
-      style: "italic",
-    },
-    {
-      path: "../styles/fonts/Allo-MediumOblique.woff2",
-      weight: "500",
-      style: "italic",
-    },
-    {
-      path: "../styles/fonts/Allo-SemiBoldOblique.woff2",
-      weight: "600",
-      style: "italic",
-    },
-    {
-      path: "../styles/fonts/Allo-BoldOblique.woff2",
-      weight: "700",
-      style: "italic",
-    },
-  ],
-  variable: "--font-allo-oblique",
-  display: "swap",
-  adjustFontFallback: false,
-  declarations: [{ prop: "font-family", value: "Allo" }],
-  preload: false,
-});
 
 export const metadata: Metadata = {
   title: { default: "Teak", template: "%s · Teak" },
@@ -94,11 +55,7 @@ const SIDEBAR_FROM_COOKIE = `try{var d=document.documentElement,c=document.cooki
 
 export default function RootLayout({ children }: PropsWithChildren) {
   return (
-    <html
-      className={`${allo.variable} ${alloOblique.variable}`}
-      lang="en"
-      suppressHydrationWarning
-    >
+    <html className={fontClassName} lang="en" suppressHydrationWarning>
       <head>
         <script
           // biome-ignore lint/security/noDangerouslySetInnerHtml: a fixed script with no user input, so <html lang> is right before first paint.

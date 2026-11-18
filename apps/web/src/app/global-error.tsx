@@ -6,6 +6,7 @@ import "./globals.css";
 import { useTranslations } from "@teak/i18n/react";
 import { CookieLocaleProvider } from "@/components/providers/CookieLocaleProvider";
 import { StatusScreen } from "@/components/StatusScreen";
+import { fontClassName } from "@/styles/fonts";
 
 // global-error replaces the root layout, so next-themes isn't running. Apply
 // the theme it saved ("light", "dark" or "system"), or the system one.
@@ -52,7 +53,7 @@ export default function GlobalError({
   return (
     // global-error must include html and body tags. CookieLocaleProvider
     // sets lang once it knows the language.
-    <html lang="en">
+    <html className={fontClassName} lang="en">
       <body className="font-sans text-sm antialiased">
         <CookieLocaleProvider>
           <GlobalErrorScreen retry={retry} />

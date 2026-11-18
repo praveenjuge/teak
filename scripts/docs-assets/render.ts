@@ -27,8 +27,10 @@ const file = (relative: string) =>
   pathToFileURL(path.join(root, relative)).href;
 
 const base = () => `<!doctype html><meta charset="utf-8"><style>
-  @font-face { font-family: "SN Pro"; font-weight: 200 900;
-    src: url("${file("apps/docs/public/fonts/SNPro-VariableRegular.woff2")}") format("woff2"); }
+  @font-face { font-family: "Allo"; font-weight: 100 900;
+    src: url("${file("apps/docs/public/fonts/AlloVariableFriendly.woff2")}") format("woff2"); }
+  @font-face { font-family: "Allo"; font-weight: 400; font-style: italic;
+    src: url("${file("apps/docs/public/fonts/Allo-Oblique.woff2")}") format("woff2"); }
   :root {
     --fg: oklch(0.13 0.028 261.692); --muted: oklch(0.551 0.027 264.364);
     --border: oklch(0.928 0.006 264.531); --secondary: oklch(0.967 0.003 264.542);
@@ -38,7 +40,7 @@ const base = () => `<!doctype html><meta charset="utf-8"><style>
   }
   * { box-sizing: border-box; }
   body { margin: 0; width: ${SIZE.width}px; height: ${SIZE.height}px; overflow: hidden; position: relative;
-    font-family: "SN Pro", system-ui, sans-serif; color: var(--fg); -webkit-font-smoothing: antialiased;
+    font-family: "Allo", system-ui, sans-serif; font-feature-settings: "ss01"; color: var(--fg); -webkit-font-smoothing: antialiased;
     background: #e4eadc url("${file("scripts/store-assets/wallpaper.jpg")}") center / cover; }
   body::before { content: ""; position: absolute; inset: 0;
     background: linear-gradient(rgba(248,250,242,.32), rgba(248,250,242,.08) 45%, rgba(248,250,242,0)); }
@@ -49,7 +51,7 @@ const base = () => `<!doctype html><meta charset="utf-8"><style>
   .panel { position: absolute; border-radius: 22px; overflow: hidden; background: #fff;
     box-shadow: 0 32px 70px -12px rgba(25,40,28,.4), 0 0 0 1px rgba(25,40,28,.1); }
   .marker { position: absolute; z-index: 3; width: 46px; height: 46px; border-radius: 50%;
-    background: var(--primary); color: #fff; font: 700 23px/1 "SN Pro", sans-serif;
+    background: var(--primary); color: #fff; font: 700 23px/1 "Allo", sans-serif;
     display: grid; place-items: center; border: 3px solid #fff;
     box-shadow: 0 8px 18px rgba(30,20,20,.3); transform: translate(-50%, -50%); }
   ${MOCK_CSS}

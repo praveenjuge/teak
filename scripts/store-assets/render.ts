@@ -84,30 +84,41 @@ const frameCaptures = async (id: StoreId): Promise<Map<string, string>> => {
   return framed;
 };
 
+// Allo, the web app's font, embedded so headlines never fall back.
+const allo = dataURI(
+  path.join(root, "apps/web/src/styles/fonts/AlloVariableFriendly.woff2"),
+  "font/woff2"
+);
+
 const base = (width: number, height: number, wallpaper: string) => `
+  @font-face { font-family: "Allo"; src: url(${allo}) format("woff2"); font-weight: 100 900; }
   * { box-sizing: border-box; }
   body { margin: 0; width: ${width}px; height: ${height}px; overflow: hidden; position: relative;
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", Roboto, Arial, sans-serif;
+    font-family: "Allo", -apple-system, BlinkMacSystemFont, Roboto, Arial, sans-serif;
+    font-feature-settings: "ss01";
     background: #e4eadc; color: ${ink}; -webkit-font-smoothing: antialiased; }
   body::before { content: ''; position: absolute; inset: 0; background: url(${wallpaper}) center top/cover; }
   body::after { content: ''; position: absolute; inset: 0;
     background: linear-gradient(rgba(248,250,242,.28), rgba(248,250,242,.06) 40%, rgba(248,250,242,0)); }
   h1 { position: absolute; z-index: 2; left: 0; right: 0; margin: 0 auto; text-align: center;
-    font-weight: 700; letter-spacing: -0.03em; text-wrap: balance; }
+    font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; text-wrap: balance; }
   .shot { position: absolute; z-index: 1; }
 `;
 
 const escapeHtml = (text: string) =>
-  text
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll("\n", "<br>");
+  text.replaceAll("&", "&amp;").replaceAll("<", "&lt;");
+
+// Every headline sets in exactly two lines. data-max is the widest a
+// headline may run; fitHeadline narrows it to the least width that still
+// fits two lines, and text-wrap: balance evens them.
+const headline = (text: string, max: number, tag = "h1") =>
+  `<${tag} data-max="${max}">${escapeHtml(text)}</${tag}>`;
 
 const pageFor = {
-  mac: (headline: string, capture: string, overlay?: string) => `
+  mac: (text: string, capture: string, overlay?: string) => `
     <style>
-      h1 { top: 32px; font-size: 34px; letter-spacing: -1px; font-weight: 600; white-space: nowrap; }
-      .shot { top: 94px; left: 160px; width: 1120px; height: 776px;
+      h1 { top: 26px; font-size: 34px; font-weight: 600; }
+      .shot { top: 118px; left: 160px; width: 1120px; height: 756px;
         display: flex; align-items: center; justify-content: center; }
       .shot img { max-width: 100%; max-height: 100%; object-fit: contain;
         filter: drop-shadow(0 18px 30px rgba(25,40,28,.22)); }
@@ -115,39 +126,39 @@ const pageFor = {
       .shot img.panel { position: absolute; top: 46%; left: 50%; max-width: none; max-height: none;
         transform: translate(-50%, -50%); filter: drop-shadow(0 28px 56px rgba(25,40,28,.34)); }
     </style>
-    <h1 data-lines="1">${escapeHtml(headline)}</h1>
+    ${headline(text, 1000)}
     <div class="shot"><img src="${capture}">${overlay ? `<img class="panel" src="${overlay}">` : ""}</div>`,
-  raycast: (headline: string, capture: string) => `
+  raycast: (text: string, capture: string) => `
     <style>
-      h1 { top: 34px; font-size: 32px; letter-spacing: -0.8px; font-weight: 600; white-space: nowrap; }
-      .shot { top: 100px; left: 0; right: 0; margin: 0 auto; width: 750px; }
+      h1 { top: 24px; font-size: 30px; font-weight: 600; }
+      .shot { top: 112px; left: 0; right: 0; margin: 0 auto; width: 750px; }
       /* Window captures are 2x, so 750px shows Raycast at its real size. */
       .shot img { width: 100%; display: block;
         filter: drop-shadow(0 22px 36px rgba(25,40,28,.3)); }
     </style>
-    <h1 data-lines="1">${escapeHtml(headline)}</h1>
+    ${headline(text, 760)}
     <div class="shot"><img src="${capture}"></div>`,
-  phone: (headline: string, framed: string) => `
+  phone: (text: string, framed: string) => `
     <style>
-      h1 { top: 64px; width: 380px; font-size: 40px; line-height: 1.08; }
+      h1 { top: 64px; font-size: 40px; line-height: 1.08; }
       .shot { top: 196px; left: 0; right: 0; margin: 0 auto; width: 392px;
         filter: drop-shadow(0 24px 40px rgba(25,40,28,.28)); }
       .shot img { width: 100%; display: block; }
     </style>
-    <h1 data-lines="2">${escapeHtml(headline)}</h1>
+    ${headline(text, 380)}
     <div class="shot"><img class="trim" src="${framed}"></div>`,
-  tablet: (headline: string, framed: string) => `
+  tablet: (text: string, framed: string) => `
     <style>
-      h1 { top: 72px; width: 860px; font-size: 52px; line-height: 1.08; }
-      .shot { top: 196px; left: 0; right: 0; margin: 0 auto; width: 780px;
+      h1 { top: 64px; font-size: 52px; line-height: 1.08; }
+      .shot { top: 216px; left: 0; right: 0; margin: 0 auto; width: 780px;
         filter: drop-shadow(0 30px 50px rgba(25,40,28,.28)); }
       .shot img { width: 100%; display: block; }
     </style>
-    <h1 data-lines="1">${escapeHtml(headline)}</h1>
+    ${headline(text, 860)}
     <div class="shot"><img class="trim" src="${framed}"></div>`,
-  android: (headline: string, capture: string) => `
+  android: (text: string, capture: string) => `
     <style>
-      h1 { top: 44px; width: 310px; font-size: 30px; line-height: 1.1; }
+      h1 { top: 44px; font-size: 30px; line-height: 1.1; }
       .shot { top: 140px; left: 0; right: 0; margin: 0 auto; width: 288px; padding: 8px;
         background: #1d1f1c; border-radius: 44px;
         box-shadow: inset 0 0 0 1.5px #4a4d48, 0 22px 40px rgba(25,40,28,.3); }
@@ -155,7 +166,7 @@ const pageFor = {
       .shot::after { content: ''; position: absolute; top: 19px; left: 50%; width: 11px; height: 11px;
         margin-left: -5.5px; border-radius: 50%; background: #0b0c0b; }
     </style>
-    <h1 data-lines="2">${escapeHtml(headline)}</h1>
+    ${headline(text, 310)}
     <div class="shot"><img src="${capture}"></div>`,
 };
 
@@ -197,19 +208,44 @@ const trimImages = (page: Page) =>
     }
   });
 
-const checkHeadline = async (page: Page, headline: string) => {
-  const fits = await page.$eval("h1", (h1) => {
-    const lines = Number(h1.dataset.lines);
-    const lineHeight =
-      Number.parseFloat(getComputedStyle(h1).lineHeight) ||
-      Number.parseFloat(getComputedStyle(h1).fontSize) * 1.2;
-    return (
-      h1.scrollWidth <= h1.clientWidth + 1 &&
-      h1.getBoundingClientRect().height <= lineHeight * lines + 2
-    );
+const fitHeadline = async (page: Page, text: string, selector = "h1") => {
+  const fit = await page.$eval(selector, (element) => {
+    const heading = element as HTMLElement;
+    const max = Number(heading.dataset.max);
+    const lineHeight = Number.parseFloat(getComputedStyle(heading).lineHeight);
+    const setAt = (width: number) => {
+      heading.style.width = `${width}px`;
+      return {
+        lines: Math.round(heading.getBoundingClientRect().height / lineHeight),
+        overflow: heading.scrollWidth > heading.clientWidth + 1,
+      };
+    };
+    // A word wider than the box overflows instead of wrapping, so a width
+    // fits only when it sets in two lines or fewer with nothing sticking out.
+    const fits = (width: number) => {
+      const { lines, overflow } = setAt(width);
+      return lines <= 2 && !overflow;
+    };
+    if (!fits(max)) {
+      return setAt(max);
+    }
+    let [low, high] = [1, max];
+    while (low < high) {
+      const middle = Math.floor((low + high) / 2);
+      if (fits(middle)) {
+        high = middle;
+      } else {
+        low = middle + 1;
+      }
+    }
+    // One pixel of slack so rounding never pushes a word to a third line.
+    return setAt(Math.min(high + 1, max));
   });
-  if (!fits) {
-    throw new Error(`Headline is too long: ${headline}`);
+  if (fit.lines > 2 || fit.overflow) {
+    throw new Error(`Headline doesn't fit in two lines: ${text}`);
+  }
+  if (fit.lines < 2) {
+    throw new Error(`Headline must set in two lines, not one: ${text}`);
   }
 };
 
@@ -303,7 +339,7 @@ try {
         }
       });
       await trimImages(page);
-      await checkHeadline(page, shot.headline);
+      await fitHeadline(page, shot.headline);
       await page.screenshot({ path: path.join(outputDir, `${shot.name}.png`) });
       console.log(
         `Rendered ${path.relative(root, outputDir)}/${shot.name}.png`
@@ -334,7 +370,8 @@ try {
         .copy { position: absolute; z-index: 2; left: 72px; top: 0; bottom: 0; width: 520px;
           display: flex; flex-direction: column; justify-content: center; }
         .copy img { width: 84px; height: 84px; margin-bottom: 26px; }
-        h2 { margin: 0; font-size: 54px; line-height: 1.04; letter-spacing: -0.035em; font-weight: 700; }
+        h2 { margin: 0; font-size: 54px; line-height: 1.04; letter-spacing: -0.02em; font-weight: 700;
+          text-wrap: balance; }
         p { margin: 18px 0 0; font-size: 24px; letter-spacing: -0.01em; opacity: .8; }
         .shot { top: 56px; right: 92px; width: 262px; padding: 7px; background: #1d1f1c;
           border-radius: 40px; transform: rotate(4deg);
@@ -342,9 +379,10 @@ try {
         .shot img { width: 100%; display: block; border-radius: 33px; }
       </style>
       <div class="scrim"></div>
-      <div class="copy"><img src="${logo}"><h2>${escapeHtml(FEATURE_GRAPHIC.headline)}</h2><p>${escapeHtml(FEATURE_GRAPHIC.subtitle)}</p></div>
+      <div class="copy"><img src="${logo}">${headline(FEATURE_GRAPHIC.headline, 520, "h2")}<p>${escapeHtml(FEATURE_GRAPHIC.subtitle)}</p></div>
       <div class="shot"><img src="${capture}"></div>`);
     await settle(page);
+    await fitHeadline(page, FEATURE_GRAPHIC.headline, "h2");
     await page.screenshot({ path: path.join(root, FEATURE_GRAPHIC.output) });
     console.log(`Rendered ${FEATURE_GRAPHIC.output}`);
     await page.close();

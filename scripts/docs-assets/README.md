@@ -52,7 +52,7 @@ bare captures; the page draws its own meadow behind them.
    committing.
 
 Both scripts use `CHROME_PATH` when it's set, then Playwright's own
-Chromium. Mocks use SN Pro from
+Chromium. Mocks use Allo from
 `apps/docs/public/fonts` and JetBrains Mono for code, falling back to SF Mono
 or Menlo.
 

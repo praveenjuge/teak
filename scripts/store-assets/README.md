@@ -21,8 +21,11 @@ simulator or Mac window it captures from and the device frame it renders in.
 
 ## Files
 
-- `shots.ts`: every image, in store order, with its headline. Keep headlines
-  short: one line on Mac, two at most on phones (`\n` sets the break).
+- `shots.ts`: every image, in store order, with its headline. Every headline
+  sets in Allo in exactly two lines, balanced with `text-wrap: balance`:
+  `render.ts` finds the narrowest width that fits two lines and fails when a
+  headline sets in one or needs three. Write one short sentence with no line
+  break, and wrap a phrase in `keep()` when it mustn't split.
 - `showcase.ts` and `seed/`: the cards the screenshots show, with each file's
   source and license.
 - `seed.ts`: puts those cards at the top of the account the CLI is signed in to.
