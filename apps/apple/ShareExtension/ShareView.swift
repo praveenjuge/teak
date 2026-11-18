@@ -174,7 +174,7 @@ struct ShareView: View {
 
     var body: some View {
         layout
-            .fontDesign(.rounded)
+            .allo(.body)
             .tint(Self.teak)
             .task {
                 await model.run(thumbnailSize: Self.tileSize, scale: displayScale)
@@ -256,11 +256,11 @@ struct ShareView: View {
                 .opacity(hasAppeared ? 1 : 0)
             VStack(spacing: 6) {
                 Text(title)
-                    .font(.title2.weight(.semibold))
+                    .allo(.title2, weight: .semibold)
                     .contentTransition(.opacity)
                 if let subtitle, !subtitle.isEmpty {
                     Text(subtitle)
-                        .font(.subheadline)
+                        .allo(.subheadline)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
                         .contentTransition(.opacity)
@@ -280,9 +280,9 @@ struct ShareView: View {
             HStack(spacing: 16) {
                 previewWithBadge
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(title).font(.headline).contentTransition(.opacity)
+                    Text(title).allo(.headline).contentTransition(.opacity)
                     if let subtitle, !subtitle.isEmpty {
-                        Text(subtitle).font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
+                        Text(subtitle).allo(.subheadline).foregroundStyle(.secondary).lineLimit(2)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -423,7 +423,7 @@ struct ShareView: View {
             .background(.fill.quaternary, in: .rect(cornerRadius: 20, style: .continuous))
             if let error = model.detailsError {
                 Label(error, systemImage: "exclamationmark.circle.fill")
-                    .font(.footnote)
+                    .allo(.footnote)
                     .foregroundStyle(.red)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .transition(.opacity)
@@ -461,7 +461,7 @@ struct ShareView: View {
     private func row(symbol: String, @ViewBuilder content: () -> some View) -> some View {
         HStack(spacing: 12) {
             Image(systemName: symbol)
-                .font(.body.weight(.medium))
+                .allo(.body, weight: .medium)
                 .foregroundStyle(.secondary)
                 .frame(width: 24)
             content()
@@ -484,7 +484,7 @@ struct ShareView: View {
                         .contentTransition(.opacity)
                     Spacer(minLength: 0)
                     Image(systemName: "chevron.right")
-                        .font(.footnote.weight(.semibold))
+                        .allo(.footnote, weight: .semibold)
                         .foregroundStyle(.tertiary)
                 }
             }

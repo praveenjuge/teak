@@ -9,6 +9,7 @@ extension Image {
 }
 #else
 import UIKit
+import TeakUI
 typealias PlatformImage = UIImage
 extension Image {
     init(platformImage: UIImage) { self.init(uiImage: platformImage) }
@@ -128,7 +129,7 @@ struct RemoteImage: View {
                         .blur(radius: 8)
                 } else if failed || urls.isEmpty {
                     Image(systemName: "photo")
-                        .font(.title3)
+                        .allo(.title3)
                         .foregroundStyle(.secondary)
                 }
             }

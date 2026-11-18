@@ -3,6 +3,7 @@ import ImageIO
 import PDFKit
 import SwiftUI
 import TeakCore
+import TeakUI
 
 struct CardPreview: View {
     let card: Card
@@ -32,7 +33,7 @@ private struct Unavailable: View {
 
     var body: some View {
         Label(label, systemImage: symbol)
-            .font(.subheadline)
+            .allo(.subheadline)
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, minHeight: 160)
             .background(.fill.tertiary, in: .rect(cornerRadius: 16))
@@ -285,7 +286,7 @@ struct AudioPreview: View {
                     playback.toggle(url: url)
                 } label: {
                     Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
-                        .font(.title2)
+                        .allo(.title2)
                         .frame(width: 52, height: 52)
                         .contentTransition(.symbolEffect(.replace))
                 }
@@ -295,7 +296,7 @@ struct AudioPreview: View {
                 SeekBar(seed: card.id, playback: playback, url: url)
                     .frame(height: 56)
                 Text(timeLabel)
-                    .font(.footnote.monospacedDigit())
+                    .allo(.footnote).monospacedDigit()
                     .foregroundStyle(.secondary)
             }
             .padding(16)
@@ -378,17 +379,17 @@ struct DocumentPreview: View {
                     .clipShape(.rect(cornerRadius: 16))
             }
             HStack(spacing: 10) {
-                Image(systemName: "doc.text").font(.title2).foregroundStyle(.secondary)
+                Image(systemName: "doc.text").allo(.title2).foregroundStyle(.secondary)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(card.fileMetadata?.fileName ?? card.metadataTitle ?? tr("native.card.preview.attachment")).font(.headline)
+                    Text(card.fileMetadata?.fileName ?? card.metadataTitle ?? tr("native.card.preview.attachment")).allo(.headline)
                     if let summary = CardSheet.documentSummary(card) {
-                        Text(summary).font(.subheadline).foregroundStyle(.secondary)
+                        Text(summary).allo(.subheadline).foregroundStyle(.secondary)
                     }
                 }
             }
             if let text {
                 switch CardSheet.textPreviewKind(card) {
-                case .markdown: MarkdownView(markdown: text, baseFont: .callout)
+                case .markdown: MarkdownView(markdown: text, baseStyle: .callout)
                 case .code:
                     ScrollView(.horizontal) {
                         Text(text).font(.system(.footnote, design: .monospaced)).textSelection(.enabled).padding(12)
@@ -503,9 +504,9 @@ struct PalettePreview: View {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .strokeBorder(.secondary, style: StrokeStyle(lineWidth: 1.5, dash: [6, 4]))
                     .aspectRatio(1, contentMode: .fit)
-                    .overlay { Image(systemName: "plus").font(.title2.weight(.medium)).foregroundStyle(.secondary) }
+                    .overlay { Image(systemName: "plus").allo(.title2, weight: .medium).foregroundStyle(.secondary) }
                     .contentShape(.rect(cornerRadius: 16))
-                Text(tr("native.card.palette.addColor")).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                Text(tr("native.card.palette.addColor")).allo(.caption).foregroundStyle(.secondary).lineLimit(1)
             }
         }
         .buttonStyle(.plain)
@@ -552,7 +553,7 @@ private struct AddColorSheet: View {
     var body: some View {
         let hex = PaletteEdit.normalizedHex(text)
         VStack(alignment: .leading, spacing: 16) {
-            Text(tr("native.card.palette.addColor")).font(.headline)
+            Text(tr("native.card.palette.addColor")).allo(.headline)
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(hex.flatMap { Color(hex: $0) } ?? Color.clear)
                 .background(.fill.tertiary, in: .rect(cornerRadius: 16, style: .continuous))
@@ -561,7 +562,7 @@ private struct AddColorSheet: View {
                 .accessibilityHidden(true)
             ColorPicker(tr("native.card.palette.pickColor"), selection: $picked, supportsOpacity: false)
             VStack(alignment: .leading, spacing: 6) {
-                Text(tr("native.card.palette.hexCode")).font(.subheadline).foregroundStyle(.secondary)
+                Text(tr("native.card.palette.hexCode")).allo(.subheadline).foregroundStyle(.secondary)
                     .accessibilityHidden(true)
                 TextField(tr("native.card.palette.hexCode"), text: $text, prompt: Text(verbatim: "#FF5500"))
                     .font(.body.monospaced())
@@ -574,7 +575,7 @@ private struct AddColorSheet: View {
                     .accessibilityLabel(tr("native.card.palette.hexCode"))
                     .accessibilityIdentifier("palette.hex")
                 if let problem = problem(hex) {
-                    Text(problem).font(.footnote).foregroundStyle(.red)
+                    Text(problem).allo(.footnote).foregroundStyle(.red)
                 }
             }
             HStack {
@@ -667,12 +668,12 @@ struct LinkPreviewView: View {
                     RemoteImage(favicon, contentMode: .fit).frame(width: 16, height: 16).clipShape(.rect(cornerRadius: 3))
                 }
                 if let host = SafeURL.hostname(card.url) {
-                    Text(host).font(.subheadline).foregroundStyle(.secondary)
+                    Text(host).allo(.subheadline).foregroundStyle(.secondary)
                 }
             }
-            Text(CardSheet.linkTitle(card)).font(.title3.weight(.semibold)).textSelection(.enabled)
+            Text(CardSheet.linkTitle(card)).allo(.title3, weight: .semibold).textSelection(.enabled)
             if let description = CardSheet.linkDescription(card) {
-                Text(description).font(.body).foregroundStyle(.secondary).textSelection(.enabled)
+                Text(description).allo(.body).foregroundStyle(.secondary).textSelection(.enabled)
             }
         }
     }
@@ -683,12 +684,12 @@ struct QuotePreview: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            Image(systemName: "quote.opening").font(.title3).foregroundStyle(.tertiary).accessibilityHidden(true)
+            Image(systemName: "quote.opening").allo(.title3).foregroundStyle(.tertiary).accessibilityHidden(true)
             Text(card.content.isEmpty ? tr("native.card.noContent") : card.content)
-                .font(.title2.weight(.medium))
+                .allo(.title2, weight: .medium)
                 .multilineTextAlignment(.center)
                 .textSelection(.enabled)
-            Image(systemName: "quote.closing").font(.title3).foregroundStyle(.tertiary).accessibilityHidden(true)
+            Image(systemName: "quote.closing").allo(.title3).foregroundStyle(.tertiary).accessibilityHidden(true)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 24)

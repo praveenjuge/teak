@@ -1,6 +1,7 @@
 import AuthenticationServices
 import SwiftUI
 import TeakCore
+import TeakUI
 
 struct WelcomeView: View {
     @Environment(AppModel.self) private var app
@@ -18,9 +19,9 @@ struct WelcomeView: View {
                     .foregroundStyle(.tint)
                     .accessibilityLabel("Teak")
                 Text(tr("native.auth.tagline"))
-                    .font(.title2.bold())
+                    .allo(.title2, weight: .bold)
                 Text(tr("native.auth.intro"))
-                    .font(.body)
+                    .allo(.body)
                     .foregroundStyle(.secondary)
             }
             Spacer(minLength: 32)
@@ -68,7 +69,7 @@ struct WelcomeView: View {
             signIn(method)
         } label: {
             label()
-                .font(.body.weight(.medium))
+                .allo(.body, weight: .medium)
                 .frame(maxWidth: .infinity)
         }
         .buttonStyle(.bordered)

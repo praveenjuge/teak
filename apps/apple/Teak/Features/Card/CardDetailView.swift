@@ -1,5 +1,6 @@
 import SwiftUI
 import TeakCore
+import TeakUI
 
 struct CardDetailView: View {
     let route: CardRoute
@@ -118,7 +119,7 @@ struct CardDetailView: View {
         } else if model.isLoading {
             ProgressView()
         } else {
-            ContentUnavailableView(tr("native.card.unavailable.title"), systemImage: "exclamationmark.triangle",
+            AlloUnavailableView(tr("native.card.unavailable.title"), systemImage: "exclamationmark.triangle",
                                    description: Text(tr("native.card.unavailable.movedMessage")))
         }
     }
@@ -398,11 +399,14 @@ private struct EditLinkSheet: View {
                         .onSubmit(submit)
                         .accessibilityIdentifier("editLink.field")
                 } footer: {
-                    if let error {
-                        Text(error).foregroundStyle(.red)
-                    } else {
-                        Text(tr("native.card.editLink.message"))
+                    Group {
+                        if let error {
+                            Text(error).foregroundStyle(.red)
+                        } else {
+                            Text(tr("native.card.editLink.message"))
+                        }
                     }
+                    .alloSectionFooter()
                 }
             }
             .formStyle(.grouped)

@@ -2,6 +2,7 @@ import CoreSpotlight
 import PhotosUI
 import SwiftUI
 import TeakCore
+import TeakUI
 
 struct RootView: View {
     @Environment(AppModel.self) private var app
@@ -149,7 +150,7 @@ struct MainView: View {
 
     private func banner(_ title: String, systemImage: String) -> some View {
         Label(title, systemImage: systemImage)
-            .font(.subheadline.weight(.medium))
+            .allo(.subheadline, weight: .medium)
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
             .glassEffect(.regular, in: .capsule)
@@ -194,7 +195,7 @@ struct LibraryTab: View {
                 ZStack {
                     Rectangle().fill(.tint.opacity(0.08))
                     Label(tr("native.app.dropFiles"), systemImage: "arrow.down.doc")
-                        .font(.title3.weight(.semibold))
+                        .allo(.title3, weight: .semibold)
                         .padding(.horizontal, 20)
                         .padding(.vertical, 14)
                         .glassEffect(.regular, in: .capsule)
@@ -263,7 +264,7 @@ struct SaveRequestView: View {
     }
 
     private func state(_ title: String, _ message: String, _ symbol: String) -> some View {
-        ContentUnavailableView(title, systemImage: symbol, description: Text(message))
+        AlloUnavailableView(title, systemImage: symbol, description: Text(message))
     }
 
     private func save() async {

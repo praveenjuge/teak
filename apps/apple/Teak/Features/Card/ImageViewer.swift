@@ -43,6 +43,7 @@ private struct FullImage: View {
 
 #if os(iOS)
 import UIKit
+import TeakUI
 
 struct ImageViewer: View {
     let item: ImageViewerItem
@@ -62,7 +63,7 @@ struct ImageViewer: View {
                 .environment(\.colorScheme, .dark)
             Button(tr("common.close"), systemImage: "xmark") { dismiss() }
                 .labelStyle(.iconOnly)
-                .font(.title3)
+                .allo(.title3)
                 .frame(width: 44, height: 44)
                 .buttonStyle(.glass)
                 .buttonBorderShape(.circle)

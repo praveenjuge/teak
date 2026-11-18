@@ -1,5 +1,6 @@
 import SwiftUI
 import TeakCore
+import TeakUI
 
 struct LibraryFilterAction {
     var tag: (String) -> Void = { _ in }
@@ -186,12 +187,12 @@ struct CardSections: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(tr("native.card.source.from", host))
                         if let title = card.sourceTitle?.trimmingCharacters(in: .whitespacesAndNewlines), !title.isEmpty {
-                            Text(title).font(.footnote).foregroundStyle(.secondary).lineLimit(2)
+                            Text(title).allo(.footnote).foregroundStyle(.secondary).lineLimit(2)
                         }
                     }
                     Spacer(minLength: 8)
                     Image(systemName: "arrow.up.right")
-                        .font(.footnote.weight(.semibold))
+                        .allo(.footnote, weight: .semibold)
                         .foregroundStyle(.tertiary)
                 }
                 .padding(.horizontal, 16)
@@ -212,11 +213,11 @@ struct CardSections: View {
     private func section(_ title: String, @ViewBuilder content: () -> some View) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
-                .font(.subheadline.weight(.semibold))
+                .allo(.subheadline, weight: .semibold)
                 .foregroundStyle(.secondary)
                 .padding(.leading, 4)
                 .accessibilityAddTraits(.isHeader)
-            content().font(.body)
+            content().allo(.body)
         }
     }
 }
@@ -224,7 +225,7 @@ struct CardSections: View {
 private struct Chevron: View {
     var body: some View {
         Image(systemName: "chevron.forward")
-            .font(.footnote.weight(.semibold))
+            .allo(.footnote, weight: .semibold)
             .foregroundStyle(.tertiary)
             .accessibilityHidden(true)
     }
@@ -282,7 +283,7 @@ private struct SuggestedTagRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Label(tr("native.tags.suggested"), systemImage: "sparkles")
-                .font(.footnote)
+                .allo(.footnote)
                 .foregroundStyle(.secondary)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 6) {
@@ -320,7 +321,7 @@ private struct SuggestedTagRow: View {
             Text(tag)
             if let symbol { Image(systemName: symbol).imageScale(.small).accessibilityHidden(true) }
         }
-        .font(.footnote.weight(.medium))
+        .allo(.footnote, weight: .medium)
         .foregroundStyle(.secondary)
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
@@ -346,7 +347,7 @@ struct ChipRow: View {
                         onTag?(tag)
                     } label: {
                         Text(tag)
-                            .font(.footnote.weight(.medium))
+                            .allo(.footnote, weight: .medium)
                             .padding(.horizontal, 10)
                             .padding(.vertical, 6)
                             .background(.fill.tertiary, in: .capsule)

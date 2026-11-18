@@ -4,6 +4,7 @@ The native Teak app on iPhone, iPad and Mac shows the library in a grid with sea
 
 ## Sub-features
 
+- `apple-font` sets the app, the share extension and the Safari popup in Allo with the single-story "a" (ss01), as the web and Android do: Markdown emphasis uses Allo's drawn obliques, and text follows Dynamic Type and Bold Text. Tab bars, search fields, menus and alerts stay the system font.
 - `apple-archive` archives and unarchives a card from its context menu, swipe, Card menu or More menu, with Undo; the Archive view lists them (sidebar on Mac and iPad, More menu on iPhone).
 - `apple-note-tables` shows a note's GFM tables read-only with a bold header row, scrolling a wide one sideways, with `[[` pills working in cells; aligned, ragged and listed tables stay literal monospaced text. Steps in [note-tables](./note-tables.md), **Native apps**.
 - `apple-tasks` shows `- [ ]` and `- [x]` items in an open note as checkboxes (done ones muted and struck through); a tap ticks that one item, moves it below the open ones as the web does, and saves the note, and the web shows it live. A failed save puts it back with "Couldn't update the checklist. Try again." Steps in [note-tables](./note-tables.md), **Native apps**.
@@ -60,6 +61,7 @@ Preconditions:
 
 Steps:
 
+- **Font.** Open any note: its text, the large "Settings" title and the composer all show a single-story "a" (the system font's "a" has a hook). `xcrun simctl ui <device> content_size accessibility-large`: open text grows at once; `content_size large` puts it back.
 - **Archive.** Press and hold a Home tile → **Archive**: "Archived 1 card" with **Undo**, the tile leaves Home. More › Archive (sidebar Archive on iPad and Mac) lists it; press and hold → **Unarchive**: "Returned 1 card to the library"; **Undo** puts it back in Archive.
 - **Bulk.** More › **Select**, tap two tiles ("2 selected"), tap the folder button in the bar, pick "Design refs": "Added 2 cards to Design refs". The bar's heart adds them to favorites ("Added 2 cards to favorites"), or removes them when all are favorites already; the trash button moves them to Trash.
 - **Sort.** More › **Shuffle**: the order changes and **Reshuffle** appears; **Newest first** restores it.

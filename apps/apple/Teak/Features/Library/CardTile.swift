@@ -2,6 +2,7 @@ import AVKit
 import SwiftUI
 import TeakCore
 import TeakSync
+import TeakUI
 
 struct CardTile: View {
     let card: CardSummary
@@ -25,7 +26,7 @@ struct CardTile: View {
     @ViewBuilder private var badge: some View {
         if let isSelected {
             Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                .font(.title3)
+                .allo(.title3)
                 .symbolRenderingMode(.palette)
                 .foregroundStyle(isSelected ? .white : .secondary, isSelected ? Color.accentColor : .clear)
                 .background(.background, in: .circle)
@@ -34,7 +35,7 @@ struct CardTile: View {
                 .contentTransition(.symbolEffect(.replace))
         } else if card.favorited {
             Image(systemName: "heart.fill")
-                .font(.footnote)
+                .allo(.footnote)
                 .foregroundStyle(.red)
                 .padding(badgeOnMedia ? 6 : 0)
                 .background { if badgeOnMedia { Circle().fill(.regularMaterial) } }
@@ -66,14 +67,14 @@ struct CardTile: View {
                     VStack(alignment: .leading, spacing: 4) {
                         HStack(alignment: .firstTextBaseline, spacing: 6) {
                             if card.isDone { DoneBadge(label: doneLabel) }
-                            Text(card.title).font(.subheadline.weight(.medium)).lineLimit(2)
+                            Text(card.title).allo(.subheadline, weight: .medium).lineLimit(2)
                         }
                         HStack {
                             if let host = SafeURL.hostname(card.url) {
-                                Text(host).font(.footnote).foregroundStyle(.secondary).lineLimit(1)
+                                Text(host).allo(.footnote).foregroundStyle(.secondary).lineLimit(1)
                             }
                             Spacer(minLength: 4)
-                            if let price { Text(price).font(.footnote.weight(.medium)).monospacedDigit() }
+                            if let price { Text(price).allo(.footnote, weight: .medium).monospacedDigit() }
                         }
                     }
                     .padding(14)
@@ -111,13 +112,13 @@ struct CardTile: View {
             }
         case .quote:
             VStack(spacing: 0) {
-                Image(systemName: "quote.opening").font(.footnote).foregroundStyle(.tertiary).padding(.vertical, 8)
+                Image(systemName: "quote.opening").allo(.footnote).foregroundStyle(.tertiary).padding(.vertical, 8)
                 Text(card.previewText ?? tr("cards.types.quote"))
-                    .font(.subheadline.weight(.medium))
+                    .allo(.subheadline, weight: .medium)
                     .multilineTextAlignment(.center)
                     .lineLimit(4)
                     .padding(.horizontal, 14)
-                Image(systemName: "quote.closing").font(.footnote).foregroundStyle(.tertiary).padding(.vertical, 8)
+                Image(systemName: "quote.closing").allo(.footnote).foregroundStyle(.tertiary).padding(.vertical, 8)
             }
             .frame(maxWidth: .infinity)
         case .text:
@@ -143,7 +144,7 @@ private struct TileText: View {
 
     var body: some View {
         Text(text)
-            .font(.subheadline.weight(.medium))
+            .allo(.subheadline, weight: .medium)
             .lineLimit(3)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(14)
@@ -156,7 +157,7 @@ private struct DoneBadge: View {
 
     var body: some View {
         Image(systemName: "checkmark.circle.fill")
-            .font(.footnote)
+            .allo(.footnote)
             .foregroundStyle(.green)
             .accessibilityLabel(label)
             .accessibilityIdentifier("tile.done")
@@ -168,7 +169,7 @@ private struct PricePill: View {
 
     var body: some View {
         Text(text)
-            .font(.caption.weight(.semibold))
+            .allo(.caption, weight: .semibold)
             .monospacedDigit()
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
@@ -185,8 +186,8 @@ private struct TileFooter: View {
     var body: some View {
         HStack(spacing: 8) {
             if isDone { DoneBadge(label: doneLabel) }
-            if let symbol { Image(systemName: symbol).font(.footnote).foregroundStyle(.secondary) }
-            Text(title).font(.footnote.weight(.medium)).lineLimit(1)
+            if let symbol { Image(systemName: symbol).allo(.footnote).foregroundStyle(.secondary) }
+            Text(title).allo(.footnote, weight: .medium).lineLimit(1)
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 14)
@@ -209,7 +210,7 @@ private struct VideoTileMedia: View {
                 LoopingVideo(url: videoURL).transition(.opacity)
             }
             Image(systemName: "play.fill")
-                .font(.footnote)
+                .allo(.footnote)
                 .foregroundStyle(.white)
                 .padding(10)
                 .background(.black.opacity(0.45), in: .circle)
