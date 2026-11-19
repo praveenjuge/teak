@@ -14,7 +14,8 @@ export interface SaveShortcutDependencies {
   cardLimitTitle: () => string;
   currentUrl: (tabId: number) => Promise<string | undefined>;
   hold: (tabId: number) => () => void;
-  openPopup: () => Promise<void>;
+  /** Opens the toolbar popup; false when the browser didn't open it. */
+  openPopup: () => Promise<boolean>;
   paint: (tabId: number, state: BadgeState, title?: string) => Promise<void>;
   refresh: (tab: chrome.tabs.Tab) => Promise<void>;
   save: (url: string, tabId: number) => Promise<TeakSaveResponse>;
@@ -70,12 +71,7 @@ export function createSaveShortcut({
         restore = true;
         // Firefox opens the popup only while a user action is handled, and
         // the save took longer than that; the icon says what to do instead.
-        if (
-          await openPopup().then(
-            () => true,
-            () => false
-          )
-        ) {
+        if (await openPopup()) {
           return;
         }
         await flashError(tab, outcome.title);

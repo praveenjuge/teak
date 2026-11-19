@@ -37,9 +37,7 @@ function setup(
     },
     openPopup: () => {
       popups += 1;
-      return popupOpens
-        ? Promise.resolve()
-        : Promise.reject(new Error("openPopup needs a user gesture"));
+      return Promise.resolve(popupOpens);
     },
     paint: (tabId, state, title) => {
       painted.push({ state, tabId, title });

@@ -1,4 +1,5 @@
 import { API_IDEMPOTENCY_KEY_TTL_MS } from "@teak/convex/shared/constants";
+import { openActionPopup } from "../lib/actionPopup";
 import { APP_URL } from "../lib/appUrl";
 import { getCaptureOwner } from "../lib/captureOwner";
 import {
@@ -486,7 +487,7 @@ export default defineBackground(() => {
           () => undefined
         ),
       hold: checks.hold,
-      openPopup: () => chrome.action.openPopup(),
+      openPopup: () => openActionPopup(),
       paint: setTabBadge,
       refresh: checks.check,
       save: async (url, tabId) =>
@@ -657,7 +658,7 @@ export default defineBackground(() => {
     void chrome.storage.local.set({
       contextMenuSave: { action, timestamp: Date.now(), status: "saving" },
     });
-    void chrome.action.openPopup().catch(() => undefined);
+    void openActionPopup();
 
     try {
       if (isRestrictedUrl(tab.url)) {
@@ -894,7 +895,7 @@ export default defineBackground(() => {
             }
           );
           if (result.status === "unauthenticated") {
-            void chrome.action.openPopup();
+            void openActionPopup();
           }
           sendResponse(result);
           return;
@@ -907,7 +908,7 @@ export default defineBackground(() => {
             assetUrl: saveRequest.payload.assetUrl,
           });
           if (result.status === "unauthenticated") {
-            void chrome.action.openPopup();
+            void openActionPopup();
           }
           sendResponse(result);
           return;
@@ -975,7 +976,7 @@ export default defineBackground(() => {
             },
           });
           if (result.status === "unauthenticated") {
-            void chrome.action.openPopup();
+            void openActionPopup();
           }
           sendResponse(result);
         }
