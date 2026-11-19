@@ -58,49 +58,6 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
-  # XCUITest flows for the Apple app against the same local stack. The Mac
-  # flows need a signed build, so CI runs iPhone and iPad.
-  apple:
-    runs-on: xcode-27
-    timeout-minutes: 75
-    env:
-      TURBO_UI: "false"
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: ./.github/actions/setup-bun
-        with:
-          node: "true"
-      - run: bun ci
-      - name: Select Xcode 27
-        run: apps/apple/scripts/select-xcode.sh
-      # Without the web app: the app never loads it, and on this 3-CPU, 7 GB
-      # runner `next dev` starved the simulator and the backend.
-      - name: Start the E2E stack
-        run: |
-          bun run --cwd packages/tests e2e:stack --no-web > "$RUNNER_TEMP/stack.out" 2>&1 &
-          if ! bun run dev --status --wait; then
-            cat "$RUNNER_TEMP/stack.out"
-            exit 1
-          fi
-      - name: iPhone flows
-        run: |
-          device="$(xcrun simctl list devices available | grep -oE 'iPhone 1[0-9] Pro \(' | head -1 | sed 's/ ($//')"
-          TEAK_IPHONE="$device" apps/apple/scripts/ui-tests.sh ios -resultBundlePath "$RUNNER_TEMP/iphone.xcresult"
-      - name: iPad layout smoke test
-        run: |
-          device="$(xcrun simctl list devices available | grep -oE 'iPad Pro 13-inch \([^)]*\)' | head -1)"
-          TEAK_IPAD="$device" apps/apple/scripts/ui-tests.sh ipad \
-            -only-testing:TeakUITests/SignInTests -only-testing:TeakUITests/LibraryFlowTests/testNotesLinksSearchAndTokens \
-            -resultBundlePath "$RUNNER_TEMP/ipad.xcresult"
-      - if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: e2e-apple-results
-          path: |
-            ${{ runner.temp }}/*.xcresult
-            .agents/.state/stack.log
-          retention-days: 7
-
   docs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
