@@ -1493,6 +1493,91 @@ describe("archive page", () => {
     expect(reported(convex)).toEqual(["complete"]);
   });
 
+  test("a site that refuses passes its status on, without asking again", async () => {
+    const card = processedLink();
+    const { convex, ops, run } = setup(
+      card,
+      {
+        "archive-page": {
+          data: { reason: "http_error", status: 403, stored: false },
+        },
+      },
+      { archiveOnly: true }
+    );
+
+    await run();
+
+    expect(archiveCalls(ops)).toHaveLength(1);
+    expect(
+      convex
+        .callsTo("workflows/steps/archive/mutations:markPageArchiveStage")
+        .map((call) => call.args)
+        .filter((args) => args.status === "failed")
+    ).toEqual([
+      {
+        cardId: card._id,
+        httpStatus: 403,
+        reason: "http_error",
+        source: "server",
+        status: "failed",
+      },
+    ]);
+  });
+
+  test("a site that is briefly down is asked again 30 seconds later, and its page saved", async () => {
+    const card = processedLink();
+    let calls = 0;
+    const { fakeStep, ops, run } = setup(
+      card,
+      {
+        "archive-page": (params) => {
+          calls += 1;
+          return calls === 1
+            ? { data: { reason: "http_error", status: 503, stored: false } }
+            : archivedPage(params);
+        },
+      },
+      { archiveOnly: true }
+    );
+
+    await run();
+
+    expect(archiveCalls(ops)).toHaveLength(2);
+    expect(
+      fakeStep.delays
+        .filter((delay) => delay.name === "archive page")
+        .map((delay) => delay.delay)
+    ).toEqual(["30 seconds"]);
+    expect(card.pageArchive).toMatchObject({ kind: "full" });
+    expect(card.processingStatus?.archive?.status).toBe("completed");
+  });
+
+  test("a site that stays down records its status on the last try", async () => {
+    const card = processedLink();
+    const { convex, ops, run } = setup(
+      card,
+      {
+        "archive-page": {
+          data: { reason: "http_error", status: 503, stored: false },
+        },
+      },
+      { archiveOnly: true }
+    );
+
+    await run();
+
+    expect(archiveCalls(ops)).toHaveLength(4);
+    expect(card.processingStatus?.archive).toMatchObject({
+      error: "http_error",
+      status: "failed",
+    });
+    expect(
+      convex
+        .callsTo("workflows/steps/archive/mutations:markPageArchiveStage")
+        .at(-1)?.args
+    ).toMatchObject({ httpStatus: 503, reason: "http_error" });
+  });
+
   test("a busy fetcher is retried three times, then the stage fails and the card completes", async () => {
     const card = makeCard({
       content: "https://example.com/article",

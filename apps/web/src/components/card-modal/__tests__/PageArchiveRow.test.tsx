@@ -78,7 +78,16 @@ describe("PageArchiveRow", () => {
     ["blocked_url", "Teak can't open this page"],
     ["too_large", "The page is too large to save"],
     ["not_html", "The link isn't a web page"],
-    ["http_error", "The page couldn't be reached"],
+    ["unreachable", "The page couldn't be reached"],
+    ["page_gone", "The page no longer exists"],
+    [
+      "site_refused",
+      "The site turns away automated visitors. Save the page with the Teak browser extension to keep a copy.",
+    ],
+    [
+      "http_error",
+      "The site answered with an error. Refresh details to try again.",
+    ],
     ["workflow_failed", "The page couldn't be reached"],
   ])("a copy that failed with %s explains why", (error, reason) => {
     const html = render(

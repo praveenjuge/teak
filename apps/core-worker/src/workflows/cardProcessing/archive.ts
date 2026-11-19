@@ -11,14 +11,24 @@ import { isSuperseded } from "../errors";
 import type { StepConfig } from "../runtime";
 import { type CardJob, guardOf, loadCard, objectKey } from "./context";
 
+const ARCHIVE_ATTEMPTS = 4;
+
 /**
  * Three retries, 30 seconds apart: what fails here is a busy or missing
- * fetcher, not the page. A page that can't be had is a result, not an error.
+ * fetcher, or a site that is briefly down or busy. A page that can't be had
+ * is a result, not an error.
  */
 export const ARCHIVE_STEP: StepConfig = {
-  retries: { backoff: "constant", delay: "30 seconds", limit: 3 },
+  retries: {
+    backoff: "constant",
+    delay: "30 seconds",
+    limit: ARCHIVE_ATTEMPTS - 1,
+  },
   timeout: "5 minutes",
 };
+
+/** A site's answer that often turns into the page on a later try. */
+const TRANSIENT_HTTP_STATUSES = new Set([408, 425, 429, 500, 502, 503, 504]);
 
 export type ArchiveOutcome =
   | { reason: PageArchiveSkip | "card_missing"; status: "skipped" }
@@ -28,6 +38,7 @@ export type ArchiveOutcome =
 const markStage = (
   job: CardJob,
   args: {
+    httpStatus?: number;
     reason?: PageArchiveFailureReason;
     source?: "extension" | "server";
     status: "failed" | "in_progress";
@@ -66,7 +77,10 @@ export const markArchiveFailed = async (job: CardJob): Promise<null> => {
  * newer one's. It is registered to the account before it is written, and
  * deleted again when the card moved on before the copy was recorded.
  */
-export const archivePage = async (job: CardJob): Promise<ArchiveOutcome> => {
+export const archivePage = async (
+  job: CardJob,
+  attempt: number
+): Promise<ArchiveOutcome> => {
   const loaded = await loadCard(job);
   if (!loaded) {
     return { reason: "card_missing", status: "skipped" };
@@ -121,8 +135,22 @@ export const archivePage = async (job: CardJob): Promise<ArchiveOutcome> => {
   }
   const result = outcome.data;
   if (!result.stored) {
-    await markStage(job, { reason: result.reason, source, status: "failed" });
-    return { reason: result.reason, status: "failed" };
+    const { reason, status: httpStatus } = result;
+    if (
+      httpStatus !== undefined &&
+      TRANSIENT_HTTP_STATUSES.has(httpStatus) &&
+      attempt < ARCHIVE_ATTEMPTS
+    ) {
+      // The step tries again in 30 seconds; its last try records the status.
+      throw new Error(`archive_page_http_${httpStatus}`);
+    }
+    await markStage(job, {
+      reason,
+      source,
+      status: "failed",
+      ...(httpStatus === undefined ? {} : { httpStatus }),
+    });
+    return { reason, status: "failed" };
   }
   try {
     await job.deps.convex.mutation(

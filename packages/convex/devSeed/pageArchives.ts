@@ -30,7 +30,7 @@ type ArchiveSetup =
       stub: "full" | "text_only";
       source: "extension" | "server";
     }
-  | { failed: "blocked_url" | "too_large" }
+  | { failed: "blocked_url" | "page_gone" | "site_refused" | "too_large" }
   | { pending: true };
 
 interface PageArchiveMixCard {
@@ -70,6 +70,10 @@ export const PAGE_ARCHIVE_MIX: PageArchiveMixCard[] = [
   }),
   mixCard("blocked", "A page Teak can't open", { failed: "blocked_url" }),
   mixCard("too-large", "A page too large to fetch", { failed: "too_large" }),
+  mixCard("gone", "A page that no longer exists", { failed: "page_gone" }),
+  mixCard("refused", "A site that turns Teak away", {
+    failed: "site_refused",
+  }),
   mixCard("pending", "A copy still being saved", { pending: true }),
   mixCard("extension", "Saved from the extension, signed in", {
     kind: "full",

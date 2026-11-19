@@ -144,7 +144,7 @@ exports[`every dev seed pack seeds its first page and reports what it seeded 1`]
     "status": "seeded",
   },
   "page-archive-mix": {
-    "cards": 8,
+    "cards": 10,
     "status": "seeded",
   },
   "palette-mixed": {

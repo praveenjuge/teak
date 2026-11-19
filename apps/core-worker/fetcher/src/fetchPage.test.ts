@@ -6,6 +6,7 @@ import { SCRAPE_ELEMENTS } from "../../src/linkPreview/selectors";
 import { decodeHtml, MAX_PAGE_BYTES } from "./fetchPage";
 import { createFetcherHandler } from "./handler";
 import { FETCHER_MAX_IN_FLIGHT, type FetcherPageResponse } from "./protocol";
+import { browserUserAgent } from "./userAgent";
 
 const PUBLIC = "93.184.216.34";
 const PAGE = "https://site.example/post";
@@ -106,18 +107,55 @@ describe("page parsing parity with Convex", () => {
 });
 
 describe("fetching", () => {
-  test("sends the browser user agent and HTML accept header, pinned to the checked address", async () => {
+  test("asks as a current Chrome opening the page, pinned to the checked address", async () => {
     const { calls, fetchPage } = setup(
       () => new Response("<title>x</title>", { headers: html() })
     );
     await fetchPage({ selectors: SELECTORS, url: PAGE });
     expect(calls).toHaveLength(1);
-    expect(calls[0]?.headers.get("user-agent")).toContain("Chrome/120");
-    expect(calls[0]?.headers.get("accept")).toBe(
-      "text/html,application/xhtml+xml"
+    const headers = calls[0]?.headers;
+    expect(headers?.get("user-agent")).toBe(browserUserAgent());
+    expect(headers?.get("accept")).toStartWith(
+      "text/html,application/xhtml+xml,"
     );
-    expect(calls[0]?.headers.get("referer")).toBeNull();
+    expect(headers?.get("accept-language")).toBe("en-US,en;q=0.9");
+    expect(headers?.get("sec-fetch-mode")).toBe("navigate");
+    expect(headers?.get("referer")).toBeNull();
   });
+
+  test.each([
+    ["2026-09-08T00:00:00Z", 153],
+    ["2026-11-16T23:59:59Z", 157],
+    ["2026-11-17T00:00:00Z", 158],
+    ["2027-11-16T00:00:00Z", 184],
+  ])("presents as the Chrome that is current on %s", (date, major) => {
+    expect(browserUserAgent(Date.parse(date))).toContain(
+      ` Chrome/${major}.0.0.0 `
+    );
+  });
+
+  test.each([
+    ["AWS WAF's 202", 202, { "x-amzn-waf-action": "challenge" }],
+    ["Cloudflare's 403", 403, { "cf-mitigated": "challenge" }],
+  ])(
+    "reports %s bot challenge as the site refusing, not a page",
+    async (_label, status, headers) => {
+      const { fetchPage } = setup(
+        () =>
+          new Response("<title></title><script>challenge()</script>", {
+            headers: html(headers),
+            status,
+          })
+      );
+      const response = await fetchPage({ selectors: SELECTORS, url: PAGE });
+      expect(response.status).toBe(422);
+      expect(await response.json()).toEqual({
+        error: "skipped",
+        reason: "http_error",
+        status: 403,
+      });
+    }
+  );
 
   test("reads a page served as XHTML, which it asked for", async () => {
     const { fetchPage } = setup(

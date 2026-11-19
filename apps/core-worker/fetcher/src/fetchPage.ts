@@ -12,14 +12,34 @@ import {
 import { buildSelectorResultsFromHtml } from "../../../../packages/files-protocol/src/staticHtml";
 import type { FetchAssetDeps } from "./fetchAsset";
 import type { FetcherPageRequest, FetcherPageResponse } from "./protocol";
+import { browserUserAgent } from "./userAgent";
 
 export const MAX_PAGE_BYTES = 2 * 1024 * 1024;
 const MAX_CONTENT_TYPE_LENGTH = 255;
 
 const UNCACHEABLE = /(?:^|[\s,])(?:no-store|private)(?:$|[\s,=])/i;
 
-const USER_AGENT =
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+/** What Chrome sends when someone opens a link in a new tab. */
+const navigationHeaders = () => ({
+  accept:
+    "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+  "accept-language": "en-US,en;q=0.9",
+  "sec-fetch-dest": "document",
+  "sec-fetch-mode": "navigate",
+  "sec-fetch-site": "none",
+  "sec-fetch-user": "?1",
+  "upgrade-insecure-requests": "1",
+  "user-agent": browserUserAgent(),
+});
+
+/**
+ * A bot filter's challenge page, which only a browser running its script
+ * gets past. AWS WAF serves it as a 202 and Cloudflare as a 403, both with a
+ * small HTML page that is no copy of the page asked for.
+ */
+const isBotChallenge = (headers: Headers): boolean =>
+  headers.get("x-amzn-waf-action")?.toLowerCase() === "challenge" ||
+  headers.get("cf-mitigated")?.toLowerCase() === "challenge";
 
 export const parseFetcherPageRequest = (
   value: unknown
@@ -119,12 +139,7 @@ export const fetchLinkPage = async (
     ({ finalUrl, response } = await safeFetch(
       request.url,
       resolveDns,
-      {
-        headers: {
-          accept: "text/html,application/xhtml+xml",
-          "user-agent": USER_AGENT,
-        },
-      },
+      { headers: navigationHeaders() },
       pinnedFetch
     ));
   } catch (error) {
@@ -137,6 +152,11 @@ export const fetchLinkPage = async (
     );
   }
 
+  if (isBotChallenge(response.headers)) {
+    await response.body?.cancel().catch(() => undefined);
+    // The site refused the fetcher, whatever status the challenge came with.
+    return fail("http_error", { status: 403 });
+  }
   if (!response.ok) {
     await response.body?.cancel().catch(() => undefined);
     return fail("http_error", { status: response.status });

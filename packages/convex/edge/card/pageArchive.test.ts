@@ -562,6 +562,53 @@ describe("recordPageArchive", () => {
       status: "failed",
     });
   });
+
+  test.each([
+    [410, "page_gone"],
+    [403, "site_refused"],
+    [429, "site_refused"],
+    [400, "http_error"],
+    [503, "http_error"],
+  ])(
+    "an HTTP %i fails the stage as %s, and the event keeps the status",
+    async (httpStatus, reason) => {
+      vi.stubEnv("FILES_BASE", "https://files.test");
+      vi.stubEnv("FILES_SIGNING_SECRET", "secret");
+      vi.stubEnv("POSTHOG_PROJECT_TOKEN", "phc_test");
+      const t = newPageBackend();
+      const cardId = await insertCard(t);
+
+      await t.mutation(
+        internal.workflows.steps.archive.mutations.markPageArchiveStage,
+        {
+          cardId,
+          httpStatus,
+          reason: "http_error",
+          source: "server",
+          status: "failed",
+        }
+      );
+
+      expect((await card(t, cardId)).processingStatus?.archive).toMatchObject({
+        error: reason,
+        status: "failed",
+      });
+      const events = (await dispatches(t))
+        .filter((row) => row.kind === "analyticsEvent")
+        .map(
+          (row) =>
+            (row.params as { properties: Record<string, unknown> }).properties
+        );
+      expect(events).toEqual([
+        {
+          reason,
+          source: "server",
+          status: httpStatus,
+          surface: "backend",
+        },
+      ]);
+    }
+  );
 });
 
 describe("runs", () => {

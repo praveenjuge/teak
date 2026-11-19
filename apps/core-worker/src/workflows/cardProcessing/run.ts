@@ -496,8 +496,8 @@ const archivePageStep = async (
   step: WorkflowRun<CardProcessingParams>["step"]
 ): Promise<string> => {
   try {
-    const outcome = await step.do("archive page", ARCHIVE_STEP, () =>
-      archivePage(job)
+    const outcome = await step.do("archive page", ARCHIVE_STEP, (ctx) =>
+      archivePage(job, ctx.attempt)
     );
     return outcome.status === "archived"
       ? outcome.kind

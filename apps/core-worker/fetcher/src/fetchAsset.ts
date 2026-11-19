@@ -15,13 +15,9 @@ import {
 } from "../../../../packages/files-protocol/src/ssrf";
 import type { FetcherRequest } from "./protocol";
 import { readRemoteImageDimensions } from "./remoteImageDimensions";
+import { browserUserAgent } from "./userAgent";
 
 const MAX_CONTENT_TYPE_LENGTH = 255;
-// The browser the page scrape presents as. Some image CDNs block other
-// clients outright: Figma's s3-alpha.figma.com sits behind AWS WAF bot
-// control, which answers 403 to undici's default `node` agent.
-const USER_AGENT =
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
 export const parseFetcherRequest = (value: unknown): FetcherRequest | null => {
   if (!value || typeof value !== "object") {
@@ -109,7 +105,10 @@ export const fetchRemoteAsset = async (
     ({ response } = await safeFetch(
       request.url,
       resolveDns,
-      { headers: { "user-agent": USER_AGENT } },
+      // The browser the page scrape presents as. Some image CDNs block other
+      // clients outright: Figma's s3-alpha.figma.com sits behind AWS WAF bot
+      // control, which answers 403 to undici's default `node` agent.
+      { headers: { "user-agent": browserUserAgent() } },
       fetchHop
     ));
   } catch (error) {

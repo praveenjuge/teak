@@ -1863,7 +1863,7 @@ describe("devSeed page archive packs", () => {
         workosUserId: WORKOS_USER_ID,
         scenario: "page-archive-mix",
       });
-    expect(await seed()).toEqual({ status: "seeded", cards: 8 });
+    expect(await seed()).toEqual({ status: "seeded", cards: 10 });
     expect(await seed()).toEqual({ status: "already_seeded", cards: 0 });
 
     const cards = await t.run((ctx) =>
@@ -1893,6 +1893,12 @@ describe("devSeed page archive packs", () => {
     });
     expect(bySlug.get("too-large")?.processingStatus?.archive?.error).toBe(
       "too_large"
+    );
+    expect(bySlug.get("gone")?.processingStatus?.archive?.error).toBe(
+      "page_gone"
+    );
+    expect(bySlug.get("refused")?.processingStatus?.archive?.error).toBe(
+      "site_refused"
     );
     expect(bySlug.get("pending")?.processingStatus?.archive?.status).toBe(
       "pending"

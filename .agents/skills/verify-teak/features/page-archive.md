@@ -4,7 +4,8 @@ Every link a user saves gets a private copy of its page: one HTML file with its 
 
 ## Sub-features
 
-- `archive-row` shows the Details row "Archived copy" with the size ("2.4 MB"), "Text only", "Saving a copy…" with a skeleton bar, or "Couldn't save a copy" with an info button whose tooltip gives the reason.
+- `archive-row` shows the Details row "Archived copy" with the size ("2.4 MB"), "Text only", "Saving a copy…" with a skeleton bar, or "Couldn't save a copy" with an info button whose tooltip gives the reason: a page that is gone (404, 410), a site that turns automated visitors away (401, 402, 403, 429, 451, or a bot challenge page) with a pointer to the extension, another error from the site with a pointer to "Refresh details", or a page that couldn't be reached.
+- `archive-retry` asks a site that answers 408, 425, 429 or 5xx again, up to three more times 30 seconds apart, before the copy fails.
 - `archive-server` archives a link saved from the web, Raycast, the apps or the API from the page Teak fetches.
 - `archive-extension` archives the page the extension sends from the popup, ⌥⇧S or the context menu's **Save Page**, with password, hidden, one-time-code and card-number fields cleared.
 - `archive-refresh` saves a new copy on "Refresh details".
@@ -27,7 +28,7 @@ Preconditions:
 
 Steps:
 
-- **States.** Search `#scenario-page-archives`. Open each card and read the Details row: "A full copy, 40 KB…" reads "Archived copy" and a size; "A page too large to keep whole" reads "Text only"; "A copy still being saved" reads "Saving a copy…"; "A page Teak can't open" reads "Couldn't save a copy", and focusing its info button shows "Teak can't open this page". Capture each in light and dark, at 390 and 1440 px.
+- **States.** Search `#scenario-page-archives`. Open each card and read the Details row: "A full copy, 40 KB…" reads "Archived copy" and a size; "A page too large to keep whole" reads "Text only"; "A copy still being saved" reads "Saving a copy…"; "A page Teak can't open" reads "Couldn't save a copy", and focusing its info button shows "Teak can't open this page"; "A page that no longer exists" shows "The page no longer exists"; "A site that turns Teak away" shows "The site turns away automated visitors. Save the page with the Teak browser extension to keep a copy." Capture each in light and dark, at 390 and 1440 px.
 - **Live save.** Save `https://example.com` with the composer. The card tile shows no processing state for the copy; the side panel moves from "Saving a copy…" to "Archived copy". Proof: `GET /v1/cards/<id>` has `archive.kind: "full"`; `bun apps/cli/src/index.ts cards get <id> --json` prints the same.
 - **Snapshot through the API.** gzip a small HTML page, `POST /v1/page-snapshots/upload` with `{ "bytes": <gzip size> }`, `PUT` it to `uploadUrl` with `Content-Type: application/gzip`, then `POST /v1/cards` with `url` and `pageSnapshotKey`. Wait for `archive` on the card. A 20 MiB + 1 `bytes` answers `413 PAGE_SNAPSHOT_TOO_LARGE`; another account's key saves the card without the snapshot.
 - **Extension.** With the extension signed in ([Browser extension](./extension.md)), type a word into a page's search box and a password into its password field, press ⌥⇧S, then open the card in Teak. Read the stored copy through a signed file URL (Local Explorer on the local stack): the search word is there, the password is not.

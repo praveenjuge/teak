@@ -9,8 +9,8 @@ import {
 import { resolveSizeBucket } from "../../../shared/analytics";
 import {
   PAGE_ARCHIVE_FAILURE_REASONS,
+  pageArchiveFailureFor,
   pageArchiveSkipReason,
-  toPageArchiveFailureReason,
 } from "../../../shared/pageArchive";
 import {
   mergeProcessingStages,
@@ -111,10 +111,15 @@ export const recordPageArchive = internalMutation({
   },
 });
 
-/** Marks the archive stage in progress or failed; a failure never fails the card. */
+/**
+ * Marks the archive stage in progress or failed; a failure never fails the
+ * card. An `http_error`'s status says whether the page is gone or the site
+ * refused Teak.
+ */
 export const markPageArchiveStage = internalMutation({
   args: {
     cardId: v.id("cards"),
+    httpStatus: v.optional(v.number()),
     reason: v.optional(
       v.union(
         ...PAGE_ARCHIVE_FAILURE_REASONS.map((reason) => v.literal(reason))
@@ -124,14 +129,14 @@ export const markPageArchiveStage = internalMutation({
     status: v.union(v.literal("in_progress"), v.literal("failed")),
   },
   returns: v.boolean(),
-  handler: async (ctx, { cardId, reason, source, status }) => {
+  handler: async (ctx, { cardId, httpStatus, reason, source, status }) => {
     const card = await ctx.db.get("cards", cardId);
     if (!card) {
       return false;
     }
     const now = Date.now();
     const current = card.processingStatus?.archive;
-    const failure = toPageArchiveFailureReason(reason);
+    const failure = pageArchiveFailureFor(reason, httpStatus);
     await patchCard(ctx, cardId, {
       processingStatus: mergeProcessingStages(card.processingStatus, {
         archive:
@@ -144,6 +149,7 @@ export const markPageArchiveStage = internalMutation({
       await queueBackendEvent(ctx, "page_archive_failed", card.userId, {
         reason: failure,
         source: source ?? "server",
+        ...(httpStatus === undefined ? {} : { status: httpStatus }),
       });
     }
     return true;

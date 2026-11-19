@@ -193,6 +193,8 @@ export interface ServerEventCatalog {
   page_archive_failed: {
     reason: string;
     source: "extension" | "server";
+    /** The page's HTTP status, when the site answered with an error. */
+    status?: number;
   };
   page_archived: {
     bytes_bucket: SizeBucket;

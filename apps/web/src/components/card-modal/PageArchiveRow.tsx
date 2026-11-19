@@ -46,8 +46,10 @@ export const pageArchiveRowState = (
 const FAILURE_MESSAGES = {
   archive_error: "archiveFailedUnreachable",
   blocked_url: "archiveFailedBlocked",
-  http_error: "archiveFailedUnreachable",
+  http_error: "archiveFailedSiteError",
   not_html: "archiveFailedNotPage",
+  page_gone: "archiveFailedGone",
+  site_refused: "archiveFailedRefused",
   too_large: "archiveFailedTooLarge",
   unreachable: "archiveFailedUnreachable",
 } as const satisfies Record<PageArchiveFailureReason, string>;
@@ -87,7 +89,9 @@ export function PageArchiveRow({ card }: { card: ClientCard }) {
                 <Info aria-hidden="true" />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="left">{reason}</TooltipContent>
+            <TooltipContent className="max-w-64" side="left">
+              {reason}
+            </TooltipContent>
           </Tooltip>
         </TooltipProvider>
       </span>

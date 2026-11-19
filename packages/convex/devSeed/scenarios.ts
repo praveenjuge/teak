@@ -336,7 +336,7 @@ export const SCENARIOS: readonly ScenarioPack[] = [
   ),
   {
     name: "page-archive-mix",
-    description: `Links in every state of their saved copy: a full 40 KB copy with inlined images, a text-only copy, two that failed (blocked_url, too_large), one still saving, one sent by the extension, one in Trash, and a podcast episode with a copy and a transcript. The copies are stub files written through the Core Worker. Search \`#${PAGE_ARCHIVE_MIX_TAG}\`.`,
+    description: `Links in every state of their saved copy: a full 40 KB copy with inlined images, a text-only copy, four that failed (blocked_url, too_large, page_gone, site_refused), one still saving, one sent by the extension, one in Trash, and a podcast episode with a copy and a transcript. The copies are stub files written through the Core Worker. Search \`#${PAGE_ARCHIVE_MIX_TAG}\`.`,
     seed: (ctx, userId) => seedPageArchiveMix(ctx, userId),
   },
   {
