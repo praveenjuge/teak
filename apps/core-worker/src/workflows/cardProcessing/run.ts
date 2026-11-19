@@ -43,10 +43,10 @@ import {
 } from "./context";
 import {
   fetchLinkMetadata,
-  keepPreviewAfterFailedRefresh,
   parseLinkMetadataRetryableError,
   readLinkFetch,
   retryLinkPreviewImage,
+  saveFailedLinkPreview,
 } from "./linkMetadata";
 import { generateCardMetadata, type MetadataResult } from "./metadata";
 import { isPodcastLink } from "./podcast";
@@ -287,14 +287,19 @@ const processCard = async (
       held = fetched.held ?? [];
       previewImageDone = fetched.previewImageDone === true;
     } catch (error) {
-      const failure = job.refresh
-        ? parseLinkMetadataRetryableError(error)
-        : null;
+      // A page still down, rate-limited or timing out once the retries are
+      // spent gets a failed preview, as a 404 does, and the run goes on to
+      // categorize and describe the link; a refresh keeps the stored preview.
+      const failure = parseLinkMetadataRetryableError(error);
       if (!failure || isSuperseded(error)) {
         throw error;
       }
-      await step.do("keep link preview after refresh", CONVEX_STEP, () =>
-        keepPreviewAfterFailedRefresh(job, failure)
+      await step.do(
+        job.refresh
+          ? "keep link preview after refresh"
+          : "save failed link preview",
+        CONVEX_STEP,
+        () => saveFailedLinkPreview(job, failure)
       );
     }
   }

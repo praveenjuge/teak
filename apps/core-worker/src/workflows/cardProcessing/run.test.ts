@@ -684,15 +684,22 @@ describe("card processing", () => {
     expect(reported(convex)).toEqual(["complete"]);
   });
 
-  test("an automatic run that can't read the page fails as before", async () => {
+  test("a first save that can't read the page keeps a failed preview and still categorizes the link", async () => {
     const card = linkCard();
-    const { fakeStep, run } = setup(card, {
+    const { convex, run } = setup(card, {
+      "capture-screenshot": { data: { height: 900, width: 1440 } },
       "fetch-link-page": { declined: "RENDERER_UNAVAILABLE" },
       "generate-link-metadata": textMetadataAnswer(["article"]),
     });
 
-    await expect(run()).rejects.toThrow("workflow:linkMetadata:retryable:");
-    expect(fakeStep.names()).not.toContain("keep link preview after refresh");
+    expect(await run()).toMatchObject({ mode: "completed" });
+    expect(card.metadataStatus).toBe("failed");
+    expect(
+      (card.metadata as { linkPreview: { status: string } }).linkPreview.status
+    ).toBe("error");
+    expect(card.processingStatus?.categorize?.status).toBe("completed");
+    expect(card.processingStatus?.metadata?.status).toBe("completed");
+    expect(reported(convex)).toEqual(["complete"]);
   });
 
   test("a link to a PDF keeps a failed preview and the run still categorizes it", async () => {
@@ -1233,19 +1240,12 @@ describe("card processing", () => {
   });
 
   test("a failing stage reports the run errored", async () => {
-    const card = makeCard({
-      content: "https://example.com/down",
-      metadataStatus: "pending",
-      type: "link",
-      url: "https://example.com/down",
-    });
+    const card = makeCard({ content: "Notes about typography" });
     const { convex, run } = setup(card, {
-      "fetch-link-page": {
-        throws: new Error("files_worker_error:INTERNAL:500:x"),
-      },
+      "generate-text-metadata": { throws: new Error("model down") },
     });
 
-    await expect(run()).rejects.toThrow("workflow:linkMetadata:retryable");
+    await expect(run()).rejects.toThrow("model down");
     expect(reported(convex)).toEqual(["errored"]);
   });
 });

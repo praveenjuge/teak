@@ -77,7 +77,7 @@ export const parseLinkMetadataRetryableError = (
 ): LinkMetadataRetryableError | null =>
   decodeStepError(LINK_METADATA_RETRYABLE_PREFIX, error);
 
-export const keepPreviewAfterFailedRefresh = async (
+export const saveFailedLinkPreview = async (
   job: CardJob,
   failure: LinkMetadataRetryableError
 ): Promise<void> => {
@@ -90,7 +90,7 @@ export const keepPreviewAfterFailedRefresh = async (
         message: failure.message,
         ...(failure.details ? { details: failure.details } : {}),
       }),
-      refresh: true,
+      ...(job.refresh ? { refresh: true } : {}),
       status: "failed",
     },
     guardOf(job)
