@@ -315,6 +315,57 @@ describe("hybrid search in the grid", () => {
     ).toEqual([]);
   });
 
+  test("when the words match nothing, the closest meaning matches show", async () => {
+    const env = await setup();
+    const NEAR = 0.32;
+    const lily = await env.insert({ content: "Coral lily", type: "image" });
+    const ticket = await env.insert({ content: "Parking ticket" });
+    await env.cache("flowers", [
+      { id: lily, score: NEAR },
+      { id: ticket, score: WEAK },
+    ]);
+    const page = await env.owner.query(api.cards.searchCardsPaginated, {
+      searchQuery: "flowers",
+      paginationOpts: { numItems: 10, cursor: null },
+    });
+    expect(
+      page.page.map((card: { _id: string; matchedByMeaning?: true }) => [
+        card._id,
+        card.matchedByMeaning ?? false,
+      ])
+    ).toEqual([[lily, true]]);
+    const apiPage = await env.t.query(
+      internal.publicApi.searchCardsPageForUser,
+      {
+        userId: "owner",
+        searchQuery: "flowers",
+        limit: 10,
+        semanticRanking: [
+          { cardId: lily, score: NEAR },
+          { cardId: ticket, score: WEAK },
+        ],
+      }
+    );
+    expect(apiPage.items.map((card: { _id: string }) => card._id)).toEqual([
+      lily,
+    ]);
+
+    // A strong match, or a card holding the words, leaves the near one out,
+    // unless the search's filters leave out the strong one.
+    const roses = await env.insert({ content: "Rose bouquet" });
+    await env.cache("flowers", [
+      { id: roses, score: STRONG },
+      { id: lily, score: NEAR },
+    ]);
+    expect(await env.grid({ searchQuery: "flowers" })).toEqual([roses]);
+    expect(await env.grid({ searchQuery: "flowers type:image" })).toEqual([
+      lily,
+    ]);
+    const vase = await env.insert({ content: "Flowers in a vase" });
+    await env.cache("flowers", [{ id: lily, score: NEAR }]);
+    expect(await env.grid({ searchQuery: "flowers" })).toEqual([vase]);
+  });
+
   test("a tag: search lists a card with the tag and the word as a word match", async () => {
     const env = await setup();
     const bauhaus = await env.insert({

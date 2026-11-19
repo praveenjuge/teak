@@ -64,6 +64,22 @@ describe("SearchResultsSummary", () => {
     expect(document.body.textContent).toBe("50+ cards match");
     expect(button("Hide related")).toBeUndefined();
   });
+
+  test("leads with the related cards when no card holds the words", async () => {
+    await render(
+      <SearchResultsSummary
+        exactCount={0}
+        hasMore
+        onShowRelatedChange={() => undefined}
+        relatedCount={1}
+        showRelated
+      />
+    );
+    expect(document.querySelector('[role="status"]')?.textContent).toBe(
+      "1 related by meaning"
+    );
+    expect(button("Hide related")).toBeDefined();
+  });
 });
 
 describe("NoSearchResults", () => {

@@ -308,7 +308,7 @@ these query parameters:
 </ParamField>
 
 <ParamField query="mode" type="string">
-  How `q` finds cards: `hybrid` (the default) matches words and meaning, so `cozy reading nook` also finds a photo of an armchair by a window; `keyword` matches words only; `semantic` matches meaning only. Filters, qualifiers and `sort` apply in every mode. Any other value returns `400 INVALID_INPUT`.
+  How `q` finds cards: `hybrid` (the default) matches words and meaning, so `cozy reading nook` also finds a photo of an armchair by a window; `keyword` matches words only; `semantic` matches meaning only. When no card matches the words and nothing is a close match by meaning, `hybrid` and `semantic` return the closest cards by meaning instead of nothing. Filters, qualifiers and `sort` apply in every mode. Any other value returns `400 INVALID_INPUT`.
 </ParamField>
 
 <ParamField query="type" type="string">

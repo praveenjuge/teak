@@ -13,6 +13,11 @@ export const isSearchMode = (value: unknown): value is SearchMode =>
 // EmbeddingGemma scores real matches about 0.4 to 0.5 and unrelated cards
 // about 0.15 to 0.3.
 export const SEMANTIC_MIN_SCORE = 0.35;
+// When a search's words match nothing and no card clears SEMANTIC_MIN_SCORE,
+// meaning matches down to this floor show instead of an empty result: a
+// plural or a near word ("flowers" for a lily photo) scores about 0.32 to
+// 0.35, while nonsense words stay under 0.26.
+export const SEMANTIC_FALLBACK_MIN_SCORE = 0.3;
 export const SEMANTIC_TOP_K = VECTOR_QUERY_MAX_TOP_K;
 export const RRF_K = 60;
 export const SEMANTIC_QUERY_MAX_CHARS = VECTOR_QUERY_MAX_CHARS;

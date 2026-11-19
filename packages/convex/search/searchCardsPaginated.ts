@@ -54,7 +54,6 @@ import {
 import { buildCardSearchText } from "../shared/search/searchText";
 import {
   fuseRankings,
-  SEMANTIC_MIN_SCORE,
   semanticQueryText,
   similarityRequest,
 } from "../shared/search/semantic";
@@ -469,7 +468,7 @@ export const searchCardsPaginatedHandler = async (
           matched.map((candidate) => [candidate.cardId, candidate] as const)
         );
         const meaningMatches = new Map<Id<"cards">, Doc<"cards">>();
-        const semantic = await loadSemanticMatches(
+        const { matches: semantic, minScore } = await loadSemanticMatches(
           ctx,
           searchArgs,
           ranking,
@@ -479,7 +478,9 @@ export const searchCardsPaginatedHandler = async (
             set: (cardId, card) => meaningMatches.set(cardId, card),
           },
           {
-            minScore: SEMANTIC_MIN_SCORE,
+            wordsMatched: matched.some((candidate) =>
+              resolved.matchesWords(candidate.searchableText)
+            ),
             keep: matchesFilters,
             withText: resolved.phrases.length > 0,
             readText: readExpressionText,
@@ -490,7 +491,7 @@ export const searchCardsPaginatedHandler = async (
         for (const match of semantic) {
           const keywordMatch = keywordMatches.get(match.cardId);
           if (
-            match.score >= SEMANTIC_MIN_SCORE &&
+            match.score >= minScore &&
             !(
               keywordMatch && resolved.matchesWords(keywordMatch.searchableText)
             )
@@ -501,7 +502,7 @@ export const searchCardsPaginatedHandler = async (
         ordered = fuseRankings(
           matched.map((candidate) => candidate.cardId),
           semantic,
-          { mode, limit: SEARCH_PAGE_CANDIDATE_LIMIT }
+          { mode, limit: SEARCH_PAGE_CANDIDATE_LIMIT, minScore }
         ).flatMap((cardId) => {
           const candidate = keywordMatches.get(cardId);
           if (candidate) {
@@ -585,13 +586,13 @@ export const searchCardsPaginatedHandler = async (
         resolved.matchesWords(
           searchTexts.get(card._id) ?? buildCardSearchText(card)
         );
-      const semantic = await loadSemanticMatches(
+      const { matches: semantic, minScore } = await loadSemanticMatches(
         ctx,
         searchArgs,
         ranking,
         cardsById,
         {
-          minScore: SEMANTIC_MIN_SCORE,
+          wordsMatched: uniqueResults.some(holdsEveryWord),
           keep: matchesFilters,
           withText: resolved.phrases.length > 0,
           readText: readExpressionText,
@@ -602,7 +603,7 @@ export const searchCardsPaginatedHandler = async (
           ? cardsById.get(match.cardId)
           : undefined;
         if (
-          match.score >= SEMANTIC_MIN_SCORE &&
+          match.score >= minScore &&
           !(keywordMatch && holdsEveryWord(keywordMatch))
         ) {
           matchedByMeaning.add(match.cardId);
@@ -611,7 +612,7 @@ export const searchCardsPaginatedHandler = async (
       filteredResults = fuseRankings(
         uniqueResults.map((card) => card._id),
         semantic,
-        { mode, limit: SEARCH_PAGE_CANDIDATE_LIMIT }
+        { mode, limit: SEARCH_PAGE_CANDIDATE_LIMIT, minScore }
       ).flatMap((cardId) => cardsById.get(cardId) ?? []);
     }
 

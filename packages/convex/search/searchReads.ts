@@ -11,6 +11,10 @@ import { scanInBatches } from "../card/scanInBatches";
 import { readCardTranscript } from "../card/textContents";
 import { SEARCH_PREFIX_MAX_BYTES } from "../shared/documentText";
 import { buildCardSearchText } from "../shared/search/searchText";
+import {
+  SEMANTIC_FALLBACK_MIN_SCORE,
+  SEMANTIC_MIN_SCORE,
+} from "../shared/search/semantic";
 import { savedAtOf } from "../shared/search/sort";
 import { isCardHidden, isHiddenTagList, tagKey } from "../shared/tags";
 import { cardSiteHost } from "../shared/utils/urlHost";
@@ -457,18 +461,26 @@ export const loadSemanticMatches = async (
   ranking: readonly { cardId: Id<"cards">; score: number }[],
   cardsById: Pick<Map<Id<"cards">, Doc<"cards">>, "has" | "set">,
   options: {
-    minScore: number;
+    /** The search's words matched a card, so weak meaning matches never show. */
+    wordsMatched: boolean;
     keep: (card: Doc<"cards">, searchableText?: string) => boolean;
     withText?: boolean;
     readText?: (card: Doc<"cards">) => Promise<string | undefined>;
   }
-): Promise<{ cardId: Id<"cards">; score: number }[]> => {
+): Promise<{
+  matches: { cardId: Id<"cards">; score: number }[];
+  /** The lowest score a meaning-only match needed. */
+  minScore: number;
+}> => {
   const archived = scopeArchivedMatch(
     cardListScope(args.archived, args.isDeleted === true)
   );
+  const floor = options.wordsMatched
+    ? SEMANTIC_MIN_SCORE
+    : SEMANTIC_FALLBACK_MIN_SCORE;
   const loaded = await Promise.all(
     ranking.map(async (match) => {
-      if (cardsById.has(match.cardId) || match.score < options.minScore) {
+      if (cardsById.has(match.cardId) || match.score < floor) {
         return null;
       }
       const card = await ctx.db.get("cards", match.cardId);
@@ -484,19 +496,26 @@ export const loadSemanticMatches = async (
     (await options.readText?.(card)) ??
     (options.withText ? await readTranscript(card) : undefined);
   const texts = await Promise.all(loaded.map((card) => card && readText(card)));
-  const kept: { cardId: Id<"cards">; score: number }[] = [];
-  for (const [index, match] of ranking.entries()) {
-    if (cardsById.has(match.cardId)) {
-      kept.push(match);
-      continue;
-    }
+  const kept = ranking.flatMap((match, index) => {
     const card = loaded[index];
-    if (card && options.keep(card, texts[index] ?? undefined)) {
+    return card && options.keep(card, texts[index] ?? undefined)
+      ? [{ card, match }]
+      : [];
+  });
+  // Weak matches show only when nothing else would: no word match and no
+  // strong meaning match that passes the search's filters.
+  const minScore = kept.some(({ match }) => match.score >= SEMANTIC_MIN_SCORE)
+    ? SEMANTIC_MIN_SCORE
+    : floor;
+  for (const { card, match } of kept) {
+    if (match.score >= minScore) {
       cardsById.set(card._id, card);
-      kept.push(match);
     }
   }
-  return kept;
+  return {
+    matches: ranking.filter((match) => cardsById.has(match.cardId)),
+    minScore,
+  };
 };
 
 const FILE_TEXT_SEARCH_READ_BUDGET_BYTES = 4 * 1024 * 1024;

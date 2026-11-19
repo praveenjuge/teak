@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, expect, jest, mock, test } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import type { Root } from "react-dom/client";
 
@@ -24,7 +24,11 @@ mock.module("convex/react", () => ({
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
 const { semanticSearchText } = await import("../../lib/cardsSearchState");
-const { useSemanticSearch } = await import("../useSemanticSearch");
+const {
+  SEMANTIC_EMPTY_STATE_WAIT_MS,
+  SEMANTIC_RESULTS_LAND_MS,
+  useSemanticSearch,
+} = await import("../useSemanticSearch");
 
 let root: Root | undefined;
 let pending = false;
@@ -68,13 +72,35 @@ test("asks for meaning matches only when the search has free words", async () =>
   expect(requestSemanticResults).not.toHaveBeenCalled();
   expect(pending).toBe(false);
 
-  await render({ searchQuery: "cozy reading nook" });
-  expect(requestSemanticResults).toHaveBeenCalledWith({
-    searchQuery: "cozy reading nook",
-  });
-  expect(pending).toBe(true);
-  await answer(() => answers[0]?.resolve());
-  expect(pending).toBe(false);
+  jest.useFakeTimers();
+  try {
+    await render({ searchQuery: "cozy reading nook" });
+    expect(requestSemanticResults).toHaveBeenCalledWith({
+      searchQuery: "cozy reading nook",
+    });
+    expect(pending).toBe(true);
+    // A cold meaning search takes about 2 s: the empty state waits for it.
+    await act(() => jest.advanceTimersByTime(2500));
+    expect(pending).toBe(true);
+    await answer(() => answers[0]?.resolve());
+    // The stored ranking reaches the grid's query just after the answer.
+    expect(pending).toBe(true);
+    await act(() => jest.advanceTimersByTime(SEMANTIC_RESULTS_LAND_MS));
+    expect(pending).toBe(false);
+  } finally {
+    jest.useRealTimers();
+  }
+});
+
+test("stops waiting when the action never answers", async () => {
+  jest.useFakeTimers();
+  try {
+    await render({ searchQuery: "cozy reading nook" });
+    await act(() => jest.advanceTimersByTime(SEMANTIC_EMPTY_STATE_WAIT_MS));
+    expect(pending).toBe(false);
+  } finally {
+    jest.useRealTimers();
+  }
 });
 
 test("an older answer does not end a newer search's wait", async () => {

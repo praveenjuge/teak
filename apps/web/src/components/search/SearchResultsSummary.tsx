@@ -24,18 +24,21 @@ export function SearchResultsSummary({
 }: SearchResultsSummaryProps) {
   const t = useTranslations("search.results");
   const locale = useIntlLocale();
+  const matches = hasMore
+    ? t("matchesMore", { count: exactCount.toLocaleString(locale) })
+    : t("matches", { count: exactCount });
+  const related =
+    relatedCount > 0 ? t("related", { count: relatedCount }) : null;
+  let summary = matches;
+  // When no card holds the words, the related ones are the whole answer,
+  // not a footnote to "0 cards match".
+  if (related) {
+    summary = exactCount === 0 ? related : `${matches} · ${related}`;
+  }
   return (
     <div className="mb-3 flex min-h-7 flex-wrap items-center gap-x-2 gap-y-1 text-muted-foreground text-sm">
       <p aria-atomic="true" aria-live="polite" role="status">
-        {hasMore
-          ? t("matchesMore", { count: exactCount.toLocaleString(locale) })
-          : t("matches", { count: exactCount })}
-        {relatedCount > 0 ? (
-          <>
-            {" · "}
-            {t("related", { count: relatedCount })}
-          </>
-        ) : null}
+        {summary}
       </p>
       {relatedCount > 0 ? (
         <Button

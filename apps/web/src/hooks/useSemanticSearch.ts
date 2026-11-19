@@ -4,7 +4,19 @@ import { useAction } from "convex/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { semanticSearchText } from "../lib/cardsSearchState";
 
-export const SEMANTIC_EMPTY_STATE_WAIT_MS = 1500;
+/**
+ * How long a search that found no words waits for its meaning matches before
+ * it shows the empty state: the action gives up on the Core Worker after 5 s
+ * (`GRID_SEMANTIC_TIMEOUT_MS`), so this only caps an action that never
+ * answers. A cold meaning search takes about 2 s; giving up at 1.5 s showed
+ * "Nothing found" before its matches landed.
+ */
+export const SEMANTIC_EMPTY_STATE_WAIT_MS = 6000;
+/**
+ * An action answers without waiting for the grid's query to read the ranking
+ * it stored, so a found ranking gets this long to reach the grid.
+ */
+export const SEMANTIC_RESULTS_LAND_MS = 500;
 
 export type SemanticSearchOutcome =
   | "ok"
@@ -60,20 +72,26 @@ export function useSemanticSearch(args: {
         setPendingFor((current) => (current === request.key ? null : current));
       }
     };
+    let timeout = setTimeout(settle, SEMANTIC_EMPTY_STATE_WAIT_MS);
     const answerWith = (outcome: SemanticSearchOutcome) => {
-      if (live) {
-        setAnswer({ key: request.key, outcome });
+      if (!live) {
+        return;
+      }
+      setAnswer({ key: request.key, outcome });
+      clearTimeout(timeout);
+      if (outcome === "ok") {
+        timeout = setTimeout(settle, SEMANTIC_RESULTS_LAND_MS);
+      } else {
+        settle();
       }
     };
-    const timeout = setTimeout(settle, SEMANTIC_EMPTY_STATE_WAIT_MS);
     requestSemanticResults({
       searchQuery,
       ...(folderId ? { folderId } : {}),
       ...(folderQuery === undefined ? {} : { folderQuery }),
     })
       .then(({ outcome }) => answerWith(outcome))
-      .catch(() => answerWith("unavailable"))
-      .finally(settle);
+      .catch(() => answerWith("unavailable"));
     return () => {
       live = false;
       clearTimeout(timeout);

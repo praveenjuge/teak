@@ -51,7 +51,7 @@ import {
   orderByRelevance,
   type RelevanceScore,
 } from "../shared/search/relevance";
-import { fuseRankings, SEMANTIC_MIN_SCORE } from "../shared/search/semantic";
+import { fuseRankings } from "../shared/search/semantic";
 import { savedAtOf } from "../shared/search/sort";
 import { matchesVisualFilters } from "../shared/search/visualFilters";
 import { tagKey } from "../shared/tags";
@@ -398,13 +398,13 @@ export const searchCardsByQuery = async (
     }
   }
   const cardsById = new Map(unique.map((card) => [card._id, card] as const));
-  const matches = await loadSemanticMatches(
+  const { matches, minScore } = await loadSemanticMatches(
     ctx,
     { ...indexFilters, type: options.type },
     semantic.ranking,
     cardsById,
     {
-      minScore: SEMANTIC_MIN_SCORE,
+      wordsMatched: unique.length > 0,
       keep: (card, searchableText) =>
         matchesStructuredFilters(card, options, searchableText),
       withText: Boolean(options.phrases?.length),
@@ -414,6 +414,7 @@ export const searchCardsByQuery = async (
   const fused = fuseRankings(keywordOrder, matches, {
     mode: semantic.mode,
     limit: MAX_QUERY_SCAN,
+    minScore,
   }).flatMap((cardId) => cardsById.get(cardId) ?? []);
   return {
     cards: options.keepSearchOrder
