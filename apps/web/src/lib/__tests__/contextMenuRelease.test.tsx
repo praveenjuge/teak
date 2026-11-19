@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, describe, expect, mock, spyOn, test } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import type { Root } from "react-dom/client";
 
@@ -20,6 +20,7 @@ const { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } =
 let root: Root | undefined;
 
 afterEach(async () => {
+  mock.restore();
   await act(() => root?.unmount());
   root = undefined;
   document.body.innerHTML = "";
@@ -97,6 +98,8 @@ describe("context menu items ignore the release that opened the menu", () => {
   });
 
   test("a left release in the instant the menu opens (Control-click) runs nothing", async () => {
+    // Opening and releasing share one instant, however long the render takes.
+    spyOn(performance, "now").mockReturnValue(1000);
     const onSelect = mock();
     const item = await openMenu(onSelect);
     await release(item, 0);

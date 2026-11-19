@@ -1,4 +1,11 @@
-import { afterEach, beforeEach, expect, mock, test } from "bun:test";
+import {
+  afterEach,
+  beforeEach,
+  expect,
+  mock,
+  setSystemTime,
+  test,
+} from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import { ConvexError } from "convex/values";
 import type { Root } from "react-dom/client";
@@ -84,19 +91,25 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
+  setSystemTime();
   await act(() => root?.unmount());
   root = undefined;
   document.body.innerHTML = "";
 });
 
 test("a finished change stops adjusting the tag list once its time is up", async () => {
+  // The clock stands still until the overlay's time is up, so a slow render
+  // can't use up the 40 ms it has left.
+  const start = Date.now();
+  setSystemTime(start);
   latest = operation({
     status: "completed",
-    completedAt: Date.now() - TAG_OPERATION_OVERLAY_MS + 40,
+    completedAt: start - TAG_OPERATION_OVERLAY_MS + 40,
   });
   await render();
   expect(hook.latest?._id).toBe("op1");
 
+  setSystemTime(start + 41);
   await act(() => new Promise((resolve) => setTimeout(resolve, 120)));
   expect(hook.latest).toBeNull();
 });
