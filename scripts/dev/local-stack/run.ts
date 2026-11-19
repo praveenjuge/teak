@@ -17,6 +17,8 @@ const ROOT = join(import.meta.dir, "../../..");
 export interface LocalStackOptions {
   /** Watch the backend and seed the dev account, for `bun run dev --local`. */
   dev?: boolean;
+  /** Leaves the web app out, for the native UI tests (see `StackOptions`). */
+  noWeb?: boolean;
   /**
    * Runs once the stack is up, with the environment it runs under; the stack
    * stops when it settles and its result is the exit code. Without it, the
@@ -42,6 +44,7 @@ const dashboardDownloadCrashed = () => {
 /** Starts the stack, runs `whileUp` or waits for it to exit, and stops it. */
 export const runLocalStack = async ({
   dev = false,
+  noWeb = false,
   whileUp,
 }: LocalStackOptions = {}): Promise<number> => {
   const env = localBackendEnv();
@@ -68,6 +71,7 @@ export const runLocalStack = async ({
     echo: false,
     env,
     ports,
+    web: !noWeb,
     ...(dev
       ? {
           beforeReady: (urls: StackUrls) =>
@@ -94,7 +98,7 @@ export const runLocalStack = async ({
   let exitCode = 1;
   try {
     console.log(
-      `${dev ? "Local dev" : "E2E"} stack is up: web ${stack.urls.appOrigin}, API ${stack.urls.apiOrigin}, WorkOS emulator ${stack.urls.emulatorOrigin}. Logs: ${STACK_LOG_PATH}`
+      `${dev ? "Local dev" : "E2E"} stack is up: web ${noWeb ? "not started" : stack.urls.appOrigin}, API ${stack.urls.apiOrigin}, WorkOS emulator ${stack.urls.emulatorOrigin}. Logs: ${STACK_LOG_PATH}`
     );
     if (whileUp) {
       exitCode = await whileUp(env);

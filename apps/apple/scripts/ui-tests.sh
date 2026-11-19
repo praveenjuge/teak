@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Runs the XCUITest flows against this checkout's local E2E stack.
-#   bun run --cwd packages/tests e2e:stack    # in another terminal
+#   bun run --cwd packages/tests e2e:stack --no-web    # in another terminal
 #   apps/apple/scripts/ui-tests.sh ios|ipad|mac [extra xcodebuild args]
 set -euo pipefail
 cd "$(dirname "$0")/.."

@@ -34,6 +34,12 @@ export interface StackOptions {
   env?: NodeJS.ProcessEnv;
   ports: WorktreePorts;
   watch?: boolean;
+  /**
+   * Starts the web app too (the default). The native UI tests leave it out:
+   * they never load it, and on a small CI Mac `next dev` takes CPU and memory
+   * the simulator and the backend need.
+   */
+  web?: boolean;
 }
 
 export interface RunningStack {
@@ -89,6 +95,10 @@ export const startStack = async (
   mkdirSync(dirname(STATE_PATH), { recursive: true });
   const emulator = await startEmulator(ports);
   const env = options.env ?? localBackendEnv();
+  const web = options.web !== false;
+  // `--once` exits after its push unless `--start` keeps it running, so
+  // without the web app `convex dev` stays up by watching instead.
+  const once = web && !options.watch;
   const convex = spawn(
     "bunx",
     [
@@ -100,11 +110,10 @@ export const startStack = async (
       String(ports.convexSite),
       "--typecheck",
       "disable",
-      ...(options.watch ? [] : ["--once"]),
+      ...(once ? ["--once"] : []),
       "--codegen",
       "disable",
-      "--start",
-      "bun run --cwd ../../apps/web dev",
+      ...(web ? ["--start", "bun run --cwd ../../apps/web dev"] : []),
     ],
     {
       cwd: CONVEX_DIR,
@@ -161,7 +170,9 @@ export const startStack = async (
   try {
     await waitFor(`${coreWorker.origin}/__health`, coreWorker.child, 180_000);
     await waitFor(`${urls.apiOrigin}/healthz`, convex, 180_000);
-    await waitFor(urls.appOrigin, convex, 180_000);
+    if (web) {
+      await waitFor(urls.appOrigin, convex, 180_000);
+    }
     await warmBackend(urls.convexUrl);
     Object.assign(state, await options.beforeReady?.(urls));
   } catch (error) {

@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
 // `bun run e2e`: starts this checkout's local stack (scripts/dev/local-stack),
 // warms it up, runs the Chromium and WebKit suites (or the e2e arguments
-// given), and stops it. `bun run e2e:stack` (`stack`) only runs the stack.
+// given), and stops it. `bun run e2e:stack` (`stack`) only runs the stack;
+// `e2e:stack --no-web` leaves out the web app, for the native UI tests.
 import { spawn } from "node:child_process";
 import { join } from "node:path";
 import { runLocalStack } from "@teak/scripts/dev/local-stack/run";
@@ -42,4 +43,10 @@ const suite = async (env: NodeJS.ProcessEnv): Promise<number> => {
   return exitCode;
 };
 
-process.exit(await runLocalStack(stackOnly ? {} : { whileUp: suite }));
+process.exit(
+  await runLocalStack(
+    stackOnly
+      ? { noWeb: process.argv.includes("--no-web") }
+      : { whileUp: suite }
+  )
+);

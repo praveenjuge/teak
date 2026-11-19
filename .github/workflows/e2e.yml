@@ -73,9 +73,11 @@ jobs:
       - run: bun ci
       - name: Select Xcode 27
         run: apps/apple/scripts/select-xcode.sh
+      # Without the web app: the app never loads it, and on this 3-CPU, 7 GB
+      # runner `next dev` starved the simulator and the backend.
       - name: Start the E2E stack
         run: |
-          bun run --cwd packages/tests e2e:stack > "$RUNNER_TEMP/stack.out" 2>&1 &
+          bun run --cwd packages/tests e2e:stack --no-web > "$RUNNER_TEMP/stack.out" 2>&1 &
           if ! bun run dev --status --wait; then
             cat "$RUNNER_TEMP/stack.out"
             exit 1
