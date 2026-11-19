@@ -43,7 +43,7 @@ describe("PinnedStrip", () => {
     ).toBe("");
   });
 
-  test("lists the pinned cards in their order, each draggable, with how to move them", () => {
+  test("lists the pinned cards in their order under a pin badge, each draggable, with how to move them", () => {
     const markup = renderToStaticMarkup(
       <PinnedStrip
         cards={[card("b", 0), card("a", 1), card("c", 2)]}
@@ -52,7 +52,11 @@ describe("PinnedStrip", () => {
         onTogglePin={noop}
       />
     );
-    expect(markup).toContain(">Pinned</h2>");
+    // The heading is for screen readers; a pin badge marks the row.
+    expect(markup).toContain(
+      '<h2 class="sr-only" id="pinned-strip-title">Pinned</h2>'
+    );
+    expect(markup).toMatch(/<span aria-hidden="true"[^>]*data-pinned-badge=""/);
     expect(markup).toContain('aria-label="Pinned cards"');
     const order = [...markup.matchAll(/data-pinned-card-id="([^"]+)"/g)].map(
       (match) => match[1]

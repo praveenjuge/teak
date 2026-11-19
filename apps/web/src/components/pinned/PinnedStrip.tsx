@@ -18,6 +18,7 @@ import type { Doc, Id } from "@teak/convex/_generated/dataModel";
 import { useTranslations } from "@teak/i18n/react";
 import type { KeyboardEvent } from "react";
 import { useMemo, useRef, useState } from "react";
+import { Pin } from "vadivam-react";
 import type {
   CardGridSource,
   GridCardAction,
@@ -163,11 +164,20 @@ export function PinnedStrip({
   }
 
   return (
-    <section aria-labelledby="pinned-strip-title" className="mb-6">
-      <h2
-        className="mb-2 font-medium text-muted-foreground text-sm"
-        id="pinned-strip-title"
+    // A soft panel with a pin badge on its edge marks the row, so its cards
+    // don't each show a pin.
+    <section
+      aria-labelledby="pinned-strip-title"
+      className="relative mt-3 mb-6 rounded-2xl bg-muted/50 px-4 pt-2 pb-0 sm:px-5 sm:pt-3 sm:pb-1 [&_[data-pin-mark]]:hidden"
+    >
+      <span
+        aria-hidden
+        className="absolute -top-3 left-3 flex size-6 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-xs sm:left-4"
+        data-pinned-badge=""
       >
+        <Pin className="size-3" />
+      </span>
+      <h2 className="sr-only" id="pinned-strip-title">
         {t("title")}
       </h2>
       <DndContext
