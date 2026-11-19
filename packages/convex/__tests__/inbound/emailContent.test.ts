@@ -523,9 +523,12 @@ describe("planEmailCards: size", () => {
     const paragraph =
       '<p>Lorem <b>ipsum</b> dolor <a href="https://www.google.com/url?q=https%3A%2F%2Fexample.com%2Fp">sit</a> amet, <i>consectetur</i> adipiscing.</p>';
     const html = `<html><body>${paragraph.repeat(Math.ceil((2 * 1024 * 1024) / paragraph.length))}</body></html>`;
-    const started = performance.now();
+    // CPU time, not wall time: other processes on a busy machine stretch the
+    // wall clock without making the conversion any slower.
+    const started = process.cpuUsage();
     const result = plan({ html, subject: "Perf" });
-    expect(performance.now() - started).toBeLessThan(1000);
+    const { user, system } = process.cpuUsage(started);
+    expect((user + system) / 1000).toBeLessThan(1000);
     expect(validateTextCardContent(markdownOf(result))).toBe(
       markdownOf(result)
     );
