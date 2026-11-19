@@ -2,6 +2,7 @@ package com.praveenjuge.teak
 
 import android.app.Application
 import android.content.Intent
+import android.os.Build
 import androidx.core.content.pm.ShortcutInfoCompat
 import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.core.graphics.drawable.IconCompat
@@ -107,6 +108,11 @@ class TeakApplication : Application(), Configuration.Provider, SingletonImageLoa
     private fun initPostHog() {
         val token = BuildConfig.POSTHOG_TOKEN
         if (token.isBlank()) return
+        // Play's pre-launch test device runs each release on an Android older than minSdk, where R8 has dropped
+        // every API check (SplashScreenView, Configuration.fontWeightAdjustment). Its crashes aren't ones a person
+        // can hit, since Play won't install Teak there, so it reports nothing. The check compares with
+        // applicationInfo, not a constant, so R8 can't drop it too.
+        if (Build.VERSION.SDK_INT < applicationInfo.minSdkVersion) return
         val config = PostHogAndroidConfig(
             projectToken = token,
             host = "https://us.i.posthog.com",

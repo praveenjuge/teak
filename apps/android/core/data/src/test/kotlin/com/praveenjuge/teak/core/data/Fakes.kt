@@ -10,6 +10,11 @@ import com.praveenjuge.teak.core.data.offline.Outbox
 import com.praveenjuge.teak.core.data.offline.OutboxItem
 import com.praveenjuge.teak.core.model.Card
 import com.praveenjuge.teak.core.model.CardFieldChange
+import dev.convex.android.AuthTokenProvider
+import dev.convex.android.ClientException
+import dev.convex.android.MobileConvexClientInterface
+import dev.convex.android.QuerySubscriber
+import dev.convex.android.SubscriptionHandle
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
@@ -53,6 +58,19 @@ class FakeConvexApi : ConvexApi {
         calls += Call(name, args)
         return responses[name]?.invoke(args) ?: JsonNull
     }
+}
+
+/** A native Convex client whose connection has shut down: every call fails with "channel closed". */
+object ClosedChannelClient : MobileConvexClientInterface {
+    private fun closed(): Nothing = throw ClientException.InternalException("channel closed")
+
+    override suspend fun action(name: String, args: Map<String, String>): String = closed()
+    override suspend fun mutation(name: String, args: Map<String, String>): String = closed()
+    override suspend fun query(name: String, args: Map<String, String>): String = closed()
+    override suspend fun setAuth(token: String?) = closed()
+    override suspend fun setAuthCallback(provider: AuthTokenProvider?) = closed()
+    override suspend fun subscribe(name: String, args: Map<String, String>, subscriber: QuerySubscriber): SubscriptionHandle =
+        closed()
 }
 
 class InMemorySessionStore : SessionStore {

@@ -1,8 +1,8 @@
 package com.praveenjuge.teak.core.data.convex
 
+import com.praveenjuge.teak.core.data.ClosedChannelClient
 import com.praveenjuge.teak.core.model.UiText
 import dev.convex.android.AuthTokenProvider
-import dev.convex.android.ClientException
 import dev.convex.android.ConvexClient
 import dev.convex.android.MobileConvexClientInterface
 import dev.convex.android.QuerySubscriber
@@ -42,18 +42,6 @@ class LiveConvexApiTest {
             val failure = assertFailsWith<TeakException> { call() }
             assertEquals(UiText.of("native.errors.generic"), failure.text)
         }
-    }
-
-    private object ClosedChannelClient : MobileConvexClientInterface {
-        private fun closed(): Nothing = throw ClientException.InternalException("channel closed")
-
-        override suspend fun action(name: String, args: Map<String, String>): String = closed()
-        override suspend fun mutation(name: String, args: Map<String, String>): String = closed()
-        override suspend fun query(name: String, args: Map<String, String>): String = closed()
-        override suspend fun setAuth(token: String?) = closed()
-        override suspend fun setAuthCallback(provider: AuthTokenProvider?) = closed()
-        override suspend fun subscribe(name: String, args: Map<String, String>, subscriber: QuerySubscriber): SubscriptionHandle =
-            closed()
     }
 
     @Test

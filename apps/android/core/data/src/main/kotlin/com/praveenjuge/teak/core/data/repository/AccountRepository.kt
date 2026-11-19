@@ -95,8 +95,15 @@ class ConvexAccountRepository @Inject constructor(
         }
         sessions.restore()
         if (sessions.state.value is SessionState.SignedIn) {
-            client.loginFromCache()
+            signInToServer()
         }
+    }
+
+    // The SDK lets the native client's errors out of signing in and out (such as "channel closed" once its
+    // connection has shut down), which would crash the app at launch, sign-in or sign-out. Such a step fails
+    // instead: Teak's own session is unchanged and the server answers as no one, as it does offline.
+    private suspend fun signInToServer() {
+        catchingFailures { client.loginFromCache() }
     }
 
     override suspend fun signInUrl(method: SignInMethod): String {
@@ -107,7 +114,7 @@ class ConvexAccountRepository @Inject constructor(
 
     override suspend fun completeSignIn(code: String?, state: String?, error: String?): SignInOutcome {
         val outcome = sessions.completeSignIn(code, state, error)
-        if (outcome == SignInOutcome.SignedIn) client.loginFromCache()
+        if (outcome == SignInOutcome.SignedIn) signInToServer()
         return outcome
     }
 
@@ -144,7 +151,7 @@ class ConvexAccountRepository @Inject constructor(
         },
         clearSession = {
             sessions.clear()
-            client.logout(context)
+            catchingFailures { client.logout(context) } // see signInToServer
         },
     )
 
