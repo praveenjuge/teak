@@ -5,7 +5,7 @@ A user pins up to 12 cards to keep them in a "Pinned" row above Everything: from
 ## Sub-features
 
 - `pin-toggle` pins and unpins from the grid's right-click and "More actions" menus ("Pin to top P", "Unpin P"), the open card's "More actions" menu, and `P` on a focused or open card. Archived cards and cards in Trash have no pin item, and `P` does nothing there or with cards selected.
-- `pin-strip` shows the region "Pinned" (heading "Pinned", list "Pinned cards") above the grid on Everything, newest pin first. Pinned cards don't appear twice. The row hides for any search, filter, Favorites, Archive, Trash, a folder, or a sort other than Newest; the row is gone with no pins.
+- `pin-strip` shows the region "Pinned" (heading "Pinned", list "Pinned cards") above the grid on Everything, newest pin first. Pinned cards don't appear twice. Every card in the row is one tile of the same height (168 px): images, videos and link previews crop to it, and a link has no name line under its tile. The row hides for any search, filter, Favorites, Archive, Trash, a folder, or a sort other than Newest; the row is gone with no pins.
 - `pin-mark` shows a pin ("Pinned") in a pinned card's corner, beside the heart when it is also a favorite.
 - `pin-reorder` moves a card in the row by dragging the card itself (a short move first, so a click still opens it; on touch, a press-and-hold, so a swipe still scrolls the row), or with `Alt+←` / `Alt+→` on a focused pinned card, which keeps focus on it and says "Moved to position N of M." The order survives a reload, and the `?` sheet lists "Move a pinned card left or right".
 - `pin-limit` refuses a 13th pin with the toast "You can pin up to 12 cards. Unpin one first." and pins nothing.

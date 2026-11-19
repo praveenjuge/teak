@@ -126,7 +126,10 @@ export function LinkCardBody({
           {priceLabel ? <span className={CARD_BADGE}>{priceLabel}</span> : null}
         </div>
       )}
-      <div className="mt-2.5 flex min-w-0 items-center gap-2 px-0.5">
+      <div
+        className="mt-2.5 flex min-w-0 items-center gap-2 px-0.5"
+        data-link-name=""
+      >
         {hostname ? (
           <SiteFavicon className="size-4 rounded" hostname={hostname} />
         ) : null}

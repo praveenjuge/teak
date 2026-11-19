@@ -17,10 +17,17 @@ const CARD_RINGS =
 export const CARD_SURFACE = `rounded-2xl border border-border/80 bg-card ${HOVER_LIFT} ${CARD_RINGS} group-hover/card:border-foreground/15`;
 
 /**
+ * A row that sets --card-tile-height, such as the pinned row, gives every
+ * tile and picture that one height; elsewhere it is unset and they keep
+ * their shape.
+ */
+const ROW_HEIGHT = "h-(--card-tile-height)";
+
+/**
  * Every card that isn't an image or a video is a tile of this one shape, so
  * the grid reads as rows of equal cards with media between them.
  */
-export const CARD_TILE = `relative aspect-[4/3] w-full overflow-hidden ${CARD_SURFACE}`;
+export const CARD_TILE = `relative aspect-[4/3] w-full overflow-hidden ${ROW_HEIGHT} ${CARD_SURFACE}`;
 
 /**
  * A tile of words. In the grid a 4:3 tile leaves a short note mostly empty,
@@ -29,7 +36,7 @@ export const CARD_TILE = `relative aspect-[4/3] w-full overflow-hidden ${CARD_SU
 export const TEXT_TILE = `${CARD_TILE} card-grid:aspect-auto card-grid:min-h-28`;
 
 /** Images and videos have no frame: the picture is the card. */
-export const MEDIA_SURFACE = `relative w-full overflow-hidden rounded-2xl bg-muted outline-1 outline-black/5 -outline-offset-1 dark:outline-white/10 ${HOVER_LIFT} ${CARD_RINGS}`;
+export const MEDIA_SURFACE = `relative w-full overflow-hidden ${ROW_HEIGHT} rounded-2xl bg-muted outline-1 outline-black/5 -outline-offset-1 dark:outline-white/10 ${HOVER_LIFT} ${CARD_RINGS}`;
 
 /** Price, duration and file type all sit in this pill, bottom left. */
 export const CARD_BADGE =
