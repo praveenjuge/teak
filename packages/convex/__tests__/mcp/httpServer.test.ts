@@ -1,10 +1,11 @@
-import { describe, expect, mock, test } from "bun:test";
+import { describe, expect, mock, spyOn, test } from "bun:test";
 import { ConvexError } from "convex/values";
 import { TEAK_V1_TOOLS } from "../../mcp/catalog";
 import {
   handleMcpV1Request,
   handleOauthProtectedResourceV1Request,
 } from "../../mcp/httpServer";
+import * as posthog from "../../telemetry/posthog";
 import { mockActionCtx } from "../helpers/convex.test-utils";
 import {
   AUTHKIT_DOMAIN,
@@ -414,6 +415,30 @@ describe("Convex MCP endpoint", () => {
     expect(response.status).toBe(202);
     expect(await response.text()).toBe("");
     expect(runQuery).not.toHaveBeenCalled();
+  });
+
+  test("records each tool call as the token's owner", async () => {
+    const capture = spyOn(posthog, "captureBackendEvent").mockResolvedValue(
+      undefined
+    );
+    try {
+      await handleMcpV1Request(
+        authorizedCtx(),
+        mcpRequest({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/call",
+          params: { name: "teak_v1_get_card", arguments: { cardId: "c1" } },
+        })
+      );
+      expect(capture).toHaveBeenCalledWith(
+        "mcp_tool_called",
+        "user_1",
+        expect.objectContaining({ tool: "teak_v1_get_card" })
+      );
+    } finally {
+      capture.mockRestore();
+    }
   });
 
   test("answers a request under notifications/ that has an id", async () => {

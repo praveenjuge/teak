@@ -87,6 +87,8 @@ interface InitialFacts {
   /** The link's stored category, for a metadata-only run's podcast check. */
   linkCategory?: string;
   rev: number;
+  /** The owner, for analytics. Optional: a run already past this step stored none. */
+  userId?: string;
 }
 
 export type CardProcessingResult =
@@ -205,6 +207,7 @@ const processCard = async (
           ? { linkCategory: card.metadata.linkCategory.category }
           : {}),
         rev: card.processingRev ?? 0,
+        userId: card.userId,
       };
     }
   );
@@ -411,6 +414,7 @@ const processCard = async (
         ...(metadata.aiLanguage ? { aiLanguage: metadata.aiLanguage } : {}),
         cardType,
         durationMs: Math.max(0, Date.now() - initial.creationTime),
+        ...(initial.userId ? { userId: initial.userId } : {}),
       });
       return null;
     })

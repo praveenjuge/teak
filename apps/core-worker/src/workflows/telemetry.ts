@@ -2,6 +2,7 @@ import type { ServerEventCatalog } from "@teak/convex/shared/analytics";
 import type { PostHogBatch } from "@teak/convex/shared/posthog";
 import { filesOpErrorCode, isTransientFilesOpCode } from "@teak/files-protocol";
 import { estimateWorkersAiCostUsd } from "../ai/aiPricing";
+import { currentAiUsageContext } from "../ai/aiUsage";
 import { errorMessage } from "../errors";
 import {
   createWorkerBatch,
@@ -19,9 +20,11 @@ export const WORKERS_AI_PROVIDER = "cloudflare";
 
 export interface WorkflowTelemetry {
   flush: () => Promise<void>;
+  /** `distinctId` is the card's owner, the Teak user id people are identified by. */
   record: <Name extends "$ai_generation" | "card_processing_completed">(
     event: Name,
-    properties: ServerEventCatalog[Name]
+    properties: ServerEventCatalog[Name],
+    distinctId: string | undefined
   ) => void;
 }
 
@@ -34,8 +37,12 @@ export const createWorkflowTelemetry = (
     flush: async () => {
       await batch.flush();
     },
-    record: (event, properties) => {
-      batch.capture({ event, properties: workerEventProperties(properties) });
+    record: (event, properties, distinctId) => {
+      batch.capture({
+        distinctId,
+        event,
+        properties: workerEventProperties(properties),
+      });
     },
   };
 };
@@ -69,24 +76,29 @@ export const observeAiGeneration = async <T>(
 ): Promise<T> => {
   const startedAt = Date.now();
   const record = (usage: AiUsage | undefined, error?: unknown) =>
-    telemetry.record("$ai_generation", {
-      ...(error === undefined
-        ? {}
-        : { $ai_error: error instanceof Error ? error.name : "Error" }),
-      $ai_input_tokens: usage?.inputTokens,
-      $ai_is_error: error !== undefined,
-      $ai_latency: (Date.now() - startedAt) / 1000,
-      $ai_model: input.model,
-      $ai_output_tokens: usage?.outputTokens,
-      $ai_provider: WORKERS_AI_PROVIDER,
-      $ai_span_name: input.functionId,
-      $ai_total_cost_usd: estimateWorkersAiCostUsd({
-        inputTokens: usage?.inputTokens,
-        model: input.model,
-        outputTokens: usage?.outputTokens,
-      }),
-      ...(input.traceId ? { $ai_trace_id: input.traceId } : {}),
-    });
+    telemetry.record(
+      "$ai_generation",
+      {
+        ...(error === undefined
+          ? {}
+          : { $ai_error: error instanceof Error ? error.name : "Error" }),
+        $ai_input_tokens: usage?.inputTokens,
+        $ai_is_error: error !== undefined,
+        $ai_latency: (Date.now() - startedAt) / 1000,
+        $ai_model: input.model,
+        $ai_output_tokens: usage?.outputTokens,
+        $ai_provider: WORKERS_AI_PROVIDER,
+        $ai_span_name: input.functionId,
+        $ai_total_cost_usd: estimateWorkersAiCostUsd({
+          inputTokens: usage?.inputTokens,
+          model: input.model,
+          outputTokens: usage?.outputTokens,
+        }),
+        ...(input.traceId ? { $ai_trace_id: input.traceId } : {}),
+      },
+      // Every AI call runs inside the owner's AI usage context.
+      currentAiUsageContext()?.userId
+    );
   try {
     const result = await generate();
     record(usageOf(result));
@@ -104,14 +116,25 @@ export const observeAiGeneration = async <T>(
 
 export const emitCardProcessingCompleted = (
   env: TelemetryEnvVars,
-  properties: { aiLanguage?: string; cardType: string; durationMs: number }
+  properties: {
+    aiLanguage?: string;
+    cardType: string;
+    durationMs: number;
+    userId?: string;
+  }
 ): Promise<void> =>
   withWorkflowTelemetry(env, (telemetry) => {
-    telemetry.record("card_processing_completed", {
-      ...(properties.aiLanguage ? { ai_language: properties.aiLanguage } : {}),
-      card_type: properties.cardType,
-      duration_ms: properties.durationMs,
-    });
+    telemetry.record(
+      "card_processing_completed",
+      {
+        ...(properties.aiLanguage
+          ? { ai_language: properties.aiLanguage }
+          : {}),
+        card_type: properties.cardType,
+        duration_ms: properties.durationMs,
+      },
+      properties.userId
+    );
     return Promise.resolve();
   });
 

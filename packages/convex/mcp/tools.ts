@@ -270,7 +270,8 @@ export const callTeakV1Tool = async (
   name: string,
   input: unknown,
   request: Request,
-  executor: PublicApiToolExecutor
+  executor: PublicApiToolExecutor,
+  ownerId?: string
 ): Promise<McpToolResult> => {
   const tool = findTeakTool(name);
   if (!tool) {
@@ -298,7 +299,7 @@ export const callTeakV1Tool = async (
     outcome = "error";
     throw error;
   } finally {
-    await captureBackendEvent("mcp_tool_called", undefined, {
+    await captureBackendEvent("mcp_tool_called", ownerId, {
       duration_ms: Date.now() - start,
       outcome,
       status,

@@ -36,6 +36,7 @@ final class AppModel {
     @ObservationIgnored private var tasks: [Task<Void, Never>] = []
     @ObservationIgnored private var authenticateTask: Task<Void, Never>?
     @ObservationIgnored private var tokenTask: Task<Void, Never>?
+    @ObservationIgnored private var identifyTask: Task<Void, Never>?
     @ObservationIgnored private let pathMonitor = NWPathMonitor()
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored var onSignedOut: (() -> Void)?
@@ -127,12 +128,10 @@ final class AppModel {
         for await state in await session.states() {
             let previous = user
             user = state.user
-            if let old = previous?.teakUserId, old != state.user?.teakUserId {
-                PostHogReporting.reset()
-            }
-            if let next = state.user, let teakUserId = next.teakUserId,
-               teakUserId != previous?.teakUserId || next.email != previous?.email {
-                PostHogReporting.identify(teakUserId: teakUserId, email: next.email)
+            if previous?.id != state.user?.id {
+                if previous != nil { PostHogReporting.reset() }
+                identifyTask?.cancel()
+                identifyTask = state.user == nil ? nil : Task { await self.identifyAnalyticsUser() }
             }
             // Not awaited: emptying Spotlight can take many seconds, and the
             // next state (a sign-in) must not wait behind it.
@@ -143,6 +142,22 @@ final class AppModel {
                 onSignedOut?()
                 await backend.logout()
             }
+        }
+    }
+
+    /// Identifies analytics with the Teak user id Convex resolves for this
+    /// session, as the web app does. The session's `teakUserId` is WorkOS's
+    /// `external_id`, which accounts created since the move to WorkOS don't have.
+    private func identifyAnalyticsUser() async {
+        while !Task.isCancelled {
+            do {
+                for try await current in backend.subscribe(ConvexFunctions.getCurrentUser) {
+                    guard let current else { continue }
+                    PostHogReporting.identify(teakUserId: current.id, email: current.email)
+                    return
+                }
+            } catch {}
+            try? await Task.sleep(for: .seconds(3))
         }
     }
 

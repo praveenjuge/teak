@@ -1,6 +1,6 @@
 # Analytics and error reporting
 
-Last reviewed: 2026-11-01
+Last reviewed: 2026-11-19
 
 Teak sends product analytics, error reports, web session replays, feedback and AI cost to one PostHog project. Read this before adding an event, a surface, or an env var.
 
@@ -8,7 +8,7 @@ Teak sends product analytics, error reports, web session replays, feedback and A
 
 - PostHog project **Teak** (id `660923`) in the **Teak** organization, US Cloud: <https://us.posthog.com/project/660923>
 - Public project token: `phc_nMZjok7SyRwAJVbk34ifkYukb3vzhLBx89WQLju89yBn`. It is public (it ships in client bundles), but only production builds use it, so development, preview, CI and test builds send nothing. Self-hosted deployments never use it: `scripts/repo/teak-posthog-token.test.ts` fails if it appears outside the production `wrangler.jsonc`, its generated types and this guide.
-- People are identified by the canonical Teak user id (`teak_…`): `getAuthUser._id` on web, the WorkOS `external_id` on Apple and Android, `userId` on the backend. Person properties: `email`, `plan` (`free` or `pro`), `signed_up_at`, and `locale` (the account's UI language, set by the web app).
+- People are identified by the canonical Teak user id, the owner row's `teakUserId`: `teak_…` for accounts made since the move to WorkOS, and the older Convex id (`k97…`) for accounts made before it, which keep it. Every surface sends that same id: `getAuthUser._id` on web, `auth:getCurrentUser._id` on Apple and Android (not the WorkOS `external_id`, which newer accounts don't have), the card's or caller's `userId` on the backend, MCP and the Core Worker (card processing's `$ai_generation` and `card_processing_completed`). Only events with no owner, such as an uncaught Worker error, go to `teak-anonymous`. Person properties: `email`, `plan` (`free` or `pro`), `signed_up_at`, and `locale` (the account's UI language, set by the web app).
 - Test accounts (cohort "Internal / Test users", and email containing `e2e-`) are excluded by default in every insight.
 
 ## Surfaces

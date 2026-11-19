@@ -188,7 +188,8 @@ const handleJsonRpcMessage = async (
             authorized,
             origin: new URL(request.url).origin,
             resource: "mcp",
-          })
+          }),
+        authorized?.validated.userId
       );
       return jsonRpcResponse(rpc.id, result);
     } catch (error) {

@@ -1,9 +1,12 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { NonRetryableError } from "cloudflare:workflows";
+import { runWithAiUsage } from "../ai/aiUsage";
 import {
   emitCardProcessingCompleted,
   isRetryableBackgroundError,
+  observeAiGeneration,
   reportedStep,
+  withWorkflowTelemetry,
 } from "./telemetry";
 
 const originalFetch = globalThis.fetch;
@@ -12,8 +15,11 @@ afterEach(() => {
 });
 
 const capturePostHog = () => {
-  const events: Array<{ event: string; properties: Record<string, unknown> }> =
-    [];
+  const events: Array<{
+    distinct_id: string;
+    event: string;
+    properties: Record<string, unknown>;
+  }> = [];
   globalThis.fetch = ((_url: RequestInfo | URL, init?: RequestInit) => {
     events.push(...JSON.parse(String(init?.body)).batch);
     return Promise.resolve(Response.json({ status: 1 }));
@@ -62,10 +68,47 @@ describe("card processing completion", () => {
     ]);
   });
 
+  test("sends it as the card's owner", async () => {
+    const events = capturePostHog();
+    await emitCardProcessingCompleted(ENV, {
+      cardType: "link",
+      durationMs: 1,
+      userId: "teak_owner",
+    });
+    expect(events[0]?.distinct_id).toBe("teak_owner");
+    expect(events[0]?.properties.$process_person_profile).toBeUndefined();
+  });
+
   test("sends nothing without a project token", async () => {
     const events = capturePostHog();
     await emitCardProcessingCompleted({}, { cardType: "text", durationMs: 1 });
     expect(events).toEqual([]);
+  });
+});
+
+describe("AI generations", () => {
+  const generate = () =>
+    withWorkflowTelemetry(ENV, (telemetry) =>
+      observeAiGeneration(
+        telemetry,
+        { functionId: "teak.ai.metadata", model: "m" },
+        () => Promise.resolve({ usage: { inputTokens: 3, outputTokens: 2 } })
+      )
+    );
+
+  test("are sent as the owner whose AI usage they run under", async () => {
+    const events = capturePostHog();
+    await runWithAiUsage(
+      { convexSiteUrl: "https://example.convex.site", userId: "k97legacy" },
+      generate
+    );
+    await generate();
+    expect(
+      events.map(({ distinct_id, event }) => ({ distinct_id, event }))
+    ).toEqual([
+      { distinct_id: "k97legacy", event: "$ai_generation" },
+      { distinct_id: "teak-anonymous", event: "$ai_generation" },
+    ]);
   });
 });
 

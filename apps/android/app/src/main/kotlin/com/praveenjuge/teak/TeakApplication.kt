@@ -21,7 +21,6 @@ import com.posthog.android.PostHogAndroid
 import com.posthog.android.PostHogAndroidConfig
 import com.praveenjuge.teak.core.data.auth.SessionState
 import com.praveenjuge.teak.core.data.catchingFailures
-import com.praveenjuge.teak.core.data.auth.SessionUser
 import com.praveenjuge.teak.core.data.di.ApplicationScope
 import com.praveenjuge.teak.core.data.repository.AccountRepository
 import com.praveenjuge.teak.core.data.repository.LanguageRepository
@@ -33,7 +32,13 @@ import com.praveenjuge.teak.offline.SuccessfulResponsesOnly
 import com.praveenjuge.teak.offline.TilePrefetchWorker
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import java.util.Optional
@@ -128,23 +133,27 @@ class TeakApplication : Application(), Configuration.Provider, SingletonImageLoa
             errorTrackingConfig.autoCapture = true
         }
         PostHogAndroid.setup(this, config)
-        scope.launch { account.session.collect { identify(it) } }
+        scope.launch {
+            account.session
+                .filter { it != SessionState.Loading }
+                .map { (it as? SessionState.SignedIn)?.user?.id }
+                .distinctUntilChanged()
+                .collectLatest { workosUserId -> identify(workosUserId) }
+        }
     }
 
-    private var identified: SessionUser? = null
+    private var signedInAs: String? = null
 
-    private fun identify(state: SessionState) {
-        val user = when (state) {
-            SessionState.Loading -> return
-            SessionState.SignedOut -> null
-            is SessionState.SignedIn -> state.user
-        }
-        val previous = identified
-        identified = user
-        val teakUserId = user?.teakUserId
-        if (previous?.teakUserId != null && previous.teakUserId != teakUserId) PostHog.reset()
-        if (user != null && teakUserId != null && (teakUserId != previous?.teakUserId || user.email != previous.email)) {
-            PostHog.identify(teakUserId, userProperties = mapOf("email" to user.email))
-        }
+    /**
+     * Identifies analytics with the Teak user id Convex resolves for the session, as the web app
+     * does. The session's `teakUserId` is WorkOS's `external_id`, which accounts created since the
+     * move to WorkOS don't have.
+     */
+    private suspend fun identify(workosUserId: String?) {
+        if (signedInAs != null) PostHog.reset()
+        signedInAs = workosUserId
+        if (workosUserId == null) return
+        val user = account.currentUser.mapNotNull { it.getOrNull() }.firstOrNull() ?: return
+        PostHog.identify(user.id, userProperties = mapOf("email" to user.email))
     }
 }
