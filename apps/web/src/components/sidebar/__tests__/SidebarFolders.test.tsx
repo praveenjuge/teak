@@ -60,6 +60,7 @@ const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
 const { SidebarProvider } = await import("../../ui/sidebar");
 const { SidebarFolders } = await import("../SidebarFolders");
+const { FolderNameDialog } = await import("../../lazyDialogs");
 
 const Link = ({
   children,
@@ -161,6 +162,9 @@ const startNewFolder = async () => {
   );
   await act(async () => {
     add?.click();
+    // The dialog's code loads on first open, which can take longer than any
+    // fixed wait under load, so wait for that load itself.
+    await FolderNameDialog.preload();
     await new Promise((resolve) => setTimeout(resolve, 50));
   });
 };
