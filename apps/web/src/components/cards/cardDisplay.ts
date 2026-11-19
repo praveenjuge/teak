@@ -22,6 +22,12 @@ export const CARD_SURFACE = `rounded-2xl border border-border/80 bg-card ${HOVER
  */
 export const CARD_TILE = `relative aspect-[4/3] w-full overflow-hidden ${CARD_SURFACE}`;
 
+/**
+ * A tile of words. In the grid a 4:3 tile leaves a short note mostly empty,
+ * so there it is as tall as its clamped text.
+ */
+export const TEXT_TILE = `${CARD_TILE} card-grid:aspect-auto card-grid:min-h-28`;
+
 /** Images and videos have no frame: the picture is the card. */
 export const MEDIA_SURFACE = `relative w-full overflow-hidden rounded-2xl bg-muted outline-1 outline-black/5 -outline-offset-1 dark:outline-white/10 ${HOVER_LIFT} ${CARD_RINGS}`;
 

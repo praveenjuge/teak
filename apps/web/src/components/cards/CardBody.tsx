@@ -10,6 +10,7 @@ import {
   quoteSizeClass,
   readableTextOn,
   splitNotePreview,
+  TEXT_TILE,
 } from "./cardDisplay";
 import {
   AudioCardBody,
@@ -85,7 +86,7 @@ function TextCardBody({ card, textInsets }: TextBodyProps) {
   const t = useTranslations("cards.body");
   if (!(headingText || bodyText)) {
     return (
-      <div className={cn(CARD_TILE, "flex flex-col p-4", textInsets)}>
+      <div className={cn(TEXT_TILE, "flex flex-col p-4", textInsets)}>
         <p className="flex flex-1 items-center justify-center text-muted-foreground italic">
           {t("emptyNote")}
         </p>
@@ -95,7 +96,7 @@ function TextCardBody({ card, textInsets }: TextBodyProps) {
   }
   const isShort = !headingText && (bodyText?.length ?? 0) <= SHORT_NOTE;
   return (
-    <div className={cn(CARD_TILE, "flex flex-col p-4 pb-3", textInsets)}>
+    <div className={cn(TEXT_TILE, "flex flex-col p-4 pb-3", textInsets)}>
       {isShort ? (
         <p
           className="flex flex-1 items-center text-balance break-words font-semibold text-lg leading-snug tracking-[-0.01em]"
@@ -104,10 +105,10 @@ function TextCardBody({ card, textInsets }: TextBodyProps) {
           {bodyText}
         </p>
       ) : (
-        <div className="min-h-0 flex-1 space-y-1.5 overflow-hidden [mask-image:linear-gradient(to_bottom,#000_55%,transparent_92%)]">
+        <div className="min-h-0 flex-1 space-y-1.5 overflow-hidden [mask-image:linear-gradient(to_bottom,#000_55%,transparent_92%)] card-grid:[mask-image:none]">
           {headingText ? (
             <p
-              className="break-words font-semibold text-[15px] leading-snug"
+              className="card-grid:line-clamp-2 break-words font-semibold text-[15px] leading-snug"
               dir="auto"
             >
               {headingText}
@@ -115,7 +116,7 @@ function TextCardBody({ card, textInsets }: TextBodyProps) {
           ) : null}
           <p
             className={cn(
-              "whitespace-pre-line break-words text-[13.5px] leading-relaxed",
+              "card-grid:line-clamp-6 whitespace-pre-line break-words text-[13.5px] leading-relaxed",
               headingText ? "text-muted-foreground" : "font-medium"
             )}
             dir="auto"
@@ -146,7 +147,7 @@ function QuoteCardBody({ card, textInsets }: TextBodyProps) {
   return (
     <figure
       className={cn(
-        CARD_TILE,
+        TEXT_TILE,
         "m-0 flex flex-col justify-center px-4 pt-4 pb-3",
         textInsets
       )}
@@ -205,7 +206,7 @@ function PaletteCardBody({ colors }: { colors: Array<{ hex: string }> }) {
 
 function PlainCardBody({ card, textInsets }: TextBodyProps) {
   return (
-    <div className={cn(CARD_TILE, "p-4", textInsets)}>
+    <div className={cn(TEXT_TILE, "p-4", textInsets)}>
       <p className="line-clamp-5 break-words font-medium" dir="auto">
         {markdownToPlainText(card.content) || card.fileMetadata?.fileName}
       </p>

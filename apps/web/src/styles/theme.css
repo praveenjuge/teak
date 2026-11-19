@@ -59,6 +59,8 @@
 }
 
 @custom-variant dark (&:is(.dark *));
+/* A card in the main grid, not the Pinned strip. */
+@custom-variant card-grid (:where([data-slot="card-grid"]) &);
 
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);

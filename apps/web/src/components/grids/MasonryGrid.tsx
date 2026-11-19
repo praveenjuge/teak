@@ -868,6 +868,7 @@ export const MasonryGrid = memo(function MasonryGrid({
       {/* biome-ignore lint/a11y/noStaticElementInteractions: as above */}
       <div
         className={firstPaint ? "relative" : undefined}
+        data-slot="card-grid"
         onFocus={handleGridFocus}
         onKeyDown={handleGridKeyDown}
         ref={gridRef}

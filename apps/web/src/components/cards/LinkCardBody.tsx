@@ -2,18 +2,24 @@ import { doneActionLabel } from "@teak/convex/shared/linkCategories";
 import { formatLinkPrice, isLinkPrice } from "@teak/convex/shared/price";
 import { urlHostForDisplay } from "@teak/convex/shared/utils/urlHost";
 import { useTranslations } from "@teak/i18n/react";
+import type { CSSProperties } from "react";
 import { CircleCheck } from "vadivam-react";
 import { cn } from "../../lib/utils";
 import { ResilientMediaImage, SiteFavicon } from "../media";
-import { CARD_BADGE, CARD_TILE } from "./cardDisplay";
+import {
+  CARD_BADGE,
+  CARD_TILE,
+  mediaAspectRatio,
+  TEXT_TILE,
+} from "./cardDisplay";
 import type { LinkCardImage } from "./linkCardImage";
 import type { CardWithUrls } from "./types";
 
 const URL_SCHEME_REGEX = /^https?:\/\/(www\.)?/;
 
 /**
- * A page screenshot or banner much wider than the tile keeps its top left,
- * where a page's name and heading start, instead of losing both edges.
+ * A picture much wider than its tile, such as an OG image, stays centered;
+ * a taller one, such as a page screenshot, keeps its top.
  */
 const WIDE_IMAGE = 1.4;
 const isWide = ({ size }: LinkCardImage) =>
@@ -55,13 +61,24 @@ export function LinkCardBody({
   return (
     <div>
       {image ? (
-        <div className={CARD_TILE}>
+        <div
+          className={cn(CARD_TILE, "card-grid:aspect-(--link-image-ratio)")}
+          style={
+            {
+              "--link-image-ratio": mediaAspectRatio(
+                image.size?.width,
+                image.size?.height,
+                4 / 3
+              ),
+            } as CSSProperties
+          }
+        >
           <ResilientMediaImage
             alt={title}
             cardId={card._id}
             className={cn(
               "h-full w-full object-cover",
-              isWide(image) ? "object-left-top" : "object-top"
+              isWide(image) ? "object-center" : "object-top"
             )}
             decoding="async"
             fetchPriority={isPriority ? "high" : undefined}
@@ -75,8 +92,8 @@ export function LinkCardBody({
       ) : (
         <div
           className={cn(
-            CARD_TILE,
-            "flex flex-col p-4",
+            TEXT_TILE,
+            "flex flex-col card-grid:gap-3 p-4",
             priceLabel && "pb-11",
             textInsets
           )}
