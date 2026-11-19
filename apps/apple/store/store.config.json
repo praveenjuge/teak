@@ -35,6 +35,6 @@
     "promotionalText": "Your library of ideas, now a native app for iPhone and iPad. Save from any app or from Safari in a tap, and find anything again in seconds.",
     "supportUrl": "https://teakvault.com/docs",
     "marketingUrl": "https://teakvault.com",
-    "whatsNew": "Quicker capture on the Mac, and search that understands everyday words.\n\n• On Mac, New Note (⌘N) opens the small Quick Capture window, and Voice Memo (⇧⌘R) records in a small window that stays on top\n• Search understands words like note, pdf and photo, so \"pdf\" shows your documents\n• Search is:pinned to find the cards you pinned on the web\n• On Mac, Upgrade and Manage open your plan directly"
+    "whatsNew": "Notes that read properly, and steadier cards everywhere.\n\n• Italic, inline code and code blocks show correctly in notes, and very long notes no longer appear blank\n• Revisit sizes each card to fit, so the last line of a note or link isn't cut off\n• Link cards show international site names as they're written\n• Mark as done stays in the bar on iPhone link cards\n• A wider iPad sidebar, so folder names fit\n• Typing qualifiers like is:todo in search no longer gets capitalized"
   }
 }
