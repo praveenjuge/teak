@@ -1,13 +1,14 @@
-export const TEXT_METADATA_MODEL_ID = "@cf/qwen/qwen3-30b-a3b-fp8" as const;
+export const TEXT_METADATA_MODEL_ID = "@cf/google/gemma-4-26b-a4b-it" as const;
 export const MAX_AI_METADATA_INPUT_CHARS = 6000;
 export const MAX_AI_METADATA_OUTPUT_TOKENS = 768;
 export const MAX_AI_METADATA_VALIDATION_RETRIES = 2;
 /**
  * The version of the AI tags and summary prompts (text, link and image).
  * Card processing records it beside the language it got, so a prompt change
- * can be measured. 2: tags and summary in the content's language.
+ * can be measured. 2: tags and summary in the content's language. 3: Gemma 4
+ * instead of Qwen3, which Workers AI retired on 2026-11-20.
  */
-export const AI_METADATA_PROMPT_VERSION = 2;
+export const AI_METADATA_PROMPT_VERSION = 3;
 /**
  * The language rules every AI tags and summary prompt shares. Hidden tags
  * stay English by design: only `secret` and `hidden` hide a card.
@@ -20,7 +21,7 @@ ${SHARED_LANGUAGE_RULES}
 export const IMAGE_LANGUAGE_RULES = `- Write the tags and the summary in the language of the text in the image. If the text mixes languages, use the main one. If the image has no legible text, use English.
 ${SHARED_LANGUAGE_RULES}
 - Language is the main language of the text in the image as a lowercase ISO 639-1 code, such as "en", "ja" or "es", and "en" when it has no legible text.`;
-export const TEXT_ANALYSIS_SYSTEM_PROMPT = `You are an expert content analyzer. Generate relevant tags and a concise summary for the given content. /no_think
+export const TEXT_ANALYSIS_SYSTEM_PROMPT = `You are an expert content analyzer. Generate relevant tags and a concise summary for the given content.
 
 Guidelines:
 - Tags should be 5-6 specific, relevant single words only (no spaces, no hyphens)
@@ -31,7 +32,7 @@ ${CONTENT_LANGUAGE_RULES}
 
 Respond with a single JSON object using exactly this shape and no other keys:
 {"tags": ["word", "word"], "summary": "...", "language": "xx"}`;
-export const LINK_ANALYSIS_SYSTEM_PROMPT = `You are an expert web content analyzer. Generate relevant tags and a concise summary for the given web page content. /no_think
+export const LINK_ANALYSIS_SYSTEM_PROMPT = `You are an expert web content analyzer. Generate relevant tags and a concise summary for the given web page content.
 
 Guidelines:
 - Tags should be 5-6 single words capturing main topics, categories, and key concepts (no spaces, no hyphens)

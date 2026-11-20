@@ -17,12 +17,12 @@ const env = (run: NonNullable<FilesOpsEnv["AI"]>["run"]): FilesOpsEnv => ({
 
 describe("signed text/link metadata", () => {
   test.each(["generate-text-metadata", "generate-link-metadata"])(
-    "%s runs Qwen and returns only validated metadata",
+    "%s runs Gemma 4 without thinking and returns only validated metadata",
     async (op) => {
       const run = mock((model: string, args: Record<string, unknown>) => {
         expect(model).toBe(TEXT_METADATA_MODEL_ID);
         expect(args.max_tokens).toBe(768);
-        expect(JSON.stringify(args.messages)).toContain("/no_think");
+        expect(args.chat_template_kwargs).toEqual({ enable_thinking: false });
         return Promise.resolve({
           choices: [
             {

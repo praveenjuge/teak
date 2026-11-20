@@ -215,14 +215,16 @@ const embed = async (env: FilesOpsEnv, texts: string[]) => {
   const response = await runWorkersAi(env, {
     capacityRetries: 0,
     functionId: "teak.ai.embedding",
-    input: { text: texts },
+    input: { input: texts },
     model: CARD_EMBEDDING_MODEL,
   });
   const data = (response as { data?: unknown } | null)?.data;
+  const vectors = Array.isArray(data)
+    ? data.map((item) => (item as { embedding?: unknown } | null)?.embedding)
+    : [];
   if (
-    !Array.isArray(data) ||
-    data.length !== texts.length ||
-    !data.every(
+    vectors.length !== texts.length ||
+    !vectors.every(
       (vector) =>
         Array.isArray(vector) &&
         vector.length === CARD_EMBEDDING_DIMENSIONS &&
@@ -231,7 +233,7 @@ const embed = async (env: FilesOpsEnv, texts: string[]) => {
   ) {
     throw new Error("embedding_output_invalid");
   }
-  return data as number[][];
+  return vectors as number[][];
 };
 
 export const embedUpsert = async (

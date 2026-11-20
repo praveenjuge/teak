@@ -97,10 +97,14 @@ export default class FakeWorkersAi extends WorkerEntrypoint {
       return { text: "A short spoken note recorded for the local test." };
     }
     if (model.includes("bge") || model.includes("embedding")) {
-      const texts = Array.isArray(inputs.text) ? inputs.text : [inputs.text];
+      const texts = Array.isArray(inputs.input) ? inputs.input : [inputs.input];
       return {
-        data: texts.map((text) => embeddingFor(String(text ?? ""))),
-        shape: [texts.length, CARD_EMBEDDING_DIMENSIONS],
+        data: texts.map((text, index) => ({
+          embedding: embeddingFor(String(text ?? "")),
+          index,
+          object: "embedding",
+        })),
+        object: "list",
       };
     }
     const text = userText(inputs);

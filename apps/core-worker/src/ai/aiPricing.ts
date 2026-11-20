@@ -18,7 +18,6 @@ export const WORKERS_AI_PRICING_USD_PER_MILLION = {
     output: 0,
   },
   "@cf/google/gemma-4-26b-a4b-it": { input: 0.1, output: 0.3 },
-  "@cf/qwen/qwen3-30b-a3b-fp8": { input: 0.051, output: 0.335 },
 } as const;
 
 export type PricedWorkersAiModel =

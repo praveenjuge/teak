@@ -90,6 +90,8 @@ export const generateTextMetadataForOp = async (
             },
           ],
           response_format: { type: "json_object" },
+          // Gemma 4 thinks by default, and its reasoning shares max_tokens.
+          chat_template_kwargs: { enable_thinking: false },
         },
         model: TEXT_METADATA_MODEL_ID,
       });

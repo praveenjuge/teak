@@ -10,8 +10,9 @@ import type { ParsedSearchQuery, SearchSimilarity } from "./qualifiers";
 export const isSearchMode = (value: unknown): value is SearchMode =>
   (SEARCH_MODES as readonly unknown[]).includes(value);
 
-// EmbeddingGemma scores real matches about 0.4 to 0.5 and unrelated cards
-// about 0.15 to 0.3.
+// The first EmbeddingGemma scored real matches about 0.4 to 0.5 and unrelated
+// cards about 0.15 to 0.3; these floors are not yet re-measured on
+// EmbeddingGemma 2.
 export const SEMANTIC_MIN_SCORE = 0.35;
 // When a search's words match nothing and no card clears SEMANTIC_MIN_SCORE,
 // meaning matches down to this floor show instead of an empty result: a

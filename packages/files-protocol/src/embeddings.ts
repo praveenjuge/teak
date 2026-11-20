@@ -1,12 +1,20 @@
-export const CARD_EMBEDDING_MODEL = "@cf/google/embeddinggemma-300m";
+/**
+ * EmbeddingGemma 2, which replaced EmbeddingGemma (`@cf/google/embeddinggemma-300m`)
+ * when Workers AI retired it on 2026-11-20. Both answer 768 dimensions, so
+ * the index stays; version 2 re-embeds every card with the new model.
+ */
+export const CARD_EMBEDDING_MODEL = "@cf/google/embeddinggemma-2";
 /** The Vectorize index dimensions; fixed for the life of an index. */
 export const CARD_EMBEDDING_DIMENSIONS = 768;
-export const CARD_EMBEDDING_VERSION = 1;
+export const CARD_EMBEDDING_VERSION = 2;
 
 /** Rough per-token costs, measured on EmbeddingGemma's tokenizer. */
 const ASCII_TOKEN_COST = 1 / 3;
 const OTHER_TOKEN_COST = 1.2;
-/** Leaves room for the prompt below EmbeddingGemma's 512 tokens. */
+/**
+ * Leaves room for the prompt below the first EmbeddingGemma's 512 tokens.
+ * EmbeddingGemma 2 reads 8,192, but the cut stays so cards embed the same text.
+ */
 const EMBEDDING_TOKEN_BUDGET = 480;
 
 /**

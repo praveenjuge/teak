@@ -8,8 +8,8 @@ import {
 } from "./embeddings";
 
 const EMBEDDING_FINGERPRINT = {
-  sha256: "9e0da786afd507fc892aff12cbe96c784b8e8596f0c30f62b2397a2d587c579f",
-  version: 1,
+  sha256: "120354311654a4db8d151512d9695690952e3397456f00612c1b9974d3e90969",
+  version: 2,
 };
 
 test("a new embedding model, prompt or text cut comes with a new embedding version", () => {

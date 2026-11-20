@@ -37,7 +37,7 @@ const fakes = ({
   ranked?: Ranked[];
   filterError?: unknown;
 } = {}) => {
-  const aiCalls: { args: { text: string[] }; model: string }[] = [];
+  const aiCalls: { args: { input: string[] }; model: string }[] = [];
   const upserts: unknown[][] = [];
   const deletes: string[][] = [];
   const queries: { options: unknown; vector: number[] }[] = [];
@@ -52,16 +52,20 @@ const fakes = ({
   ]);
   const env = {
     AI: {
-      run: (model: string, args: { text: string[] }) => {
+      run: (model: string, args: { input: string[] }) => {
         aiCalls.push({ args, model });
         if (aiError) {
           return Promise.reject(aiError);
         }
         return Promise.resolve({
-          data: args.text.map((_, i) =>
-            Array.from({ length: dimensions }, (__, j) => (j === i ? 1 : 0))
-          ),
-          shape: [args.text.length, dimensions],
+          data: args.input.map((_, i) => ({
+            embedding: Array.from({ length: dimensions }, (__, j) =>
+              j === i ? 1 : 0
+            ),
+            index: i,
+            object: "embedding",
+          })),
+          object: "list",
         });
       },
     },
@@ -167,7 +171,7 @@ describe("embed-upsert", () => {
     expect(aiCalls).toEqual([
       {
         args: {
-          text: [
+          input: [
             "title: none | text: Teak\nA tropical hardwood",
             `title: none | text: ${"x".repeat(1440)}`,
           ],
@@ -361,7 +365,7 @@ describe("vector-delete and vector-query", () => {
       text: " wood for furniture ",
       topK: 20,
     });
-    expect(aiCalls.map((call) => call.args.text)).toEqual([
+    expect(aiCalls.map((call) => call.args.input)).toEqual([
       ["task: search result | query: wood for furniture"],
     ]);
     expect(queries).toEqual([
