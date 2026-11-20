@@ -319,6 +319,23 @@ describe("saving a link that's already in Teak", () => {
     expect(await liveCards()).toHaveLength(1);
   });
 
+  test("a share sheet save reports card_created with source share_intent", async () => {
+    vi.stubEnv("POSTHOG_PROJECT_TOKEN", "phc_test");
+    vi.stubEnv("FILES_BASE", "https://files.test");
+    vi.stubEnv("FILES_SIGNING_SECRET", "test-files-secret");
+    const { owner, dispatches } = await setup();
+
+    await owner.mutation(api.card.createCard.createCard, {
+      content: "A thought from the share sheet",
+      source: "share_intent",
+    });
+    const events = (await dispatches("analyticsEvent")).map(
+      (row) => row.params as { event: string; properties: unknown }
+    );
+    expect(events.map((event) => event.event)).toEqual(["card_created"]);
+    expect(events[0].properties).toMatchObject({ source: "share_intent" });
+  });
+
   test("reports card_resaved, not card_created", async () => {
     vi.stubEnv("POSTHOG_PROJECT_TOKEN", "phc_test");
     vi.stubEnv("FILES_BASE", "https://files.test");

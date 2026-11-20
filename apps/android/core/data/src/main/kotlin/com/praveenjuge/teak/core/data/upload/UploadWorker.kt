@@ -15,6 +15,7 @@ import androidx.work.workDataOf
 import com.praveenjuge.teak.core.data.R
 import com.praveenjuge.teak.core.data.catchingFailures
 import com.praveenjuge.teak.core.data.convex.TeakException
+import com.praveenjuge.teak.core.data.repository.CARD_SOURCE
 import com.praveenjuge.teak.core.i18n.AppLanguage
 import com.praveenjuge.teak.core.i18n.tr
 import com.praveenjuge.teak.core.model.UiText
@@ -43,6 +44,7 @@ class UploadWorker @AssistedInject constructor(
             metadata = inputData.getString(KEY_METADATA)
                 ?.let { runCatching { Json.decodeFromString<Map<String, Double>>(it) }.getOrNull() }
                 .orEmpty(),
+            source = inputData.getString(KEY_SOURCE) ?: CARD_SOURCE,
         )
         // Android can refuse a foreground service when a queued upload resumes in the background
         // (for example when the network comes back). The upload still runs, just without the notification,
@@ -152,6 +154,7 @@ class UploadWorker @AssistedInject constructor(
         const val KEY_MIME = "mime"
         const val KEY_SIZE = "size"
         const val KEY_METADATA = "metadata"
+        const val KEY_SOURCE = "source"
         const val KEY_PROGRESS = "progress"
         const val NAME_TAG_PREFIX = "teak-upload-name:"
 

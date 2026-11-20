@@ -40,6 +40,7 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -109,6 +110,7 @@ internal fun RevisitRoute(view: CardQuery, onOpenCard: (String) -> Unit, onClose
     val viewModel: RevisitViewModel = hiltViewModel(key = "revisit")
     val state by viewModel.state.collectAsStateWithLifecycle()
     LaunchedEffect(view) { viewModel.start(view) }
+    DisposableEffect(viewModel) { onDispose { viewModel.finish(completed = false) } }
     Dialog(
         onDismissRequest = onClose,
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),

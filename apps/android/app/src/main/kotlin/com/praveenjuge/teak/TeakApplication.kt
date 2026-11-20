@@ -19,6 +19,7 @@ import com.posthog.PersonProfiles
 import com.posthog.PostHog
 import com.posthog.android.PostHogAndroid
 import com.posthog.android.PostHogAndroidConfig
+import com.praveenjuge.teak.core.data.Analytics
 import com.praveenjuge.teak.core.data.auth.SessionState
 import com.praveenjuge.teak.core.data.catchingFailures
 import com.praveenjuge.teak.core.data.di.ApplicationScope
@@ -133,6 +134,7 @@ class TeakApplication : Application(), Configuration.Provider, SingletonImageLoa
             errorTrackingConfig.autoCapture = true
         }
         PostHogAndroid.setup(this, config)
+        Analytics.recorder = { event, properties -> PostHog.capture(event, properties = properties) }
         scope.launch {
             account.session
                 .filter { it != SessionState.Loading }

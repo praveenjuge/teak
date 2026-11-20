@@ -47,7 +47,7 @@ class ShareImporterTest {
     }
 
     @Test
-    fun `text becomes a card and files join the upload queue`() = runTest {
+    fun `text becomes a card and files join the upload queue, both from the share sheet`() = runTest {
         val photo = staged("photo.png")
         uploads.nextStage = StageResult(listOf(photo), emptyList())
 
@@ -57,7 +57,8 @@ class ShareImporterTest {
 
         assertEquals(ShareResult.Saved(listOf("new-1")), result)
         assertEquals(listOf("https://teakvault.com"), cards.created)
-        assertEquals(listOf(photo), uploads.enqueued)
+        assertEquals(listOf("share_intent"), cards.createdSources)
+        assertEquals(listOf(photo.copy(source = "share_intent")), uploads.enqueued)
     }
 
     @Test

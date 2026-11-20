@@ -148,6 +148,7 @@ class WorkManagerUploadRepository @Inject constructor(
                         UploadWorker.KEY_MIME to file.mimeType,
                         UploadWorker.KEY_SIZE to file.size,
                         UploadWorker.KEY_METADATA to Json.encodeToString(file.metadata),
+                        UploadWorker.KEY_SOURCE to file.source,
                     ),
                 )
                 .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())

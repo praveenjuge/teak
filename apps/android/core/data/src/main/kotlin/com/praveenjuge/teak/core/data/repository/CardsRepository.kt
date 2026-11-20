@@ -48,6 +48,9 @@ import javax.inject.Singleton
 
 internal const val CARD_SOURCE = "android"
 
+/** The `source` of a card saved from the system share sheet. */
+const val SHARE_INTENT_SOURCE = "share_intent"
+
 private const val SERVER_CHECK_TIMEOUT_MS = 5_000L
 
 data class CardQuery(
@@ -93,7 +96,7 @@ interface CardsRepository {
     suspend fun apply(id: String, changes: List<CardFieldChange>)
 
     /** The new card's id, or null when Teak is offline and the text waits to be saved. */
-    suspend fun createFromText(text: String): String?
+    suspend fun createFromText(text: String, source: String = CARD_SOURCE): String?
 
     val keptOffline: Flow<Set<String>>
 
@@ -263,9 +266,9 @@ class ConvexCardsRepository @Inject constructor(
      * Text waits only when the socket is down before it's sent. Making a card isn't safe to send twice, so one whose
      * connection drops mid-call fails as offline instead of waiting: the server may already have saved it.
      */
-    override suspend fun createFromText(text: String): String? {
-        if (convex.connectedNow) return convex.mutation(ConvexFunctions.createCard, textCardArgs(text))
-        outbox.add(listOf(OutboxItem.CreateText(OutboxItem.newId(), text)))
+    override suspend fun createFromText(text: String, source: String): String? {
+        if (convex.connectedNow) return convex.mutation(ConvexFunctions.createCard, textCardArgs(text, source))
+        outbox.add(listOf(OutboxItem.CreateText(OutboxItem.newId(), text, source = source)))
         return null
     }
 
@@ -330,11 +333,11 @@ class ConvexCardsRepository @Inject constructor(
 }
 
 /** `cards:createCard`'s arguments for typed or shared text: a link when it's just an address, a note otherwise. */
-internal fun textCardArgs(text: String): Map<String, Any?> {
+internal fun textCardArgs(text: String, source: String = CARD_SOURCE): Map<String, Any?> {
     val resolved = LinkDetection.resolve(text)
     return buildMap {
         put("content", resolved.content)
-        put("source", CARD_SOURCE)
+        put("source", source)
         if (resolved.type == CardType.Link) {
             put("type", CardType.Link.wireName)
             put("url", resolved.url)

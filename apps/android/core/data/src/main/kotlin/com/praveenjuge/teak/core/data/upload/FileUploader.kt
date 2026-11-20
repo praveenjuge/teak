@@ -33,6 +33,8 @@ data class StagedFile(
     val mimeType: String,
     val size: Long,
     val metadata: Map<String, Double> = emptyMap(),
+    /** The card's `source`: the app's own, or the share sheet's. */
+    val source: String = CARD_SOURCE,
 )
 
 @Singleton
@@ -69,7 +71,7 @@ class FileUploader @Inject constructor(
                 put("fileName", file.fileName)
                 put("fileSize", file.size)
                 put("fileType", file.mimeType)
-                put("source", CARD_SOURCE)
+                put("source", file.source)
                 etag?.let { put("fileEtag", it) }
                 metadata?.let { put("additionalMetadata", it) }
             },

@@ -3,6 +3,7 @@ package com.praveenjuge.teak.feature.card
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.praveenjuge.teak.core.data.Analytics
 import com.praveenjuge.teak.core.data.catchingFailures
 import com.praveenjuge.teak.core.data.convex.TeakException
 import com.praveenjuge.teak.core.data.convex.teakText
@@ -130,6 +131,7 @@ class CardDetailViewModel @AssistedInject constructor(
     private var taskSaves = 0
     private var keepSaves = 0
     private var archiving = false
+    private var reportedOpen = false
 
     init {
         viewModelScope.launch {
@@ -156,6 +158,10 @@ class CardDetailViewModel @AssistedInject constructor(
                     )
                 }
                 if (card != null) loadDocumentText(card)
+                if (card != null && !reportedOpen) {
+                    reportedOpen = true
+                    Analytics.capture("card_opened", mapOf("card_type" to card.type.wireName, "surface" to "android"))
+                }
             }
         }
         // One subscription for every `[[` link on the card, renewed only when the set of ids changes.

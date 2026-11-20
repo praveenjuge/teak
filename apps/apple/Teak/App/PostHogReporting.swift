@@ -17,6 +17,8 @@ enum PostHogReporting {
         options.flushIntervalSeconds = 30
         #if os(iOS)
         options.sessionReplay = false
+        // Shows the feedback survey PostHog targets at the app, such as the one after a finished Revisit.
+        options.surveys = true
         #endif
         options.errorTrackingConfig.autoCapture = true
         PostHogSDK.shared.setup(options)
@@ -31,6 +33,12 @@ enum PostHogReporting {
     static func reset() {
         guard started else { return }
         PostHogSDK.shared.reset()
+    }
+
+    /// Sends an event from `ClientEventCatalog` (`packages/convex/shared/analytics.ts`), by the same name and properties.
+    static func capture(event: String, _ properties: [String: Any] = [:]) {
+        guard started else { return }
+        PostHogSDK.shared.capture(event, properties: properties)
     }
 
     static func capture(_ error: any Error) {

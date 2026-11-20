@@ -22,8 +22,8 @@ Split any insight by `$lib`.
 | Convex backend | `teak-backend` | Server events, `$ai_generation`, non-retryable exceptions, cron failures. Events from mutations reach PostHog through the Core Worker | `packages/convex/telemetry/posthog.ts`, `telemetry/schedule.ts` |
 | Core worker | `teak-files-worker` | Op failures, uncaught errors, non-retryable background (workflow, queue) failures, and card processing's `$ai_generation` and `card_processing_completed` | `apps/core-worker/src/telemetry.ts`, `src/workflows/telemetry.ts` |
 | Browser extension | `teak-extension` | Errors, `extension_card_saved`, `extension_omnibox_used`, `signed_in` (background and popup only) | `apps/extension/lib/telemetry.ts` |
-| Apple app | `posthog-ios` | Lifecycle events, identify, crashes (main app only; Share and Safari extensions send nothing) | `apps/apple/Teak/App/PostHogReporting.swift` |
-| Android app | `posthog-android` | Lifecycle events, identify, crashes | `apps/android/.../TeakApplication.kt` |
+| Apple app | `posthog-ios` | Lifecycle events, identify, crashes, `search_performed`, `card_opened`, `revisit_started`, `revisit_finished`, and on iPhone and iPad the popover feedback survey (main app only; the Share and Safari extensions send nothing, but Share extension saves report `card_created` with `source: share_intent`) | `apps/apple/Teak/App/PostHogReporting.swift` |
+| Android app | `posthog-android` | Lifecycle events, identify, crashes, `search_performed`, `card_opened`, `revisit_started`, `revisit_finished` (feature modules send them through `core/data/.../Analytics.kt`, which `TeakApplication` points at PostHog). Share sheet saves report `card_created` with `source: share_intent` | `apps/android/.../TeakApplication.kt` |
 
 ## Event catalog
 
@@ -32,10 +32,11 @@ The typed catalog lives in `packages/convex/shared/analytics.ts`. Add new events
 Client events (`captureEvent`):
 
 - `card_create_submitted` {card_type, source, via}: `via` is `text_form` (the composer), `link_paste` (several links pasted into it), `recording` (Record audio), `file_upload` (each file picked, dropped or pasted into the upload queue) or `empty_search` ("Save as a note" on a search that found nothing)
-- `search_performed` {zero_result, qualifiers?}: `qualifiers` lists the qualifier keys the search used (`text`, `tag`, `price`…), never their values
+- `search_performed` {zero_result, qualifiers?}: `qualifiers` lists the qualifier keys the search used (`text`, `tag`, `price`…), never their values. The iPhone, iPad, Mac and Android apps send it too, without `qualifiers`, once per search when its first results are in
 - `search_operator_used` {negation, or, groups}: sent with `search_performed` when the search used `-`, `OR` or parentheses. Each flag says whether that operator appeared (`groups` is a parenthesised group the operators' precedence needed)
 - `similar_search_opened` {source}: "More like this" in a card's details
-- `revisit_started` and `revisit_finished` {archived, kept, completed}: a Revisit deck opened, then closed or finished. The counts are cards, 0 to 20; `completed` is true when the deck reached its end screen
+- `revisit_started` and `revisit_finished` {archived, kept, completed}: a Revisit deck opened, then closed or finished. The counts are cards, 0 to 20; `completed` is true when the deck reached its end screen. The apps send them too; Android keeps a closed deck, so reopening it sends `revisit_started` again and the next `revisit_finished` counts only the cards since then
+- `card_opened` {card_type, surface: `web`, `apple` or `android`}: a card's details opened, once per opening
 - `card_thumbnail_replaced` {source: `drop`, `paste` or `pick`} and `card_thumbnail_reset`, when someone replaces or resets a link's image in the card dialog
 - `card_backlink_opened`: a card opened from another card's "Linked from" list in the card dialog
 - `card_done_toggled` {done, category, source: `panel`}: a link marked read, watched, bought or done (or not) in the card dialog. `category` is its link category, or `none`
@@ -56,7 +57,7 @@ Client events (`captureEvent`):
 Server events (`captureBackendEvent`):
 
 - `user_signed_up` {source}, which sets `email`, `plan: free` and `signed_up_at`
-- `card_created` and `card_create_failed` {card_type, source, error_class}. `source` is `web`, `apple` or `android` when the signed-in apps pass it to `cards:createCard` or `cards:finalizeUploadedCard`; for public API saves (single, bulk and uploads) it is the client behind the credential: `mcp` through the MCP server, `cli`, `raycast` or `extension` for Teak's own OAuth clients, and `api` for an API key or any other client (`publicApi/http/callerSource.ts`). Before Nov 2026 every public API text save reported `raycast` and every upload `api`. `import` for imports; `unknown` for app versions that predate it
+- `card_created` and `card_create_failed` {card_type, source, error_class}. `source` is `web`, `apple` or `android` when the signed-in apps pass it to `cards:createCard` or `cards:finalizeUploadedCard`, and `share_intent` for a save from the iPhone, iPad, Mac or Android share sheet (since 1.0.95; earlier ones report `apple` or `android`); for public API saves (single, bulk and uploads) it is the client behind the credential: `mcp` through the MCP server, `cli`, `raycast` or `extension` for Teak's own OAuth clients, and `api` for an API key or any other client (`publicApi/http/callerSource.ts`). Before Nov 2026 every public API text save reported `raycast` and every upload `api`. `import` for imports; `unknown` for app versions that predate it
 - `card_resaved` {source, was_archived}: a link saved again. The card already in Teak moved to the top of "Newest first" instead of a second card being made (`card/createCard.ts`); `was_archived` is true when it also came back from Archive. `source` takes `card_created`'s values. Imports never re-save. The property is `source`, not `surface`, because every backend event already carries `surface: backend`
 - `link_paste_saved` {count, created, resaved, stopped_at_limit}: a list of links pasted into the web composer finished saving in the background (`card/pasteLinks.ts`). `count` is the links the job kept after dropping repeats and lines past 100; `created` and `resaved` split the ones saved (a link already in Teak moves to the top, like `card_resaved`); `stopped_at_limit` is true when the free card limit ended it early
 - `card_processing_completed` {card_type, duration_ms, ai_language}, sent by the Core Worker when a card-processing run finishes. `ai_language` is the language code AI wrote the tags and summary in (`en`, `ja`, `es`…), only when the run wrote them and the model named a valid language

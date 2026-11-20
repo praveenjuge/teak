@@ -51,7 +51,7 @@ class CardPagerTest {
         override suspend fun emptyTrash(): TrashCount = error("unused")
         override fun trashCount(): Flow<Result<TrashCount>> = error("unused")
         override suspend fun apply(id: String, changes: List<CardFieldChange>) = error("unused")
-        override suspend fun createFromText(text: String): String? = error("unused")
+        override suspend fun createFromText(text: String, source: String): String? = error("unused")
         override val keptOffline: Flow<Set<String>> get() = error("unused")
         override suspend fun keepOffline(card: Card) = error("unused")
         override suspend fun removeOfflineCopy(id: String) = error("unused")

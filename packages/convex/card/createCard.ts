@@ -38,10 +38,12 @@ import { authorizeCardCreation } from "./quota";
 import { normalizeCardTags, updateCardFieldForUserHandler } from "./updateCard";
 
 // Older app versions send no `source`, so their cards report "unknown".
+// `share_intent` is a save from the iPhone, iPad or Android share sheet.
 export const clientCardSourceValidator = v.union(
   v.literal("web"),
   v.literal("apple"),
-  v.literal("android")
+  v.literal("android"),
+  v.literal("share_intent")
 );
 
 /** The client behind a public API save: see `publicApi/http/callerSource`. */

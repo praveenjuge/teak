@@ -29,11 +29,14 @@ final class CardDetailModel {
     @ObservationIgnored private var noticeTask: Task<Void, Never>?
     @ObservationIgnored private var taskSaves = 0
     @ObservationIgnored private var keepSaves = 0
+    /// Sends `card_opened` when the card first loads; the editor's model doesn't.
+    @ObservationIgnored private var reportsOpen: Bool
 
-    init(id: String, backend: TeakBackend, spotlight: SpotlightIndexer? = nil) {
+    init(id: String, backend: TeakBackend, spotlight: SpotlightIndexer? = nil, reportsOpen: Bool = false) {
         self.id = id
         self.backend = backend
         self.spotlight = spotlight
+        self.reportsOpen = reportsOpen
     }
 
     func start() {
@@ -45,6 +48,10 @@ final class CardDetailModel {
                     for try await value in backend.subscribe(ConvexFunctions.getCard, ["id": .string(id)]) {
                         card = value
                         isLoading = false
+                        if reportsOpen, let value {
+                            reportsOpen = false
+                            PostHogReporting.capture(event: "card_opened", ["card_type": value.type.rawValue, "surface": "apple"])
+                        }
                         if favoriteOverride == value?.isFavorited { favoriteOverride = nil }
                         if doneOverride == value?.isDone { doneOverride = nil }
                         if contentOverride != nil, value?.content == contentOverride || taskSaves == 0 { contentOverride = nil }

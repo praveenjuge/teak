@@ -2,6 +2,7 @@ package com.praveenjuge.teak.feature.library
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.praveenjuge.teak.core.data.Analytics
 import com.praveenjuge.teak.core.data.catchingFailures
 import com.praveenjuge.teak.core.data.convex.TeakException
 import com.praveenjuge.teak.core.data.repository.CardQuery
@@ -54,23 +55,57 @@ class RevisitViewModel @Inject constructor(
     private var query: CardQuery? = null
     private var loading: Job? = null
 
+    /**
+     * How many steps the deck had when it last sent `revisit_started`, or null once `revisit_finished` went. Closing
+     * the deck sends `revisit_finished`, and reopening it on the same view starts reporting again from where it is.
+     */
+    private var reportingFrom: Int? = null
+
     /** Deals a deck from [view]; a later call with the same view keeps the deck in progress. */
     fun start(view: CardQuery) {
-        if (query == view) return
+        if (query == view) {
+            val state = _state.value
+            if (state.cards.isNotEmpty() && !state.isFinished && reportingFrom == null) startReporting()
+            return
+        }
         query = view
         deal()
     }
 
     fun deal() {
         val view = query ?: return
+        finish(completed = false)
         loading?.cancel()
         _state.value = RevisitUiState()
         val deck = view.copy(filters = view.filters.sorted(CardSort.Shuffle))
         loading = viewModelScope.launch {
             catchingFailures { readDeck(deck) }
-                .onSuccess { cards -> _state.update { it.copy(isLoading = false, cards = cards) } }
+                .onSuccess { cards ->
+                    _state.update { it.copy(isLoading = false, cards = cards) }
+                    if (cards.isNotEmpty()) startReporting()
+                }
                 .onFailure { _state.update { it.copy(isLoading = false, failed = true) } }
         }
+    }
+
+    private fun startReporting() {
+        reportingFrom = _state.value.steps.size
+        Analytics.capture("revisit_started")
+    }
+
+    /** Sends `revisit_finished` once, as the web does: [completed] when the deck reached its end, otherwise on close. */
+    fun finish(completed: Boolean) {
+        val from = reportingFrom ?: return
+        reportingFrom = null
+        val steps = _state.value.steps.drop(from)
+        Analytics.capture(
+            "revisit_finished",
+            mapOf("archived" to steps.count { it.archived }, "kept" to steps.count { !it.archived }, "completed" to completed),
+        )
+    }
+
+    private fun finishIfDone() {
+        if (_state.value.isFinished) finish(completed = true)
     }
 
     /** A shuffled page can come back short, so read on until the deck is full or the view runs out. */
@@ -95,6 +130,7 @@ class RevisitViewModel @Inject constructor(
         _state.update {
             it.copy(position = it.position + 1, steps = it.steps + RevisitStep(card.id, archived = false), archivedNote = null)
         }
+        finishIfDone()
     }
 
     fun archive() {
@@ -113,6 +149,7 @@ class RevisitViewModel @Inject constructor(
                             archivedNote = System.nanoTime(),
                         )
                     }
+                    finishIfDone()
                 }
                 .onFailure { e -> _state.update { it.copy(archivingId = null, error = failureMessage(e)) } }
         }

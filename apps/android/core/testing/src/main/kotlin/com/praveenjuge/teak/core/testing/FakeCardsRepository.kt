@@ -126,9 +126,13 @@ class FakeCardsRepository : CardsRepository {
     /** Saves as if offline: the text waits and no card id comes back. */
     var queuesCreates = false
 
-    override suspend fun createFromText(text: String): String? {
+    /** The `source` each [created] text was saved with. */
+    val createdSources = mutableListOf<String>()
+
+    override suspend fun createFromText(text: String, source: String): String? {
         createError?.let { throw it }
         created += text
+        createdSources += source
         return if (queuesCreates) null else "new-${created.size}"
     }
 

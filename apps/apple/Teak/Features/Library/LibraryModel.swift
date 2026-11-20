@@ -49,6 +49,8 @@ final class LibraryModel {
     @ObservationIgnored private var statusTask: Task<Void, Never>?
     @ObservationIgnored private var semanticTask: Task<Void, Never>?
     @ObservationIgnored private var hiddenTask: Task<Void, Never>?
+    @ObservationIgnored private var isSemanticPending = false
+    @ObservationIgnored private var reportedSearch: LibraryQuery?
 
     init(backend: TeakBackend, spotlight: SpotlightIndexer) {
         self.backend = backend
@@ -60,6 +62,7 @@ final class LibraryModel {
             }
             for id in left { favoriteOverrides[id] = nil }
             spotlight.apply(CardIndex.changes(cards, left: left, in: query))
+            reportSearch()
         }
     }
 
@@ -126,14 +129,32 @@ final class LibraryModel {
     private func requestSemanticResults() {
         semanticTask?.cancel()
         semanticOutcome = nil
+        isSemanticPending = false
         guard let args = query.semanticArgs() else { return }
+        isSemanticPending = true
         semanticTask = Task { [backend] in
             try? await Task.sleep(for: .milliseconds(300))
             guard !Task.isCancelled else { return }
             let result = try? await backend.action(ConvexFunctions.requestSemanticResults, args)
             guard !Task.isCancelled else { return }
             semanticOutcome = result?.outcome
+            isSemanticPending = false
+            if !pager.isLoading { reportSearch() }
         }
+    }
+
+    /// Sends `search_performed` once per search, as the web does, once its first
+    /// results are in. A keyword search that finds nothing waits for the cards
+    /// ranked by meaning. The search text is never sent.
+    private func reportSearch() {
+        var search = query
+        search.sort = .newest
+        guard search.hasSearch else { return reportedSearch = nil }
+        guard search != reportedSearch, !pager.isLoading, pager.error == nil,
+              !(cards.isEmpty && isSemanticPending)
+        else { return }
+        reportedSearch = search
+        PostHogReporting.capture(event: "search_performed", ["zero_result": cards.isEmpty])
     }
 
     func checkHiddenCards() {

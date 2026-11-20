@@ -23,6 +23,8 @@ final class RevisitModel {
     @ObservationIgnored private var cursor: String?
     @ObservationIgnored private var seed = ShuffleSeed.next(after: nil)
     @ObservationIgnored private var history: [(id: String, archived: Bool)] = []
+    /// A dealt deck that hasn't sent `revisit_finished` yet.
+    @ObservationIgnored private var isReporting = false
 
     init(backend: TeakBackend, library: LibraryModel) {
         self.backend = backend
@@ -41,6 +43,7 @@ final class RevisitModel {
     func deal(startOver: Bool = false) async {
         // An archive or undo under way still points into this deck's history.
         guard !isPending else { return }
+        finish(completed: false)
         if startOver {
             seed = ShuffleSeed.next(after: seed)
             cursor = nil
@@ -68,6 +71,10 @@ final class RevisitModel {
             kept = 0
             history = []
             lastArchived = nil
+            if !cards.isEmpty {
+                isReporting = true
+                PostHogReporting.capture(event: "revisit_started")
+            }
         } catch {
             failed = true
         }
@@ -84,6 +91,7 @@ final class RevisitModel {
             lastArchived = card.id
             archived += 1
             index += 1
+            if current == nil { finish(completed: true) }
             AccessibilityNotification.Announcement(tr("native.revisit.archived")).post()
         } catch {
             library.show(error)
@@ -95,6 +103,14 @@ final class RevisitModel {
         history.append((card.id, false))
         kept += 1
         index += 1
+        if current == nil { finish(completed: true) }
+    }
+
+    /// Reports the deck once, as the web does: `completed` when it reached its end, otherwise when it closed early.
+    func finish(completed: Bool) {
+        guard isReporting else { return }
+        isReporting = false
+        PostHogReporting.capture(event: "revisit_finished", ["archived": archived, "kept": kept, "completed": completed])
     }
 
     func undo() async {
@@ -172,6 +188,7 @@ struct RevisitView: View {
         .focusEffectDisabled()
         .focused($focused)
         .onAppear { focused = true }
+        .onDisappear { model.finish(completed: false) }
         .onKeyPress(keys: [.leftArrow, .rightArrow, "a", "k", "z"]) { press in
             guard press.modifiers.isEmpty else { return .ignored }
             switch press.key {

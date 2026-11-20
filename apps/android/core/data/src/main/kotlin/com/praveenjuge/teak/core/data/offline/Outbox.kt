@@ -14,6 +14,7 @@ import com.praveenjuge.teak.core.data.auth.SessionState
 import com.praveenjuge.teak.core.data.convex.ConvexApi
 import com.praveenjuge.teak.core.data.convex.teakJson
 import com.praveenjuge.teak.core.data.di.ApplicationScope
+import com.praveenjuge.teak.core.data.repository.CARD_SOURCE
 import com.praveenjuge.teak.core.model.CardFieldChange
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CompletableDeferred
@@ -61,7 +62,12 @@ sealed interface OutboxItem {
     }
 
     @Serializable @SerialName("createText")
-    data class CreateText(override val id: String, val text: String, override val ownerId: String? = null) : OutboxItem {
+    data class CreateText(
+        override val id: String,
+        val text: String,
+        override val ownerId: String? = null,
+        val source: String = CARD_SOURCE,
+    ) : OutboxItem {
         override fun withOwner(ownerId: String?) = copy(ownerId = ownerId)
     }
 

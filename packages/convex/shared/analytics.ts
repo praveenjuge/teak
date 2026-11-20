@@ -80,6 +80,7 @@ export interface ClientEventCatalog {
     via?: string;
   };
   card_done_toggled: CardDoneToggled;
+  card_opened: { card_type: string; surface: "web" | "apple" | "android" };
   card_pin_toggled: CardPinToggled;
   card_pins_reordered: CardPinsReordered;
   card_thumbnail_replaced: { source: ThumbnailReplaceSource };

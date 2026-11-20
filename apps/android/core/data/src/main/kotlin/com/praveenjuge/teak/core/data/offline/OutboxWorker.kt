@@ -71,7 +71,7 @@ class OutboxWorker @AssistedInject constructor(
                 convex.mutation(ConvexFunctions.updateCardField, item.change.args(item.cardId))
                 keepInCopy(item)
             }
-            is OutboxItem.CreateText -> convex.mutation(ConvexFunctions.createCard, textCardArgs(item.text))
+            is OutboxItem.CreateText -> convex.mutation(ConvexFunctions.createCard, textCardArgs(item.text, item.source))
         }
     }
 

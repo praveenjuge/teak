@@ -2,6 +2,8 @@ import Foundation
 
 public enum CardSource {
     public static let apple: ConvexValue = "apple"
+    /// A save from the Share extension.
+    public static let shareIntent: ConvexValue = "share_intent"
 }
 
 public struct TextCardInput: Hashable, Sendable {
@@ -9,8 +11,10 @@ public struct TextCardInput: Hashable, Sendable {
     public let type: CardType
     public let url: String?
 
-    public var createArgs: ConvexArgs {
-        var args: ConvexArgs = ["content": .string(content), "source": CardSource.apple]
+    public var createArgs: ConvexArgs { createArgs(source: CardSource.apple) }
+
+    public func createArgs(source: ConvexValue) -> ConvexArgs {
+        var args: ConvexArgs = ["content": .string(content), "source": source]
         if type == .link, let url {
             args["type"] = "link"
             args["url"] = .string(url)

@@ -3,6 +3,7 @@ package com.praveenjuge.teak.feature.library
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.praveenjuge.teak.core.data.Analytics
 import com.praveenjuge.teak.core.data.catchingFailures
 import com.praveenjuge.teak.core.data.convex.TeakException
 import com.praveenjuge.teak.core.data.convex.teakText
@@ -263,6 +264,10 @@ class LibraryViewModel @AssistedInject constructor(
     )
     val state: StateFlow<LibraryUiState> = _state.asStateFlow()
     private var messageId = 0L
+    private var loadedQuery: CardQuery? = null
+    private var reportedSearch: CardQuery? = null
+    /** The search the ranking by meaning last finished for, or found nothing to rank in. */
+    private var meaningSettledFor: String? = null
 
     init {
         val search = searchText
@@ -278,9 +283,15 @@ class LibraryViewModel @AssistedInject constructor(
             CardQuery(search = date?.rest ?: text, range = date?.filter?.range, filters = chips, folderId = folderId)
         }
             .distinctUntilChanged()
-            .onEach(pager::load)
+            .onEach { query ->
+                loadedQuery = query
+                pager.load(query)
+            }
             .launchIn(viewModelScope)
-        pager.state.onEach { paged -> _state.update { it.copy(paged = paged) } }.launchIn(viewModelScope)
+        pager.state.onEach { paged ->
+            _state.update { it.copy(paged = paged) }
+            reportSearch()
+        }.launchIn(viewModelScope)
         account.isOffline.onEach { offline -> _state.update { it.copy(isOffline = offline) } }.launchIn(viewModelScope)
 
         folders.folders.onEach { result -> result.onSuccess { list -> _state.update { it.copy(folders = list) } } }
@@ -295,6 +306,23 @@ class LibraryViewModel @AssistedInject constructor(
         warmMeaningSearch()
         watchHiddenCards()
         watchTrashCount()
+    }
+
+    /**
+     * Sends `search_performed` once per search, as the web does, once its first results are in. A keyword search
+     * that finds nothing waits for the cards ranked by meaning. The search text is never sent.
+     */
+    private fun reportSearch() {
+        val query = loadedQuery ?: return
+        if (_state.value.search.isBlank()) {
+            reportedSearch = null
+            return
+        }
+        val paged = pager.state.value
+        val waitingForMeaning = paged.cards.isEmpty() && meaningSettledFor != _state.value.search
+        if (query == reportedSearch || paged.isLoading || paged.error != null || waitingForMeaning) return
+        reportedSearch = query
+        Analytics.capture("search_performed", mapOf("zero_result" to paged.cards.isEmpty()))
     }
 
     /** Follows `cards:trashCount` while this view is Trash, for Empty Trash. */
@@ -332,18 +360,24 @@ class LibraryViewModel @AssistedInject constructor(
             .distinctUntilChanged()
             .collectLatestIn { (typed, scope) ->
                 _state.update { it.copy(semanticOutcome = null) }
-                // The words beside a date search by meaning; the date filters the keyword results. A search
-                // that's only a date has nothing to rank, while an empty one still warms a saved `like:` folder.
-                val date = SearchQuery.splitDate(typed, locale = Locale.forLanguageTag(language.current.value))
-                if (date != null && date.rest.isBlank()) return@collectLatestIn
-                // Style, color and hex words filter rather than rank, as in the paged query.
-                val text = SearchFacets.split(date?.rest ?: typed).text
-                val combined = if (scope != null) SearchQuery.combine(scope, text) else text
-                if (combined == null) return@collectLatestIn
-                if (SearchQuery.semanticRequest(SearchQuery.parse(combined)) == null) return@collectLatestIn
-                val outcome = catchingFailures { repository.requestSemanticResults(text, folderId) }.getOrDefault("unavailable")
-                _state.update { it.copy(semanticOutcome = outcome) }
+                rankByMeaning(typed, scope)
+                meaningSettledFor = typed
+                reportSearch()
             }
+    }
+
+    private suspend fun rankByMeaning(typed: String, scope: String?) {
+        // The words beside a date search by meaning; the date filters the keyword results. A search
+        // that's only a date has nothing to rank, while an empty one still warms a saved `like:` folder.
+        val date = SearchQuery.splitDate(typed, locale = Locale.forLanguageTag(language.current.value))
+        if (date != null && date.rest.isBlank()) return
+        // Style, color and hex words filter rather than rank, as in the paged query.
+        val text = SearchFacets.split(date?.rest ?: typed).text
+        val combined = if (scope != null) SearchQuery.combine(scope, text) else text
+        if (combined == null) return
+        if (SearchQuery.semanticRequest(SearchQuery.parse(combined)) == null) return
+        val outcome = catchingFailures { repository.requestSemanticResults(text, folderId) }.getOrDefault("unavailable")
+        _state.update { it.copy(semanticOutcome = outcome) }
     }
 
     private fun watchHiddenCards() {

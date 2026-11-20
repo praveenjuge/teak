@@ -130,9 +130,11 @@ final class ShareModel {
         let user = try? await session.restore()
         let convex = TeakServices.http(session: session)
         self.convex = convex
-        let pipeline = UploadPipeline(convex: convex)
+        let pipeline = UploadPipeline(convex: convex, source: CardSource.shareIntent)
         let importer = ShareImporter(
-            createText: { text in try await convex.mutation(ConvexFunctions.createCard, LinkDetection.resolve(text).createArgs) },
+            createText: { text in
+                try await convex.mutation(ConvexFunctions.createCard, LinkDetection.resolve(text).createArgs(source: CardSource.shareIntent))
+            },
             upload: { item in
                 _ = await drawing[item.fileURL]?.value
                 return try await pipeline.upload(item)

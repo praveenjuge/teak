@@ -69,10 +69,12 @@ public struct UploadPipeline: Sendable {
     let convex: any ConvexCaller
     let transport: any FileUploadTransport
     let retryDelays: [Duration]
+    let source: ConvexValue
 
     public init(convex: any ConvexCaller, transport: any FileUploadTransport = URLSessionFileUpload(),
-                retryDelays: [Duration] = [.milliseconds(300), .milliseconds(900)]) {
+                retryDelays: [Duration] = [.milliseconds(300), .milliseconds(900)], source: ConvexValue = CardSource.apple) {
         self.convex = convex
+        self.source = source
         self.transport = transport
         self.retryDelays = retryDelays
     }
@@ -109,7 +111,7 @@ public struct UploadPipeline: Sendable {
         var finalizeArgs = prepareArgs
         finalizeArgs["fileKey"] = .string(key)
         if let etag { finalizeArgs["fileEtag"] = .string(etag) }
-        finalizeArgs["source"] = CardSource.apple
+        finalizeArgs["source"] = source
         let finalized = try await convex.action(ConvexFunctions.finalizeUploadedCard, finalizeArgs)
         guard finalized.success, let cardId = finalized.cardId else {
             throw TeakError.card(code: finalized.errorCode, message: finalized.error, fallback: tr("native.errors.createCard"))

@@ -5,6 +5,7 @@ import com.praveenjuge.teak.core.data.catchingFailures
 import com.praveenjuge.teak.core.data.convex.TeakException
 import com.praveenjuge.teak.core.data.repository.AccountRepository
 import com.praveenjuge.teak.core.data.repository.CardsRepository
+import com.praveenjuge.teak.core.data.repository.SHARE_INTENT_SOURCE
 import com.praveenjuge.teak.core.data.upload.UploadRepository
 import com.praveenjuge.teak.core.model.MAX_FILES_PER_UPLOAD
 import com.praveenjuge.teak.core.model.UiText
@@ -37,7 +38,7 @@ class ShareImporter @Inject constructor(
         val created = mutableListOf<String>()
 
         for (item in processed.filterIsInstance<ShareItem.Text>()) {
-            catchingFailures { cards.createFromText(item.text) }
+            catchingFailures { cards.createFromText(item.text, SHARE_INTENT_SOURCE) }
                 // Offline, the text waits to be saved and has no card yet to add tags or a note to.
                 .onSuccess { id -> id?.let { created += it } }
                 .onFailure { failures += it.detail() }
@@ -48,7 +49,7 @@ class ShareImporter @Inject constructor(
             catchingFailures {
                 val staged = uploads.stage(files.map { it.uri })
                 failures += staged.skipped.map { UiText.of("native.capture.skippedFile", it.name, it.reasonText) }
-                if (staged.files.isNotEmpty()) uploads.enqueue(staged.files)
+                if (staged.files.isNotEmpty()) uploads.enqueue(staged.files.map { it.copy(source = SHARE_INTENT_SOURCE) })
             }.onFailure { repeat(files.size) { failures += null } }
         }
 
