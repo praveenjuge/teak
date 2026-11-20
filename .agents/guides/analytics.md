@@ -118,22 +118,25 @@ Exceptions are `$exception` events built by `buildExceptionProperties` in `packa
 
 ## Dashboards, alerts and survey
 
-Set up through the PostHog MCP connector on 2026-10-12.
+Set up through the PostHog MCP connector on 2026-10-12 and rebuilt on 2026-11-20. Every catalog event has a description and a stage tag in PostHog's data management, so check there before reading the code.
 
 | Item | ID | Link |
 | --- | --- | --- |
-| Dashboard: Growth & activation (project home) | 2201877 | <https://us.posthog.com/project/660923/dashboard/2201877> |
-| Dashboard: Cards & AI pipeline | 2201878 | <https://us.posthog.com/project/660923/dashboard/2201878> |
-| Dashboard: Revenue | 2201879 | <https://us.posthog.com/project/660923/dashboard/2201879> |
-| Dashboard: Reliability | 2201880 | <https://us.posthog.com/project/660923/dashboard/2201880> |
+| Dashboard: Growth & activation (project home): signups by platform and method, signup to first card by platform, active users by surface, "comes back and opens a card" retention | 2201877 | <https://us.posthog.com/project/660923/dashboard/2201877> |
+| Dashboard: Cards & AI pipeline: also page archive failure rate, cards archived and deleted | 2201878 | <https://us.posthog.com/project/660923/dashboard/2201878> |
+| Dashboard: Revenue: also card limit to checkout funnel, limit hits by source, upgrade prompts by placement | 2201879 | <https://us.posthog.com/project/660923/dashboard/2201879> |
+| Dashboard: Reliability: also public API requests and error rate by client | 2201880 | <https://us.posthog.com/project/660923/dashboard/2201880> |
 | Dashboard: Web traffic (PostHog starter) | 2201829 | <https://us.posthog.com/project/660923/dashboard/2201829> |
 | Alert: New error issue (hourly, email) | `01a13143-d6ce-0000-799f-c53dc3d8b386` | Backed by insight `QjW9RAVi` |
 | Alert: Checkout failed (hourly, email) | `01a13143-dcde-0000-369c-7a2ab5474e66` | Backed by insight `xkZQ2tkH` |
 | Survey: Send feedback (web widget tab, launched) | `01a13144-47ae-0000-cc6e-2e48a7b78868` | <https://us.posthog.com/project/660923/surveys/01a13144-47ae-0000-cc6e-2e48a7b78868> |
+| Survey: How is Teak working for you? (popover after a person's first `revisit_finished`, once, 14 days after any other survey; web, iPhone and iPad) | `01a1f43d-5a7c-0000-84bb-043b1177b41b` | <https://us.posthog.com/project/660923/surveys/01a1f43d-5a7c-0000-84bb-043b1177b41b> |
 | Action: Card created (any surface) | 383445 | |
+| Cohort: Internal / Test users (`is_internal` = `true`, `$internal_or_test_user`, any `@praveenjuge.com` email, and two named test accounts) | 632389 | |
 | Cohorts: Pro users, E2E accounts, Activated (5+ cards in 7 days) | 632412, 632413, 632414 | |
 | Annotation: Switched from Sentry | 486726 | 2026-10-12 |
+| Annotation: 1.0.94 attributes processing and AI events to the card owner | 602785 | 2026-11-19 |
 
-Error-tracking alerts in PostHog deliver only to Slack, webhooks and similar integrations, and none is connected. The new-issue alert is therefore an hourly insight alert on a SQL count of issues first seen in the last hour, which emails the subscriber.
+Error-tracking alerts in PostHog deliver only to Slack, webhooks and similar integrations, and none is connected. The new-issue alert is therefore an hourly insight alert on a SQL count of issues first seen in the last hour, which emails the subscriber. `system.alerts` shows `last_checked_at` as empty for every alert; `alert-get` shows the real check history.
 
-Project settings: timezone Asia/Kolkata; autocapture, heatmaps, dead clicks, console logs and network capture off; web vitals and exception autocapture on; replay records 10% of sessions plus any session with an `$exception` (minimum 2 s, all text and inputs masked, media blocked, `app.teakvault.com` only); surveys on.
+Project settings: timezone Asia/Kolkata; autocapture, heatmaps, dead clicks, console logs and network capture off; web vitals and exception autocapture on; replay records every session (100%, until weekly web users pass about 200), with the `$exception` trigger kept (minimum 2 s, all text and inputs masked, media blocked, `app.teakvault.com` only); surveys on.
