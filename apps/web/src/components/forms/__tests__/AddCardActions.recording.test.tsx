@@ -263,7 +263,7 @@ test("while a recording saves it can be downloaded, and closing the dialog doesn
   await act(async () => button("Stop and Save").click());
 
   const dialog = () => document.querySelector("[data-dialog]");
-  expect(dialog()?.querySelector("p")?.textContent).toBe("Saving recording...");
+  expect(dialog()?.querySelector("p")?.textContent).toBe("Saving recording…");
   expect(button("Download").disabled).toBe(false);
   expect(button("Try again").disabled).toBe(true);
 
@@ -275,7 +275,7 @@ test("while a recording saves it can be downloaded, and closing the dialog doesn
   await act(() => {
     pressRecordAudio();
   });
-  expect(dialog()?.querySelector("p")?.textContent).toBe("Saving recording...");
+  expect(dialog()?.querySelector("p")?.textContent).toBe("Saving recording…");
   expect(recorderStarts).toHaveBeenCalledTimes(1);
   await act(async () => button("Dismiss").click());
   await act(() => {

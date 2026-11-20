@@ -458,7 +458,7 @@
     "settings": {
       "deletionRequested": "Account deletion requested. You’re being signed out.",
       "welcomePro": "Welcome to Pro! Your subscription has been activated.",
-      "openingCheckout": "Opening checkout...",
+      "openingCheckout": "Opening checkout…",
       "checkoutNewTab": "Checkout opened in a new tab",
       "checkoutFailed": "Failed to start checkout. Please try again."
     },
@@ -975,11 +975,11 @@
       "saveFailed": "Couldn't update the palette. Try again."
     },
     "quote": {
-      "placeholder": "Enter your quote..."
+      "placeholder": "Enter your quote…"
     },
     "text": {
       "focus": "Focus",
-      "placeholder": "Write a note...",
+      "placeholder": "Write a note…",
       "tooLarge": "Notes can be up to 512 KiB of UTF-8 text"
     },
     "video": {
@@ -1185,8 +1185,8 @@
       "rateLimited": "Too many cards created. Please wait a moment."
     },
     "addCard": {
-      "placeholder": "Write a note...",
-      "upgradePlaceholder": "Upgrade to Pro to add more cards...",
+      "placeholder": "Write a note…",
+      "upgradePlaceholder": "Upgrade to Pro to add more cards…",
       "saveFailed": "Failed to save note",
       "savingOffline": "You're offline. This note will save when you reconnect.",
       "focus": "Focus",
@@ -1213,15 +1213,15 @@
       "noteOrLink": "Note or link",
       "uploadFiles": "Upload files",
       "recordAudio": "Record audio",
-      "savingRecording": "Saving audio recording...",
+      "savingRecording": "Saving audio recording…",
       "recordingSaved": "Audio recording saved",
       "recordingNotSaved": "Couldn't save the recording. Try again, or download it to keep it.",
       "microphoneUnsupported": "Microphone recording is not supported in this app.",
       "microphoneDenied": "Microphone permission was denied. Allow it and retry.",
       "microphoneMissing": "No microphone was detected. Connect one and retry.",
       "recordingStartFailed": "Failed to start recording. Check your microphone setup.",
-      "startingMicrophone": "Starting microphone...",
-      "savingRecordingStatus": "Saving recording...",
+      "startingMicrophone": "Starting microphone…",
+      "savingRecordingStatus": "Saving recording…",
       "recordingHint": "Speak naturally. Teak will save this as an audio card.",
       "recordingTitle": "Recording audio",
       "stopAndSave": "Stop and Save",
@@ -1721,7 +1721,7 @@
       "cardsPermanentlyDeleted": "{count, plural, one {# card permanently deleted} other {# cards permanently deleted}}"
     },
     "clipboard": {
-      "copyingImage": "Copying image...",
+      "copyingImage": "Copying image…",
       "imageCopied": "Image copied to clipboard",
       "copied": "Copied to clipboard",
       "linkCopied": "Link copied to clipboard",
@@ -1747,7 +1747,7 @@
       "failed": "Couldn't save the PDF. Try again."
     },
     "settings": {
-      "openingPortal": "Opening customer portal...",
+      "openingPortal": "Opening customer portal…",
       "portalOpened": "Customer portal opened",
       "portalFailed": "Could not open portal",
       "deleteAccountFailed": "Something went wrong while deleting your account.",
