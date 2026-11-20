@@ -89,7 +89,12 @@ public struct ConvexHTTP: ConvexCaller {
             throw TeakError.card(code: errorData["code"] as? String, message: errorData["message"] as? String)
         }
         if response.statusCode == 401 { throw TeakError.signedOut }
-        throw TeakError(message: Self.userMessage(object["errorMessage"] as? String))
+        let raw = object["errorMessage"] as? String
+        // A backend deployed before a function exists answers this, so a caller can fall back to an older one.
+        if raw?.contains("Could not find public function") == true {
+            throw TeakError(code: TeakError.missingFunctionCode, message: TeakMessages.genericFailure)
+        }
+        throw TeakError(message: Self.userMessage(raw))
     }
 
     /// Server errors arrive as "[Request ID: …] Server Error\nUncaught Error: Message\n    at …".

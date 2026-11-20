@@ -3,6 +3,7 @@ package com.praveenjuge.teak.core.data.auth
 import com.praveenjuge.teak.core.model.SIGNUPS_PAUSED_MESSAGE
 import com.praveenjuge.teak.core.model.UiText
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 
 @Serializable
 data class SessionUser(
@@ -21,6 +22,8 @@ data class AuthSession(
     val expiresAtMillis: Long,
     val sessionId: String,
     val user: SessionUser,
+    /** How the code exchange authenticated (`GoogleOAuth`, `Password`…), for a new account's signup. Never stored. */
+    @Transient val authMethod: String? = null,
 ) {
     override fun toString(): String = "AuthSession(user=${user.id}, sessionId=$sessionId)"
 

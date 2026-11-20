@@ -1,5 +1,6 @@
 package com.praveenjuge.teak.core.data.repository
 
+import com.praveenjuge.teak.core.data.Analytics
 import com.praveenjuge.teak.core.data.FakeConvexApi
 import com.praveenjuge.teak.core.data.FakeOfflineCopies
 import com.praveenjuge.teak.core.data.FakeOutbox
@@ -313,6 +314,24 @@ class ConvexCardsRepositoryTest {
 
         assertNull(repository.createFromText("https://example.com"))
         assertEquals(listOf("https://example.com"), outbox.items.value.map { (it as OutboxItem.CreateText).text })
+    }
+
+    @Test
+    fun `a save the card limit refuses reports card_limit_reached and still fails`() = runTest {
+        val events = mutableListOf<Pair<String, Map<String, Any>>>()
+        Analytics.recorder = { event, properties -> events += event to properties }
+        try {
+            convex.responses["cards:createCard"] = {
+                throw TeakException(TeakException.CARD_LIMIT_REACHED, "Card limit reached")
+            }
+            val failure = assertFailsWith<TeakException> { repository.createFromText("Note") }
+            assertEquals(TeakException.CARD_LIMIT_REACHED, failure.code)
+            convex.responses["cards:createCard"] = { throw TeakException(TeakException.RATE_LIMITED, "Slow down") }
+            assertFailsWith<TeakException> { repository.createFromText("Another") }
+            assertEquals(listOf("card_limit_reached" to mapOf<String, Any>("source" to "android")), events)
+        } finally {
+            Analytics.recorder = null
+        }
     }
 
     @Test

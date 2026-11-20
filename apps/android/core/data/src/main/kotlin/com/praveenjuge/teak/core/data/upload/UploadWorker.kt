@@ -14,6 +14,7 @@ import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.praveenjuge.teak.core.data.R
 import com.praveenjuge.teak.core.data.catchingFailures
+import com.praveenjuge.teak.core.data.reportCardLimit
 import com.praveenjuge.teak.core.data.convex.TeakException
 import com.praveenjuge.teak.core.data.repository.CARD_SOURCE
 import com.praveenjuge.teak.core.i18n.AppLanguage
@@ -73,7 +74,9 @@ class UploadWorker @AssistedInject constructor(
             ?: TeakException(null, "Upload failed: ${cause?.javaClass?.simpleName}", cause, UiText.of("native.errors.generic"))
         if (error.code == TeakException.OFFLINE && runAttemptCount < MAX_RETRIES) return Result.retry()
         cleanUp(path)
-        return if (error.code == TeakException.CARD_LIMIT_REACHED) stopQueue(name, error) else continueQueue(name, error)
+        if (error.code != TeakException.CARD_LIMIT_REACHED) return continueQueue(name, error)
+        reportCardLimit()
+        return stopQueue(name, error)
     }
 
     private suspend fun stopQueue(name: String, error: TeakException): Result {

@@ -42,7 +42,7 @@ class DiskOfflineCopiesTest {
     }
 
     private object NoBootstrap : UserBootstrap {
-        override suspend fun ensureUser(accessToken: String) = Unit
+        override suspend fun ensureUser(accessToken: String, authMethod: String?) = Unit
     }
 
     @After

@@ -56,6 +56,12 @@ enum SessionParser {
                          clientId: clientId)
     }
 
+    /// How the code exchange authenticated (`GoogleOAuth`, `Password`…), WorkOS's `authentication_method`.
+    static func authMethod(_ data: Data) -> String? {
+        struct Response: Decodable { let authentication_method: String? }
+        return (try? JSONDecoder().decode(Response.self, from: data))?.authentication_method
+    }
+
     private struct AuthenticateResponse: Decodable {
         let access_token: String
         let refresh_token: String

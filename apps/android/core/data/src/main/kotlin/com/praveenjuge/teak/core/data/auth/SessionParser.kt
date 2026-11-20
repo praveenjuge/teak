@@ -81,7 +81,7 @@ object SessionParser {
                 lastName = user.string("last_name"),
                 externalId = user.string("external_id"),
             ),
-        )
+        ).copy(authMethod = root.string("authentication_method"))
     }
 
     private fun JsonObject.string(key: String): String? =

@@ -41,6 +41,7 @@ public enum ConvexFunctions {
     public static let getCurrentUser = ConvexFunction<CurrentUser?>("auth:getCurrentUser")
     public static let getAuthMode = ConvexFunction<AuthMode>("auth:getAuthMode")
     static let ensureUser = ConvexFunction<UserBootstrap.Result>("workosBootstrap:ensureUser")
+    static let ensureUserWithSignup = ConvexFunction<UserBootstrap.Result>("workosBootstrap:ensureUserWithSignup")
     public static let revokeAuthkitSession = ConvexFunction<ConvexVoid>("securitySessions:revokeAuthkitSession")
     public static let deleteMyAccount = ConvexFunction<ConvexVoid>("accountDeletion:deleteMyAccount")
     public static let getPreferences = ConvexFunction<AccountPreferences?>("settings/preferences:getPreferences")

@@ -18,6 +18,8 @@ public struct TeakError: Error, LocalizedError, Sendable, Equatable {
     public static let offlineCode = "OFFLINE"
     public static let unauthenticatedCode = "UNAUTHENTICATED"
     public static let invalidCursorCode = "INVALID_CURSOR"
+    /// The backend has no such public function yet: it was deployed before the app.
+    public static let missingFunctionCode = "MISSING_FUNCTION"
 
     public static var offline: TeakError { TeakError(code: offlineCode, message: TeakMessages.offline) }
     public static var signedOut: TeakError { TeakError(code: unauthenticatedCode, message: tr("native.errors.signInAgain")) }

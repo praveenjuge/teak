@@ -57,6 +57,7 @@ final class CaptureModel {
             saved(input.type == .link ? tr("native.capture.linkSaved") : tr("native.capture.noteSaved"))
             return .success(id)
         } catch let error as TeakError where error.isCardLimit {
+            PostHogReporting.capture(event: "card_limit_reached", ["source": "apple"])
             return .failure(Alert(title: tr("native.capture.cardLimitReached"), message: error.message, isCardLimit: true))
         } catch {
             return .failure(Alert(title: tr("native.capture.couldntSave"), message: tr("native.capture.saveFailedMessage")))
@@ -119,6 +120,7 @@ final class CaptureModel {
         }
         guard queuedIn == epoch else { return nil }
         if let lastError, lastError.isCardLimit {
+            PostHogReporting.capture(event: "card_limit_reached", ["source": "apple"])
             failure = Alert(title: tr("native.capture.cardLimitReached"), message: lastError.message, isCardLimit: true)
         } else if let lastError {
             let locale = AppLanguage.locale

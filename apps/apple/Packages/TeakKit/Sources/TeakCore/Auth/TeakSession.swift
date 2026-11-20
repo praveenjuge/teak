@@ -17,7 +17,7 @@ public actor TeakSession {
         case superseded
     }
 
-    public typealias Bootstrap = @Sendable (_ accessToken: String) async throws -> Void
+    public typealias Bootstrap = @Sendable (_ accessToken: String, _ authMethod: String?) async throws -> Void
 
     public static let refreshMargin: TimeInterval = 30
 
@@ -126,7 +126,7 @@ public actor TeakSession {
         learnClock(from: next)
         guard next.expiresAt > serverNow() else { throw TeakError(message: tr("native.errors.expiredSessionToken")) }
         guard attempt == signInAttempt else { return .superseded }
-        try await bootstrap?(next.accessToken)
+        try await bootstrap?(next.accessToken, SessionParser.authMethod(data))
         guard attempt == signInAttempt else { return .superseded }
 
         let record = try JSONEncoder().encode(next.record)
@@ -145,7 +145,7 @@ public actor TeakSession {
     #if DEBUG
     public func adoptForTesting(_ response: Data, clientId: String) async throws {
         let next = try SessionParser.parseResponse(response, clientId: clientId)
-        try await bootstrap?(next.accessToken)
+        try await bootstrap?(next.accessToken, nil)
         try storage.save(JSONEncoder().encode(next.record))
         generation += 1
         session = next

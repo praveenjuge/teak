@@ -20,7 +20,7 @@ class DefaultWorkOsAuthApiTest {
 
     private fun okResponse() = MockResponse().setBody(
         """{"access_token":"${Tokens.jwt("client_1", "user_1", "session_1", 2_000)}","refresh_token":"r2",
-           "user":{"id":"user_1","email":"a@b.c","email_verified":true}}""",
+           "authentication_method":"GoogleOAuth","user":{"id":"user_1","email":"a@b.c","email_verified":true}}""",
     )
 
     @Test
@@ -28,6 +28,7 @@ class DefaultWorkOsAuthApiTest {
         server.enqueue(okResponse())
         val session = api.exchangeCode(PendingSignIn("client_1", "verifier-123", "state"), "code-1")
         assertEquals("r2", session.refreshToken)
+        assertEquals("GoogleOAuth", session.authMethod)
         val body = server.takeRequest().body.readUtf8()
         assertEquals(
             """{"client_id":"client_1","grant_type":"authorization_code","code":"code-1","code_verifier":"verifier-123"}""",

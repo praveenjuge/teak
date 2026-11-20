@@ -242,7 +242,7 @@ private func request() -> AuthKitRequest {
 
     @Test func aFailedBootstrapLeavesTheAppSignedOut() async throws {
         let storage = MemoryStorage()
-        let session = makeSession(storage, ScriptedTransport { _, _ in (200, Fixture.response()) }) { _ in
+        let session = makeSession(storage, ScriptedTransport { _, _ in (200, Fixture.response()) }) { _, _ in
             throw TeakError(message: TeakMessages.verifyEmail)
         }
         let attempt = await session.beginSignIn()
@@ -290,15 +290,47 @@ private final class TokenLog: @unchecked Sendable {
 }
 
 @Suite(.english) struct BootstrapTests {
-    @Test func opensTheVaultWithOneCall() async throws {
+    @Test func opensTheVaultWithOneCallThatSaysWhereTheSignupCameFrom() async throws {
         let transport = ScriptedTransport { request, body in
             #expect(request.url?.path() == "/api/mutation")
-            #expect(body["path"] as? String == "workosBootstrap:ensureUser")
+            #expect(body["path"] as? String == "workosBootstrap:ensureUserWithSignup")
+            #expect(body["args"] as? [String: String] == ["platform": "apple", "authMethod": "GoogleOAuth"])
             #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer token")
             return (200, ["status": "success", "value": ["status": "ok", "teakUserId": "v"]])
         }
         try await UserBootstrap(convexURL: URL(string: "https://x.convex.cloud")!, transport: transport)
-            .ensureUser(accessToken: "token")
+            .ensureUser(accessToken: "token", authMethod: "GoogleOAuth")
+        #expect(transport.count == 1)
+    }
+
+    @Test func readsHowTheCodeExchangeAuthenticated() {
+        #expect(SessionParser.authMethod(Data(#"{"access_token":"a","authentication_method":"GoogleOAuth"}"#.utf8)) == "GoogleOAuth")
+        #expect(SessionParser.authMethod(Data(#"{"access_token":"a"}"#.utf8)) == nil)
+    }
+
+    @Test func fallsBackToEnsureUserOnABackendThatPredatesTheSignupCall() async throws {
+        let transport = ScriptedTransport { _, body in
+            let path = body["path"] as? String ?? ""
+            if path == "workosBootstrap:ensureUserWithSignup" {
+                return (200, ["status": "error",
+                              "errorMessage": "[Request ID: 1] Server Error\nCould not find public function for '\(path)'.\n"])
+            }
+            #expect(body["args"] as? [String: String] == [:])
+            return (200, ["status": "success", "value": ["status": "ok", "teakUserId": "v"]])
+        }
+        try await UserBootstrap(convexURL: URL(string: "https://x.convex.cloud")!, transport: transport)
+            .ensureUser(accessToken: "token", authMethod: "Password")
+        #expect(transport.requests.map { $0.1["path"] as? String } == ["workosBootstrap:ensureUserWithSignup", "workosBootstrap:ensureUser"])
+    }
+
+    @Test func anyOtherFailureStopsTheSignInWithoutFallingBack() async throws {
+        let transport = ScriptedTransport { _, _ in
+            (200, ["status": "error", "errorMessage": "[Request ID: 1] Server Error\nUncaught Error: Boom\n"])
+        }
+        await #expect(throws: TeakError(message: "Boom")) {
+            try await UserBootstrap(convexURL: URL(string: "https://x.convex.cloud")!, transport: transport)
+                .ensureUser(accessToken: "token")
+        }
         #expect(transport.count == 1)
     }
 

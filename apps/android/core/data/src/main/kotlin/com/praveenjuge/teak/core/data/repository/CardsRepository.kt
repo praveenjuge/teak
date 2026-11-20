@@ -1,6 +1,7 @@
 package com.praveenjuge.teak.core.data.repository
 
 import com.praveenjuge.teak.core.data.convex.ConvexApi
+import com.praveenjuge.teak.core.data.reportCardLimit
 import com.praveenjuge.teak.core.data.convex.ConvexFunctions
 import com.praveenjuge.teak.core.data.convex.TeakException
 import com.praveenjuge.teak.core.data.convex.action
@@ -267,7 +268,14 @@ class ConvexCardsRepository @Inject constructor(
      * connection drops mid-call fails as offline instead of waiting: the server may already have saved it.
      */
     override suspend fun createFromText(text: String, source: String): String? {
-        if (convex.connectedNow) return convex.mutation(ConvexFunctions.createCard, textCardArgs(text, source))
+        if (convex.connectedNow) {
+            return try {
+                convex.mutation(ConvexFunctions.createCard, textCardArgs(text, source))
+            } catch (e: TeakException) {
+                if (e.code == TeakException.CARD_LIMIT_REACHED) reportCardLimit()
+                throw e
+            }
+        }
         outbox.add(listOf(OutboxItem.CreateText(OutboxItem.newId(), text, source = source)))
         return null
     }

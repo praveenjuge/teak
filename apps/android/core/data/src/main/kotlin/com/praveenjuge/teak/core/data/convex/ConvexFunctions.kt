@@ -57,6 +57,7 @@ object ConvexFunctions {
     val getCurrentUser = ConvexFunction("auth:getCurrentUser", CurrentUser.serializer().nullable)
     val getAuthMode = ConvexFunction("auth:getAuthMode", AuthMode.serializer())
     val ensureUser = ConvexFunction("workosBootstrap:ensureUser", JsonObject.serializer())
+    val ensureUserWithSignup = ConvexFunction("workosBootstrap:ensureUserWithSignup", JsonObject.serializer())
     val revokeAuthkitSession = ConvexFunction("securitySessions:revokeAuthkitSession", JsonElement.serializer())
     val deleteMyAccount = ConvexFunction("accountDeletion:deleteMyAccount", JsonElement.serializer())
     val getPreferences = ConvexFunction("settings/preferences:getPreferences", AccountPreferences.serializer().nullable)

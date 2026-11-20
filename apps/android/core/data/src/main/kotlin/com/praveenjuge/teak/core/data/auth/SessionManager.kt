@@ -68,7 +68,7 @@ class SessionManager @Inject constructor(
             throw SignInException.signInFailed()
         }
         val signedIn = api.exchangeCode(pending, code)
-        bootstrap.ensureUser(signedIn.accessToken)
+        bootstrap.ensureUser(signedIn.accessToken, signedIn.authMethod)
         commit(signedIn)
         return SignInOutcome.SignedIn
     }

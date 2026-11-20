@@ -11,3 +11,9 @@ object Analytics {
         recorder?.invoke(event, properties)
     }
 }
+
+/**
+ * A save the free card limit refused. The backend can't record it: the refusing mutation rolls back anything it
+ * queued, so the app sends the client event.
+ */
+fun reportCardLimit() = Analytics.capture("card_limit_reached", mapOf("source" to "android"))

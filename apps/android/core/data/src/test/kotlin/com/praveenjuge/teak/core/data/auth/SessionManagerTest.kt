@@ -32,7 +32,7 @@ class SessionManagerTest {
 
     private class FakeBootstrap(var error: SignInException? = null) : UserBootstrap {
         var calls = 0
-        override suspend fun ensureUser(accessToken: String) {
+        override suspend fun ensureUser(accessToken: String, authMethod: String?) {
             calls += 1
             error?.let { throw it }
         }
