@@ -45,7 +45,7 @@ describe("QuotePreview", () => {
     expect(markup).toContain("“");
     expect(markup).toContain("”");
     expect(markup).toContain("Be curious.");
-    expect(markup).toContain('placeholder="Enter your quote..."');
+    expect(markup).toContain('placeholder="Enter your quote…"');
     expect(markup).toContain('aria-label="Quote"');
   });
 

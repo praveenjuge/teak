@@ -458,7 +458,7 @@
     "settings": {
       "deletionRequested": "계정 삭제가 요청되었습니다. 로그아웃하는 중입니다.",
       "welcomePro": "Pro에 오신 것을 환영합니다! 구독이 활성화되었습니다.",
-      "openingCheckout": "결제 페이지를 여는 중...",
+      "openingCheckout": "결제 페이지를 여는 중…",
       "checkoutNewTab": "새 탭에서 결제 페이지가 열렸습니다",
       "checkoutFailed": "결제를 시작하지 못했습니다. 다시 시도해 주세요."
     },
@@ -975,11 +975,11 @@
       "saveFailed": "팔레트를 업데이트하지 못했습니다. 다시 시도하세요."
     },
     "quote": {
-      "placeholder": "인용을 입력하세요..."
+      "placeholder": "인용을 입력하세요…"
     },
     "text": {
       "focus": "집중",
-      "placeholder": "메모를 작성하세요...",
+      "placeholder": "메모를 작성하세요…",
       "tooLarge": "메모는 UTF-8 텍스트로 최대 512KiB까지 가능합니다"
     },
     "video": {
@@ -1185,8 +1185,8 @@
       "rateLimited": "카드를 너무 많이 만들었습니다. 잠시 기다려 주세요."
     },
     "addCard": {
-      "placeholder": "메모를 작성하세요...",
-      "upgradePlaceholder": "카드를 더 추가하려면 Pro로 업그레이드하세요...",
+      "placeholder": "메모를 작성하세요…",
+      "upgradePlaceholder": "카드를 더 추가하려면 Pro로 업그레이드하세요…",
       "saveFailed": "메모를 저장하지 못했습니다",
       "savingOffline": "오프라인 상태입니다. 다시 연결되면 이 메모가 저장됩니다.",
       "focus": "집중",
@@ -1213,15 +1213,15 @@
       "noteOrLink": "메모 또는 링크",
       "uploadFiles": "파일 업로드",
       "recordAudio": "오디오 녹음",
-      "savingRecording": "오디오 녹음을 저장하는 중...",
+      "savingRecording": "오디오 녹음을 저장하는 중…",
       "recordingSaved": "오디오 녹음이 저장되었습니다",
       "recordingNotSaved": "녹음을 저장하지 못했습니다. 다시 시도하거나 다운로드해서 보관하세요.",
       "microphoneUnsupported": "이 앱에서는 마이크 녹음을 지원하지 않습니다.",
       "microphoneDenied": "마이크 권한이 거부되었습니다. 권한을 허용한 후 다시 시도하세요.",
       "microphoneMissing": "마이크가 감지되지 않았습니다. 마이크를 연결한 후 다시 시도하세요.",
       "recordingStartFailed": "녹음을 시작하지 못했습니다. 마이크 설정을 확인하세요.",
-      "startingMicrophone": "마이크를 시작하는 중...",
-      "savingRecordingStatus": "녹음을 저장하는 중...",
+      "startingMicrophone": "마이크를 시작하는 중…",
+      "savingRecordingStatus": "녹음을 저장하는 중…",
       "recordingHint": "자연스럽게 말하세요. Teak이 오디오 카드로 저장합니다.",
       "recordingTitle": "오디오 녹음 중",
       "stopAndSave": "중지 및 저장",
@@ -1721,7 +1721,7 @@
       "cardsPermanentlyDeleted": "{count, plural, other {카드 #개가 영구 삭제되었습니다}}"
     },
     "clipboard": {
-      "copyingImage": "이미지를 복사하는 중...",
+      "copyingImage": "이미지를 복사하는 중…",
       "imageCopied": "이미지가 클립보드에 복사되었습니다",
       "copied": "클립보드에 복사되었습니다",
       "linkCopied": "링크가 클립보드에 복사되었습니다",
@@ -1747,7 +1747,7 @@
       "failed": "PDF를 저장하지 못했습니다. 다시 시도해 주세요."
     },
     "settings": {
-      "openingPortal": "고객 포털을 여는 중...",
+      "openingPortal": "고객 포털을 여는 중…",
       "portalOpened": "고객 포털이 열렸습니다",
       "portalFailed": "포털을 열지 못했습니다",
       "deleteAccountFailed": "계정을 삭제하는 중에 문제가 발생했습니다.",

@@ -49,6 +49,15 @@ for (const [name, dir] of [
       expect(invalid).toEqual([]);
     });
 
+    test("every catalog writes an ellipsis as …, not three dots", () => {
+      const dotted = SUPPORTED_LOCALES.flatMap((locale) =>
+        [...readLocale(locale)]
+          .filter(([, message]) => message.includes("..."))
+          .map(([key]) => `${locale}: ${key}`)
+      );
+      expect(dotted).toEqual([]);
+    });
+
     for (const locale of translations) {
       describe(locale, () => {
         const catalog = readLocale(locale);

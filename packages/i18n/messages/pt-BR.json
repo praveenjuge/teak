@@ -458,7 +458,7 @@
     "settings": {
       "deletionRequested": "Exclusão da conta solicitada. Você está sendo desconectado.",
       "welcomePro": "Boas-vindas ao Pro! Sua assinatura foi ativada.",
-      "openingCheckout": "Abrindo o pagamento...",
+      "openingCheckout": "Abrindo o pagamento…",
       "checkoutNewTab": "O pagamento foi aberto em uma nova aba",
       "checkoutFailed": "Não foi possível iniciar o pagamento. Tente novamente."
     },
@@ -975,11 +975,11 @@
       "saveFailed": "Não foi possível atualizar a paleta. Tente de novo."
     },
     "quote": {
-      "placeholder": "Digite sua citação..."
+      "placeholder": "Digite sua citação…"
     },
     "text": {
       "focus": "Foco",
-      "placeholder": "Escreva uma nota...",
+      "placeholder": "Escreva uma nota…",
       "tooLarge": "As notas podem ter até 512 KiB de texto UTF-8"
     },
     "video": {
@@ -1185,8 +1185,8 @@
       "rateLimited": "Muitos cards criados. Aguarde um momento."
     },
     "addCard": {
-      "placeholder": "Escreva uma nota...",
-      "upgradePlaceholder": "Faça upgrade para o Pro para adicionar mais cards...",
+      "placeholder": "Escreva uma nota…",
+      "upgradePlaceholder": "Faça upgrade para o Pro para adicionar mais cards…",
       "saveFailed": "Não foi possível salvar a nota",
       "savingOffline": "Você está offline. Esta nota será salva quando você se reconectar.",
       "focus": "Foco",
@@ -1213,15 +1213,15 @@
       "noteOrLink": "Nota ou link",
       "uploadFiles": "Enviar arquivos",
       "recordAudio": "Gravar áudio",
-      "savingRecording": "Salvando a gravação de áudio...",
+      "savingRecording": "Salvando a gravação de áudio…",
       "recordingSaved": "Gravação de áudio salva",
       "recordingNotSaved": "Não foi possível salvar a gravação. Tente de novo ou baixe-a para guardá-la.",
       "microphoneUnsupported": "Este app não permite gravar com o microfone.",
       "microphoneDenied": "A permissão do microfone foi negada. Permita o acesso e tente de novo.",
       "microphoneMissing": "Nenhum microfone foi detectado. Conecte um e tente de novo.",
       "recordingStartFailed": "Não foi possível iniciar a gravação. Verifique a configuração do microfone.",
-      "startingMicrophone": "Iniciando o microfone...",
-      "savingRecordingStatus": "Salvando a gravação...",
+      "startingMicrophone": "Iniciando o microfone…",
+      "savingRecordingStatus": "Salvando a gravação…",
       "recordingHint": "Fale naturalmente. O Teak vai salvar isto como um card de áudio.",
       "recordingTitle": "Gravando áudio",
       "stopAndSave": "Parar e salvar",
@@ -1721,7 +1721,7 @@
       "cardsPermanentlyDeleted": "{count, plural, one {# card excluído permanentemente} other {# cards excluídos permanentemente}}"
     },
     "clipboard": {
-      "copyingImage": "Copiando imagem...",
+      "copyingImage": "Copiando imagem…",
       "imageCopied": "Imagem copiada para a área de transferência",
       "copied": "Copiado para a área de transferência",
       "linkCopied": "Link copiado para a área de transferência",
@@ -1747,7 +1747,7 @@
       "failed": "Não foi possível salvar o PDF. Tente novamente."
     },
     "settings": {
-      "openingPortal": "Abrindo o portal do cliente...",
+      "openingPortal": "Abrindo o portal do cliente…",
       "portalOpened": "Portal do cliente aberto",
       "portalFailed": "Não foi possível abrir o portal",
       "deleteAccountFailed": "Algo deu errado ao excluir sua conta.",
