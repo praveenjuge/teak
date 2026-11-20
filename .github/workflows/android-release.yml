@@ -213,6 +213,8 @@ jobs:
         env:
           VERSION: ${{ needs.resolve.outputs.version }}
           VERSION_CODE: ${{ needs.resolve.outputs.version_code }}
+          POSTHOG_CLI_API_KEY: ${{ secrets.POSTHOG_CLI_API_KEY }}
+          POSTHOG_CLI_PROJECT_ID: ${{ secrets.POSTHOG_CLI_PROJECT_ID }}
         run: |
           bundle="apps/android/app/build/outputs/bundle/release/app-release.aab"
           mapping="apps/android/app/build/outputs/mapping/release/mapping.txt"
@@ -227,6 +229,20 @@ jobs:
             echo "The bundle's manifest doesn't carry version code $VERSION_CODE." >&2
             exit 1
           fi
+          # PostHog matches a crash to its mapping by the map ID inside the bundle,
+          # so check that this exact ID has an uploaded symbol set.
+          map_id="$(unzip -p "$bundle" base/assets/posthog-meta.properties | sed -n 's/^io\.posthog\.proguard\.mapid=//p' | tr -d '\r')"
+          if [ -z "$map_id" ]; then
+            echo "The bundle carries no PostHog map ID, so its crashes can't be symbolicated." >&2
+            exit 1
+          fi
+          uploaded="$(curl -fsS -H "Authorization: Bearer $POSTHOG_CLI_API_KEY" \
+            "$POSTHOG_CLI_HOST/api/projects/$POSTHOG_CLI_PROJECT_ID/error_tracking/symbol_sets/?ref=$map_id" \
+            | jq '[.results[] | select(.has_uploaded_file)] | length')"
+          if [ "$uploaded" -lt 1 ]; then
+            echo "PostHog has no uploaded R8 mapping for the bundle's map ID $map_id." >&2
+            exit 1
+          fi
           out="$RUNNER_TEMP/release"
           mkdir -p "$out"
           cp "$bundle" "$out/teak-android-${VERSION}.aab"
@@ -234,7 +250,7 @@ jobs:
           echo "dir=$out" >> "$GITHUB_OUTPUT"
           {
             echo "- Android: teak-android-${VERSION}.aab, version code $VERSION_CODE, signed with the upload key"
-            echo "- PostHog: R8 mapping uploaded"
+            echo "- PostHog: R8 mapping uploaded for map ID $map_id"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Attach the bundle and mapping to the GitHub release

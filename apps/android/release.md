@@ -8,7 +8,7 @@ The app ID is `com.praveenjuge.teak`. The version name is the root `package.json
 
 1. Complete the shared preparation in `../../.agents/runbooks/releases.md`. If you want release notes, edit `whatsNew` in `apps/android/store/store.config.json` in the same PR (500 characters at most). An empty `whatsNew` sends the generic note: "Small fixes and polish to keep saving and organizing your ideas smooth and reliable." Whatever `whatsNew` holds goes out on every release until you change it.
 2. Merge to `main`. Nothing else is needed. The run:
-   - **`build`** runs lint, the unit tests and the signed release bundle from the tag, uploads the R8 mapping to PostHog, checks the upload certificate and the version code, and attaches `teak-android-<version>.aab` and its mapping to the GitHub Release. Each tag builds once; a rerun reuses the attached bundle.
+   - **`build`** runs lint, the unit tests and the signed release bundle from the tag, uploads the R8 mapping to PostHog, checks the upload certificate, the version code and that PostHog has an uploaded mapping for the map ID inside the bundle, and attaches `teak-android-<version>.aab` and its mapping to the GitHub Release. Each tag builds once; a rerun reuses the attached bundle.
    - **`publish`** downloads that exact bundle (PostHog matches crashes by the map ID inside it), then does everything in one Play edit:
      - uploads the bundle and the mapping (for readable stack traces in Play vitals)
      - syncs the listing text and images from `store.config.json`
@@ -76,5 +76,6 @@ Done once. A run that's missing one of these fails and points here.
 - **Google sign-in failed (`invalid_grant`):** the key in `PLAY_SERVICE_ACCOUNT_JSON` was deleted or rotated. Create a new key and set the secret again.
 - **Changes can't be sent for review:** a declaration in Play Console's App content is out of date (Data safety, trader status, target audience). Fix it there, then rerun.
 - **"Version code … has already been used":** a bundle with that version code is already in Play's library from another release. Ship the next patch version instead.
+- **"PostHog has no uploaded R8 mapping for the bundle's map ID …":** the upload task ran but PostHog didn't keep the mapping, so the version's crashes would show obfuscated frames. Check that `POSTHOG_CLI_API_KEY` still has error-tracking write on project `POSTHOG_CLI_PROJECT_ID`, then rerun the run's failed jobs; each tag builds once, so nothing else changes.
 - **"The bundle is signed with …, not the upload key":** the build used the wrong key. Check `ANDROID_UPLOAD_KEYSTORE_BASE64` and its password.
 - **Google rejects the update:** fix what the email names, then release the next patch version. A new release cancels the rejected review and submits the newer one.
