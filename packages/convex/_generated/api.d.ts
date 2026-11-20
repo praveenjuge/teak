@@ -225,7 +225,6 @@ import type * as schema_validators_cards from "../schema/validators/cards.js";
 import type * as schema_validators_dispatch from "../schema/validators/dispatch.js";
 import type * as schema_validators_jobs from "../schema/validators/jobs.js";
 import type * as search_mobileCardSummaries from "../search/mobileCardSummaries.js";
-import type * as search_readMeter from "../search/readMeter.js";
 import type * as search_relevanceActions from "../search/relevanceActions.js";
 import type * as search_relevanceCache from "../search/relevanceCache.js";
 import type * as search_resultCache from "../search/resultCache.js";
@@ -598,7 +597,6 @@ declare const fullApi: ApiFromModules<{
   "schema/validators/dispatch": typeof schema_validators_dispatch;
   "schema/validators/jobs": typeof schema_validators_jobs;
   "search/mobileCardSummaries": typeof search_mobileCardSummaries;
-  "search/readMeter": typeof search_readMeter;
   "search/relevanceActions": typeof search_relevanceActions;
   "search/relevanceCache": typeof search_relevanceCache;
   "search/resultCache": typeof search_resultCache;

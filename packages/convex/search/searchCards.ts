@@ -26,7 +26,6 @@ import {
   clampSearchLimit,
   resolveQuickSearchCommand,
 } from "../shared/search/constants";
-import { withReadMeter } from "./readMeter";
 import {
   createdAtRangeValidator,
   searchCardsPaginatedArgsValidator,
@@ -183,10 +182,5 @@ export const searchCardsPaginated = query({
   args: searchCardsPaginatedArgsValidator.fields,
   returns: paginationResultValidator,
   handler: (ctx, args) =>
-    withReadMeter(ctx, args, (metered, reportSearch) =>
-      searchCardsPaginatedHandler(metered, args, {
-        attach: attachGridFileUrls,
-        reportSearch,
-      })
-    ),
+    searchCardsPaginatedHandler(ctx, args, { attach: attachGridFileUrls }),
 });
