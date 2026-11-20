@@ -10,7 +10,7 @@ export const SIGN_UP_URL = `${WEB_APP_URL}${SIGN_UP_PATH}`;
 export const SIGN_IN_ORIGINS = [
   WEB_APP_URL,
   "https://api.workos.com",
-  "https://scholarly-hay-77.authkit.app",
+  "https://teak.authkit.app",
 ];
 
 /**

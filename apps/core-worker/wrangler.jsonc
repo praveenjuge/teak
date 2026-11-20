@@ -209,7 +209,7 @@
     "LINK_FETCHER_INSTANCES": "4",
     "API_PUBLIC_HOST": "teakvault.com",
     "API_UPSTREAM_ORIGIN": "https://uncommon-ladybug-882.convex.site",
-    "API_WORKOS_ISSUER": "https://scholarly-hay-77.authkit.app",
+    "API_WORKOS_ISSUER": "https://teak.authkit.app",
     // The Convex deployments whose background work this Worker runs; the
     // first is primary. Development has its own Worker
     // (development/wrangler.jsonc) and is never listed here: two Workers
