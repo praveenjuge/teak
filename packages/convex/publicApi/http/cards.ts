@@ -911,12 +911,19 @@ const handleDeleteCardRequest = async (call: PublicApiCall) => {
       "Move the card to Trash before deleting it permanently"
     );
   }
-  await call.ctx.runMutation(
-    permanent
-      ? internal.card.deleteCard.permanentDeleteCardForUser
-      : internal.publicApi.cardsForUser.softDeleteCardForUser,
-    { cardId: loaded.cardId, userId: call.userId }
-  );
+  const card = { cardId: loaded.cardId, userId: call.userId };
+  await (permanent
+    ? call.ctx.runMutation(
+        internal.card.deleteCard.permanentDeleteCardForUser,
+        card
+      )
+    : call.ctx.runMutation(
+        internal.publicApi.cardsForUser.softDeleteCardForUser,
+        {
+          ...card,
+          source: call.cardSource,
+        }
+      ));
   return noContent();
 };
 
@@ -947,7 +954,12 @@ const handleUpdateCardRequest = async (call: PublicApiCall) => {
   }
   const updated = await call.ctx.runMutation(
     internal.publicApi.cardsForUser.patchCardForUser,
-    { ...patchPayload, cardId: loaded.cardId, userId: call.userId }
+    {
+      ...patchPayload,
+      cardId: loaded.cardId,
+      source: call.cardSource,
+      userId: call.userId,
+    }
   );
   return updated
     ? await cardResponse(call, updated)

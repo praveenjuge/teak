@@ -990,6 +990,7 @@ describe("publicApiHttp card endpoints", () => {
     expect(payload.metadataTitle).toBe("Edited title");
     expect(runMutation).toHaveBeenCalledWith(expect.anything(), {
       cardId: "card_1",
+      source: "api",
       userId: "user_1",
       notes: null,
       tags: [],

@@ -9,6 +9,7 @@ import {
   smartFolderMembership,
 } from "../folder/membership";
 import { requireSessionUser, type TeakUserId } from "../securitySessions";
+import type { CardChangeSource } from "../shared/analytics";
 import {
   type BulkCardAction,
   bulkCardActionValidator,
@@ -99,11 +100,14 @@ export const applyCardAction = async (
     tags = [],
     folder,
     fromFolder,
+    source = "app",
   }: {
     action: BulkCardAction;
     cardId: Id<"cards">;
     folder?: Doc<"folders">;
     fromFolder?: Doc<"folders">;
+    /** Who made the change, for `card_archived` and `card_deleted`. */
+    source?: CardChangeSource;
     tags?: readonly string[];
     userId: TeakUserId;
   }
@@ -129,20 +133,20 @@ export const applyCardAction = async (
     }
     case "archive":
     case "unarchive":
-      await updateCardFieldForUserHandler(ctx, {
-        userId,
-        cardId,
-        field: action,
-      });
+      await updateCardFieldForUserHandler(
+        ctx,
+        { userId, cardId, field: action },
+        { source }
+      );
       return;
     case "delete":
     case "restore":
       if ((card.isDeleted === true) !== (action === "delete")) {
-        await updateCardFieldForUserHandler(ctx, {
-          userId,
-          cardId,
-          field: action,
-        });
+        await updateCardFieldForUserHandler(
+          ctx,
+          { userId, cardId, field: action },
+          { source }
+        );
       }
       return;
     case "addTags":

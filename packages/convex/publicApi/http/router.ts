@@ -1,5 +1,7 @@
 import { ConvexError } from "convex/values";
 import { type ActionCtx, httpAction } from "../../_generated/server";
+import type { ApiCardSource } from "../../card/createCard";
+import { CARD_ERROR_CODES } from "../../shared/constants";
 import {
   matchPublicApiOperation,
   PUBLIC_API_OPERATIONS,
@@ -9,6 +11,10 @@ import {
   publicApiMethodsFor,
   publicApiPath,
 } from "../../shared/publicApiContract";
+import {
+  captureBackendEvent,
+  withBackendTelemetryScope,
+} from "../../telemetry/posthog";
 import type { WorkosResource } from "../../workos/tokens";
 import { chargeAuthorizedCall, withAuthorizedUser } from "./auth";
 import { cardSourceForCaller } from "./callerSource";
@@ -168,14 +174,85 @@ const authorizeRun = async (
   return refused ? { error: refused } : { validated };
 };
 
+const API_ERROR_CODE = /^[A-Z_]{1,40}$/u;
+
+/** The API's error code from an error response's JSON body. */
+const readErrorCode = async (
+  response: Response
+): Promise<string | undefined> => {
+  if (response.status < 400) {
+    return;
+  }
+  const body: unknown = await response
+    .clone()
+    .json()
+    .catch(() => null);
+  const code = (body as { code?: unknown } | null)?.code;
+  return typeof code === "string" && API_ERROR_CODE.test(code)
+    ? code
+    : undefined;
+};
+
+/**
+ * Reports a finished call: `card_limit_reached` for a save the free card
+ * limit refused, and, for REST calls, `api_request`. MCP calls report
+ * `mcp_tool_called` instead (`mcp/tools.ts`).
+ */
+const reportOperation = async (
+  run: OperationRun,
+  response: Response,
+  caller: { source?: ApiCardSource; startedAt: number; userId?: string }
+) => {
+  const errorCode = await readErrorCode(response);
+  const source = caller.source ?? "unknown";
+  if (errorCode === CARD_ERROR_CODES.CARD_LIMIT_REACHED) {
+    await captureBackendEvent("card_limit_reached", caller.userId, { source });
+  }
+  if (run.resource === "mcp") {
+    return;
+  }
+  let outcome: "ok" | "error" | "unauthorized" = "ok";
+  if (response.status === 401) {
+    outcome = "unauthorized";
+  } else if (response.status >= 400) {
+    outcome = "error";
+  }
+  await captureBackendEvent("api_request", caller.userId, {
+    caller_source: source,
+    duration_ms: Date.now() - caller.startedAt,
+    outcome,
+    route: run.operationId,
+    status: response.status,
+    ...(errorCode ? { error_code: errorCode } : {}),
+  });
+};
+
 const runOperation = async (
   ctx: ActionCtx,
   run: OperationRun
 ): Promise<Response> => {
+  const startedAt = Date.now();
   const auth = await authorizeRun(ctx, run);
   if ("error" in auth) {
+    await reportOperation(run, auth.error, { startedAt });
     return auth.error;
   }
+  const source = cardSourceForCaller(auth.validated, run.resource);
+  const response = await respond(ctx, run, auth.validated, source);
+  await reportOperation(run, response, {
+    source,
+    startedAt,
+    userId: auth.validated.userId,
+  });
+  return response;
+};
+
+const respond = async (
+  ctx: ActionCtx,
+  run: OperationRun,
+  validated: AuthorizedUser,
+  cardSource: ApiCardSource
+): Promise<Response> => {
   let body = run.body?.value;
   if (!run.body && readsBody(run.operationId)) {
     try {
@@ -191,12 +268,12 @@ const runOperation = async (
   try {
     return await handler({
       body,
-      cardSource: cardSourceForCaller(auth.validated, run.resource),
+      cardSource,
       ctx,
       params: run.params,
       request: run.request,
       resource: run.resource,
-      userId: auth.validated.userId,
+      userId: validated.userId,
     });
   } catch (error) {
     // Every handler's errors answer here: a ConvexError with its code and
@@ -228,12 +305,15 @@ export const handlePublicApiRequest = (
       )
     );
   }
-  return runOperation(ctx, {
-    operationId: match.operationId,
-    params: match.params,
-    request,
-    resource,
-  });
+  const { operationId } = match;
+  return withBackendTelemetryScope({}, () =>
+    runOperation(ctx, {
+      operationId,
+      params: match.params,
+      request,
+      resource,
+    })
+  );
 };
 
 export const publicApiV1 = httpAction(async (ctx, request) =>

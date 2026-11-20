@@ -46,6 +46,30 @@ export const BACKEND_APP_VERSION = packageJson.version;
 export const backendCommitSha = (): string | undefined =>
   env.CONVEX_GIT_COMMIT_SHA?.trim().slice(0, COMMIT_SHA_LENGTH) || undefined;
 
+/**
+ * Whether an account is the team's own or a test account, for the
+ * `is_internal` person property: Teak's E2E accounts (`e2e-…`) and every
+ * entry of `POSTHOG_INTERNAL_ACCOUNTS`, a comma-separated list of addresses
+ * and `@domain`s.
+ */
+export const isInternalAccount = (email: string | undefined): boolean => {
+  const address = email?.trim().toLowerCase();
+  if (!address) {
+    return false;
+  }
+  if (address.startsWith("e2e-")) {
+    return true;
+  }
+  const domain = address.slice(address.lastIndexOf("@"));
+  return (env.POSTHOG_INTERNAL_ACCOUNTS ?? "")
+    .split(",")
+    .map((entry) => entry.trim().toLowerCase())
+    .some(
+      (entry) =>
+        entry === address || (entry.startsWith("@") && entry === domain)
+    );
+};
+
 const createBatch = (): PostHogBatch =>
   createPostHogBatch({
     lib: BACKEND_POSTHOG_LIB,
@@ -117,6 +141,15 @@ export const captureBackendEvent = <Name extends ServerEventName>(
       properties: { ...baseProperties(), ...properties },
       set: options.set,
     })
+  );
+
+/** Sets person properties without a product event (PostHog's `$set`). */
+export const setBackendPersonProperties = (
+  distinctId: string,
+  set: PostHogProperties
+): Promise<void> =>
+  enqueue((batch) =>
+    batch.capture({ distinctId, event: "$set", properties: {}, set })
   );
 
 export const captureBackendException = (

@@ -1125,10 +1125,17 @@ describe("analytics events", () => {
         event: "user_signed_up",
         properties: {
           commit_sha: "abc123def456",
+          platform: "unknown",
           source: "auth",
           surface: "backend",
         },
-        set: { email: "a@example.com", plan: "free", signed_up_at: now },
+        set: {
+          email: "a@example.com",
+          is_internal: false,
+          plan: "free",
+          signed_up_at: now,
+          signup_platform: "unknown",
+        },
         timestamp: now,
         type: "analytics-event",
         uuid: expect.stringMatching(UUID),

@@ -348,6 +348,7 @@ import type * as tags from "../tags.js";
 import type * as telemetry_alerts from "../telemetry/alerts.js";
 import type * as telemetry_crons from "../telemetry/crons.js";
 import type * as telemetry_events from "../telemetry/events.js";
+import type * as telemetry_internalAccounts from "../telemetry/internalAccounts.js";
 import type * as telemetry_posthog from "../telemetry/posthog.js";
 import type * as telemetry_schedule from "../telemetry/schedule.js";
 import type * as vectorShards from "../vectorShards.js";
@@ -720,6 +721,7 @@ declare const fullApi: ApiFromModules<{
   "telemetry/alerts": typeof telemetry_alerts;
   "telemetry/crons": typeof telemetry_crons;
   "telemetry/events": typeof telemetry_events;
+  "telemetry/internalAccounts": typeof telemetry_internalAccounts;
   "telemetry/posthog": typeof telemetry_posthog;
   "telemetry/schedule": typeof telemetry_schedule;
   vectorShards: typeof vectorShards;

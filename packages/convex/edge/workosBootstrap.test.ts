@@ -66,6 +66,56 @@ describe("signed WorkOS bootstrap", () => {
     expect(await signed(t).mutation(ensure, {})).toEqual(result);
     expect(await state(t)).toEqual(before);
   });
+  test("a new account reports where it signed up, and whether it is the team's", async () => {
+    vi.stubEnv("POSTHOG_PROJECT_TOKEN", "phc_test");
+    vi.stubEnv("FILES_BASE", "https://files.test");
+    vi.stubEnv("FILES_SIGNING_SECRET", "test-files-secret");
+    vi.stubEnv("POSTHOG_INTERNAL_ACCOUNTS", "owner@teak.test, @Example.com");
+    const t = setup();
+    await signed(t).mutation(api.workosBootstrap.ensureUserWithSignup, {
+      authMethod: "GoogleOAuth",
+      platform: "web",
+    });
+    await signed(t, {
+      subject: "user_OTHER",
+      email: "someone@example.org",
+    }).mutation(api.workosBootstrap.ensureUserWithSignup, {
+      authMethod: "Passkey2",
+    });
+    const signups = await t.run(async (ctx) =>
+      (await ctx.db.query("workflowDispatches").collect())
+        .map((row) => row.params as { event?: string })
+        .filter((params) => params.event === "user_signed_up")
+    );
+    expect(signups).toMatchObject([
+      {
+        properties: { method: "google", platform: "web", source: "auth" },
+        set: {
+          email: "new@example.com",
+          is_internal: true,
+          signup_method: "google",
+          signup_platform: "web",
+        },
+      },
+      {
+        properties: { method: "other", platform: "unknown" },
+        set: {
+          email: "someone@example.org",
+          is_internal: false,
+          signup_platform: "unknown",
+        },
+      },
+    ]);
+  });
+  test("ensureUser keeps taking no arguments, so apps of any version sign in", async () => {
+    const t = setup();
+    await expect(
+      signed(t).mutation(ensure, { platform: "web" } as never)
+    ).rejects.toThrow(/extra field|ArgumentValidationError|Validator/i);
+    expect(await signed(t).mutation(ensure, {})).toMatchObject({
+      status: "ok",
+    });
+  });
   test("an existing owner signs in unchanged and keeps its legacy provenance", async () => {
     const t = setup();
     await seed(t);

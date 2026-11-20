@@ -105,7 +105,7 @@ export function AddCardForm({
       // that stopped at the limit already said so.
       if (!(hasShownBlockedToastRef.current || pasteInProgress)) {
         if (!pasteReachedLimit) {
-          showUpgradeToast();
+          showUpgradeToast(undefined, { placement: "composer_toast" });
         }
         hasShownBlockedToastRef.current = true;
       }

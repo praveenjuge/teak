@@ -5,6 +5,7 @@ import { assertAccountNotDeleting } from "../accountDeletion/gate";
 import { newImportFolderCache } from "../folder/folders";
 import { resolveStoredUserId } from "../securitySessions";
 import { queueObjectDeletion } from "../storage/objectDeletion";
+import { queueBackendEvent } from "../telemetry/schedule";
 import { createImportedCard, importItemFields } from "./items";
 
 // The import Workflow keeps the items it reads in R2 under the job's key
@@ -215,6 +216,9 @@ export const createBatch = internalMutation({
       unclaimed.push(...(extractedFileKey ? [extractedFileKey] : []));
       if (outcome.code === "CARD_LIMIT_REACHED") {
         await settle();
+        await queueBackendEvent(ctx, "card_limit_reached", userId, {
+          source: "import",
+        });
         return { limitReached: true };
       }
     }

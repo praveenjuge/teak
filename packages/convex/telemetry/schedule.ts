@@ -1,5 +1,10 @@
 import type { MutationCtx } from "../_generated/server";
-import type { ServerEventCatalog, ServerEventName } from "../shared/analytics";
+import type {
+  ServerEventCatalog,
+  ServerEventName,
+  SignupMethod,
+  SignupPlatform,
+} from "../shared/analytics";
 import type { PostHogProperties } from "../shared/posthog";
 import { ignoreTelemetryErrorAsync } from "../shared/telemetry";
 import { isCoreWorkerConfigured } from "../storage/coreWorkerClient";
@@ -9,6 +14,7 @@ import {
   BACKEND_APP_VERSION,
   backendCommitSha,
   isBackendCaptureEnabled,
+  isInternalAccount,
 } from "./posthog";
 
 /**
@@ -73,18 +79,32 @@ export const queueCardOutcome = async (
 
 export const queueUserCreated = async (
   ctx: MutationCtx,
-  args: { email?: string; source?: string; userId: string }
+  args: {
+    email?: string;
+    method?: SignupMethod;
+    platform?: SignupPlatform;
+    source?: string;
+    userId: string;
+  }
 ): Promise<void> => {
+  const platform = args.platform ?? "unknown";
   await queueBackendEvent(
     ctx,
     "user_signed_up",
     args.userId,
-    { source: args.source },
+    {
+      platform,
+      source: args.source,
+      ...(args.method ? { method: args.method } : {}),
+    },
     {
       set: {
         ...(args.email ? { email: args.email } : {}),
+        is_internal: isInternalAccount(args.email),
         plan: "free",
         signed_up_at: new Date().toISOString(),
+        signup_platform: platform,
+        ...(args.method ? { signup_method: args.method } : {}),
       },
     }
   );

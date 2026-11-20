@@ -11,7 +11,10 @@ import { rateLimiter } from "../rateLimiter";
 import { CARD_ERROR_CODES } from "../shared/constants";
 import { normalizeIdentityEmail } from "../shared/workosIds";
 import { queueObjectDeletion } from "../storage/objectDeletion";
-import { queueInboundEmailEvent } from "../telemetry/schedule";
+import {
+  queueBackendEvent,
+  queueInboundEmailEvent,
+} from "../telemetry/schedule";
 import { ATTACHMENT_CLAIM_TTL_MS } from "./attachmentClaims";
 import { readInboundSettings } from "./settings";
 
@@ -270,6 +273,9 @@ export const ingestEmail = internalMutation({
           event: "email_received",
           outcome: "dropped_limit",
           userId,
+        });
+        await queueBackendEvent(ctx, "card_limit_reached", userId, {
+          source: "email",
         });
         return { receiptKey: null, status: "dropped" as const, uploads: [] };
       }

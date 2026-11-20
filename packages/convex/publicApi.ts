@@ -83,7 +83,7 @@ import {
   explainInvalidCardSource,
   normalizeCardSource,
 } from "./shared/cardSource";
-import { type CardType, cardTypes } from "./shared/constants";
+import { CARD_ERROR_CODES, type CardType, cardTypes } from "./shared/constants";
 import { BULK_CARD_OPERATIONS } from "./shared/publicApiContract";
 import { clampPublicApiLimit } from "./shared/publicApiLimits";
 import {
@@ -92,6 +92,7 @@ import {
   shuffleRank,
 } from "./shared/search/shuffle";
 import { isSafeExternalUrl, UnsafeUrlError } from "./shared/utils/safeUrl";
+import { queueBackendEvent } from "./telemetry/schedule";
 
 const pageInfoValidator = v.object({
   nextCursor: v.union(v.string(), v.null()),
@@ -830,6 +831,7 @@ export const executeBulkCardsForUser = internalMutation({
     const results: Record<string, unknown>[] = [];
     const failedIds: string[] = [];
     let succeeded = 0;
+    let stoppedAtLimit = false;
 
     for (const [index, item] of args.items.entries()) {
       try {
@@ -967,7 +969,13 @@ export const executeBulkCardsForUser = internalMutation({
             if (action !== "delete" && action !== "restore") {
               await requireActiveBulkCard(ctx, userId, cardId);
             }
-            await applyCardAction(ctx, { userId, cardId, action, tags });
+            await applyCardAction(ctx, {
+              userId,
+              cardId,
+              action,
+              tags,
+              source: args.cardSource ?? "api",
+            });
 
             results.push({
               index,
@@ -998,6 +1006,7 @@ export const executeBulkCardsForUser = internalMutation({
           }
         }
 
+        stoppedAtLimit ||= code === CARD_ERROR_CODES.CARD_LIMIT_REACHED;
         results.push({
           code,
           index,
@@ -1014,6 +1023,11 @@ export const executeBulkCardsForUser = internalMutation({
       }
     }
 
+    if (stoppedAtLimit) {
+      await queueBackendEvent(ctx, "card_limit_reached", userId, {
+        source: args.cardSource ?? "api",
+      });
+    }
     return {
       operation: args.operation,
       results,

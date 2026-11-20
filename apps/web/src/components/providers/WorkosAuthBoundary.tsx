@@ -16,6 +16,7 @@ import {
 import { AppLoading } from "@/components/app-shell/AppLoading";
 import { Button } from "@/components/ui/button";
 import { useSignOut } from "@/hooks/useSignOut";
+import { readAuthMethod } from "@/lib/auth-method";
 import { signInPath } from "@/lib/authUrls";
 import { useQuery } from "@/lib/convexQueryHooks";
 import { StatusScreen } from "../StatusScreen";
@@ -23,6 +24,10 @@ import { AuthUnavailable } from "./AuthUnavailable";
 import { PostHogIdentify } from "./PostHogIdentify";
 
 type Bootstrap = FunctionReturnType<typeof api.workosBootstrap.ensureUser>;
+
+const isMissingFunction = (error: unknown) =>
+  error instanceof Error &&
+  error.message.includes("Could not find public function");
 
 const BLOCKED_MESSAGE_KEYS = {
   verify_email: "verifyEmail",
@@ -54,7 +59,10 @@ export function WorkosAuthBoundary({
   const { user, sessionId, loading } = useAuth();
   const { error: tokenError, refresh } = useAccessToken();
   const auth = useConvexAuth();
-  const ensure = useMutation(api.workosBootstrap.ensureUser);
+  const ensureWithSignup = useMutation(
+    api.workosBootstrap.ensureUserWithSignup
+  );
+  const ensureOnly = useMutation(api.workosBootstrap.ensureUser);
   const identity = user ? `${user.id}:${sessionId ?? ""}` : null;
   const established = useRef(identity);
   if (established.current === null && identity) {
@@ -116,7 +124,20 @@ export function WorkosAuthBoundary({
   }, [changed]);
   const runBootstrap = useCallback(
     (forIdentity: string, isCurrent: () => boolean) => {
-      void ensure({})
+      const authMethod = readAuthMethod(document.cookie);
+      // A backend deployed before `ensureUserWithSignup` doesn't have it, so
+      // the sign-in carries on through `ensureUser`, without the signup's
+      // platform and method.
+      void ensureWithSignup({
+        platform: "web",
+        ...(authMethod ? { authMethod } : {}),
+      })
+        .catch((error: unknown) => {
+          if (isMissingFunction(error)) {
+            return ensureOnly({});
+          }
+          throw error;
+        })
         .then((result) => {
           if (!isCurrent()) {
             return;
@@ -136,7 +157,7 @@ export function WorkosAuthBoundary({
           }
         });
     },
-    [ensure]
+    [ensureOnly, ensureWithSignup]
   );
   useEffect(() => {
     if (!(needsBootstrap && identity)) {

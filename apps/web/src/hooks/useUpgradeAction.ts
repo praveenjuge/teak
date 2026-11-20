@@ -1,3 +1,7 @@
+import {
+  captureEvent,
+  type UpgradePlacement,
+} from "@teak/convex/shared/analytics";
 import { SETTINGS_PATHS } from "@teak/convex/shared/webRoutes";
 import { useTranslations } from "@teak/i18n/react";
 import { useRouter } from "next/navigation";
@@ -13,6 +17,15 @@ export interface CreateFailureToast extends ExternalToast {
   note?: string;
 }
 
+/**
+ * Why the upgrade toast shows: a save the card limit refused (the default),
+ * or the composer opening at the limit.
+ */
+type UpgradeToastPlacement = Extract<
+  UpgradePlacement,
+  "save_toast" | "composer_toast"
+>;
+
 const withNote = (message: string, note?: string) =>
   note ? `${message} ${note}` : message;
 
@@ -26,19 +39,34 @@ export function useUpgradeAction() {
   const router = useRouter();
   const tLimits = useTranslations("forms.limits");
 
-  const handleUpgrade = useCallback(() => {
-    router.push(SETTINGS_PATHS.plan);
-  }, [router]);
+  const handleUpgrade = useCallback(
+    (placement: UpgradePlacement) => {
+      captureEvent("upgrade_clicked", { placement });
+      router.push(SETTINGS_PATHS.plan);
+    },
+    [router]
+  );
 
   const showUpgradeToast = useCallback(
     (
       toastId: string | number = TOAST_IDS.cardLimit,
-      { note, ...options }: CreateFailureToast = {}
+      {
+        note,
+        placement = "save_toast",
+        ...options
+      }: CreateFailureToast & { placement?: UpgradeToastPlacement } = {}
     ) => {
+      if (placement === "save_toast") {
+        captureEvent("card_limit_reached", { source: "web" });
+      }
+      captureEvent("upgrade_prompt_shown", { placement });
       toast.error(withNote(tLimits("cardLimitReached"), note), {
         ...MANUAL_CLOSE_TOAST_OPTIONS,
         ...options,
-        action: { label: tLimits("upgrade"), onClick: handleUpgrade },
+        action: {
+          label: tLimits("upgrade"),
+          onClick: () => handleUpgrade(placement),
+        },
         id: toastId,
       });
     },

@@ -29,6 +29,7 @@ const app = defineApp({
     POSTHOG_PROJECT_ID: v.optional(v.string()),
     POSTHOG_QUERY_API_KEY: v.optional(v.string()),
     POSTHOG_PERSON_DELETION_API_KEY: v.optional(v.string()),
+    POSTHOG_INTERNAL_ACCOUNTS: v.optional(v.string()),
     CONVEX_GIT_COMMIT_SHA: v.optional(v.string()),
     TEAK_DEV_DEPLOYMENT: v.optional(v.string()),
     TEAK_DEV_APP_URL: v.optional(v.string()),

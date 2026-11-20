@@ -4,12 +4,26 @@ import type { Doc } from "./_generated/dataModel";
 import { internalMutation, type MutationCtx } from "./_generated/server";
 import { readSignupsPaused } from "./adminAccess";
 import { startVaultSetup } from "./card/defaultCards";
+import { SIGNUP_PLATFORMS, signupMethodFromWorkos } from "./shared/analytics";
 import {
   isStorableEmail,
   normalizeIdentityEmail,
   WORKOS_USER_ID,
 } from "./shared/workosIds";
 import { queueUserCreated } from "./telemetry/schedule";
+
+/**
+ * Where a sign-in came from, for a new account's `user_signed_up`: the app
+ * (`web`, `apple` or `android`) and WorkOS's `authenticationMethod`
+ * (`GoogleOAuth`, `Password`…) as the app received it. Both are optional. Apps
+ * send them to `workosBootstrap:ensureUserWithSignup`.
+ */
+export const signupContextArgs = {
+  authMethod: v.optional(v.string()),
+  platform: v.optional(
+    v.union(...SIGNUP_PLATFORMS.map((platform) => v.literal(platform)))
+  ),
+};
 
 const reasonValidator = v.union(
   v.literal("workos_deleted_user"),
@@ -82,6 +96,7 @@ export const linkWorkosUser = internalMutation({
     workosUserId: v.string(),
     email: v.string(),
     name: v.optional(v.string()),
+    ...signupContextArgs,
   },
   returns: v.union(
     v.object({
@@ -160,6 +175,8 @@ export const linkWorkosUser = internalMutation({
     );
     await queueUserCreated(ctx, {
       email,
+      method: signupMethodFromWorkos(args.authMethod),
+      platform: args.platform,
       source: "auth",
       userId: teakUserId,
     });

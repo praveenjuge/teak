@@ -11,6 +11,7 @@ import {
   requireTeakUserId,
   type TeakUserId,
 } from "../securitySessions";
+import type { CardChangeSource } from "../shared/analytics";
 import { parseCardTitle } from "../shared/cardTitle";
 import { CARD_ERROR_CODES, CARD_ERROR_MESSAGES } from "../shared/constants";
 import {
@@ -35,6 +36,7 @@ import {
 } from "../shared/utils/colorUtils";
 import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
 import { queueObjectDeletion } from "../storage/objectDeletion";
+import { queueBackendEvent } from "../telemetry/schedule";
 import { discardArticleObjects, droppedArticleFields } from "./articleText";
 import {
   ensureCardUsageShards,
@@ -94,6 +96,8 @@ interface UpdateCardFieldForUserArgs {
 
 interface UpdateCardFieldForUserOptions {
   deferPipelineSchedule?: boolean;
+  /** Who archived or deleted the card, for `card_archived`/`card_deleted`. */
+  source?: CardChangeSource;
 }
 
 interface UpdateCardFieldForUserResult {
@@ -729,6 +733,14 @@ export const updateCardFieldForUserHandler = async (
       throw error;
     }
   }
+  if (field === "archive" || field === "delete") {
+    await queueBackendEvent(
+      ctx,
+      field === "archive" ? "card_archived" : "card_deleted",
+      userId,
+      { source: options.source ?? "app" }
+    );
+  }
 
   return { pipelineDelayMs: null };
 };
@@ -744,13 +756,17 @@ export const updateCardField = mutation({
   handler: async (ctx, { cardId, field, value, tagToRemove }) => {
     const user = await requireSessionUser(ctx);
 
-    await updateCardFieldForUserHandler(ctx, {
-      userId: user.teakUserId,
-      cardId,
-      field,
-      value,
-      tagToRemove,
-    });
+    await updateCardFieldForUserHandler(
+      ctx,
+      {
+        userId: user.teakUserId,
+        cardId,
+        field,
+        value,
+        tagToRemove,
+      },
+      { source: "app" }
+    );
 
     return null;
   },

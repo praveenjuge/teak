@@ -53,6 +53,8 @@ const createCardForUserArgs = {
 const patchCardForUserArgs = {
   userId: v.string(),
   cardId: v.id("cards"),
+  /** The API caller, for `card_archived`. */
+  source: v.optional(apiCardSourceValidator),
   content: v.optional(v.string()),
   metadataTitle: v.optional(v.union(v.string(), v.null())),
   url: v.optional(v.string()),
@@ -221,11 +223,15 @@ export const patchCardForUser = internalMutation({
       });
     }
     if (args.isArchived !== undefined) {
-      await updateCardFieldForUserHandler(ctx, {
-        userId,
-        cardId: args.cardId,
-        field: args.isArchived ? "archive" : "unarchive",
-      });
+      await updateCardFieldForUserHandler(
+        ctx,
+        {
+          userId,
+          cardId: args.cardId,
+          field: args.isArchived ? "archive" : "unarchive",
+        },
+        { source: args.source ?? "api" }
+      );
     }
     if (args.folderIds !== undefined) {
       await setCardFoldersForUser(ctx, userId, args.cardId, args.folderIds);
@@ -236,15 +242,15 @@ export const patchCardForUser = internalMutation({
 });
 
 export const softDeleteCardForUser = internalMutation({
-  args: cardReferenceArgs,
+  args: { ...cardReferenceArgs, source: v.optional(apiCardSourceValidator) },
   returns: v.null(),
   handler: async (ctx, args) => {
     const userId = await requireTeakUserId(ctx, args.userId);
-    await updateCardFieldForUserHandler(ctx, {
-      userId,
-      cardId: args.cardId,
-      field: "delete",
-    });
+    await updateCardFieldForUserHandler(
+      ctx,
+      { userId, cardId: args.cardId, field: "delete" },
+      { source: args.source ?? "api" }
+    );
     return null;
   },
 });

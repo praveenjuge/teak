@@ -2,6 +2,7 @@
 
 import { api } from "@teak/convex";
 import type { Id } from "@teak/convex/_generated/dataModel";
+import { captureEvent } from "@teak/convex/shared/analytics";
 import { useTranslations } from "@teak/i18n/react";
 import {
   createContext,
@@ -89,7 +90,7 @@ function LinkPasteProgressToast({
 }: {
   job: PasteJob;
   onFinished: (jobId: Id<"linkPasteJobs">, reachedLimit: boolean) => void;
-  onUpgrade: () => void;
+  onUpgrade: (placement: "paste_toast") => void;
 }) {
   const t = useTranslations("forms.pasteLinks");
   const tLimits = useTranslations("forms.limits");
@@ -116,9 +117,13 @@ function LinkPasteProgressToast({
     if (kind === "success") {
       toast.success(message, { id: job.toastId });
     } else if (kind === "limit") {
+      captureEvent("upgrade_prompt_shown", { placement: "paste_toast" });
       toast.error(message, {
         ...MANUAL_CLOSE_TOAST_OPTIONS,
-        action: { label: tLimits("upgrade"), onClick: onUpgrade },
+        action: {
+          label: tLimits("upgrade"),
+          onClick: () => onUpgrade("paste_toast"),
+        },
         id: job.toastId,
       });
     } else {

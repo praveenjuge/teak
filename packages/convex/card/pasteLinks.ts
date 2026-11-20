@@ -118,6 +118,11 @@ const finish = async (
       stopped_at_limit: progress.status === "stopped_at_limit",
     });
   }
+  if (progress.status === "stopped_at_limit") {
+    await queueBackendEvent(ctx, "card_limit_reached", job.userId, {
+      source: "paste",
+    });
+  }
 };
 
 export const runLinkPasteBatch = async (

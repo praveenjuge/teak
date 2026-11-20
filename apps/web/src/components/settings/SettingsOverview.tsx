@@ -1,5 +1,6 @@
 "use client";
 
+import { captureEvent } from "@teak/convex/shared/analytics";
 import { FREE_TIER_LIMIT } from "@teak/convex/shared/constants";
 import { SETTINGS_PATHS } from "@teak/convex/shared/webRoutes";
 import { LOCALE_NAMES } from "@teak/i18n";
@@ -280,7 +281,14 @@ function PlanSection({
       <SettingsRow
         action={
           <Button asChild className={LOADED} size="sm">
-            <Link href={SETTINGS_PATHS.plan}>{tSubscription("title")}</Link>
+            <Link
+              href={SETTINGS_PATHS.plan}
+              onClick={() =>
+                captureEvent("upgrade_clicked", { placement: "settings" })
+              }
+            >
+              {tSubscription("title")}
+            </Link>
           </Button>
         }
         label={tNav("plan")}

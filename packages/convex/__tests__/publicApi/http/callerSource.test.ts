@@ -1,8 +1,10 @@
-import { describe, expect, mock, test } from "bun:test";
+import { describe, expect, mock, spyOn, test } from "bun:test";
 import { getFunctionName } from "convex/server";
+import { ConvexError } from "convex/values";
 import { internal } from "../../../_generated/api";
 import { cardSourceForCaller } from "../../../publicApi/http/callerSource";
 import { executePublicApiOperation } from "../../../publicApi/http/router";
+import * as posthog from "../../../telemetry/posthog";
 import { mockActionCtx } from "../../helpers/convex.test-utils";
 import {
   buildAuthorizedMutationMock,
@@ -87,5 +89,131 @@ describe("the source a public API save reports", () => {
     );
     expect(response.status).toBe(200);
     expect(savedSource(runMutation)).toBe("mcp");
+  });
+});
+
+describe("what a public API call reports", () => {
+  const events = (capture: ReturnType<typeof spyOn>) =>
+    capture.mock.calls.map((call: unknown[]) => [call[0], call[1], call[2]]);
+
+  test("a REST save reports api_request with its route, caller and status", async () => {
+    const capture = spyOn(posthog, "captureBackendEvent").mockResolvedValue(
+      undefined
+    );
+    try {
+      const { ctx } = createCtx();
+      await callPublicApi(ctx, {
+        body: { content: "A note" },
+        headers: { Authorization: `Bearer ${TOKEN}` },
+        method: "POST",
+        path: "/v1/cards",
+      });
+      expect(events(capture)).toEqual([
+        [
+          "api_request",
+          "user_1",
+          {
+            caller_source: "api",
+            duration_ms: expect.any(Number),
+            outcome: "ok",
+            route: "createCard",
+            status: 200,
+          },
+        ],
+      ]);
+    } finally {
+      capture.mockRestore();
+    }
+  });
+
+  test("a save the card limit refuses also reports card_limit_reached", async () => {
+    const capture = spyOn(posthog, "captureBackendEvent").mockResolvedValue(
+      undefined
+    );
+    try {
+      const runMutation = buildAuthorizedMutationMock().mockRejectedValue(
+        new ConvexError({
+          code: "CARD_LIMIT_REACHED",
+          message: "Card limit reached.",
+        })
+      );
+      const ctx = mockActionCtx(
+        withMappedOwner({
+          runMutation,
+          runQuery: mock().mockResolvedValue(null),
+        } as never)
+      );
+      const response = await callPublicApi(ctx, {
+        body: { content: "A note" },
+        headers: { Authorization: `Bearer ${TOKEN}` },
+        method: "POST",
+        path: "/v1/cards",
+      });
+      expect(response.status).toBeGreaterThanOrEqual(400);
+      expect(events(capture)).toEqual([
+        ["card_limit_reached", "user_1", { source: "api" }],
+        [
+          "api_request",
+          "user_1",
+          expect.objectContaining({
+            error_code: "CARD_LIMIT_REACHED",
+            outcome: "error",
+            route: "createCard",
+            status: response.status,
+          }),
+        ],
+      ]);
+    } finally {
+      capture.mockRestore();
+    }
+  });
+
+  test("a call without a valid credential reports unauthorized, with no person", async () => {
+    const capture = spyOn(posthog, "captureBackendEvent").mockResolvedValue(
+      undefined
+    );
+    try {
+      const { ctx } = createCtx();
+      const response = await callPublicApi(ctx, {
+        method: "GET",
+        path: "/v1/cards",
+      });
+      expect(response.status).toBe(401);
+      expect(events(capture)).toEqual([
+        [
+          "api_request",
+          undefined,
+          expect.objectContaining({
+            caller_source: "unknown",
+            outcome: "unauthorized",
+            route: "listCards",
+            status: 401,
+          }),
+        ],
+      ]);
+    } finally {
+      capture.mockRestore();
+    }
+  });
+
+  test("an MCP call reports no api_request; mcp_tool_called covers it", async () => {
+    const capture = spyOn(posthog, "captureBackendEvent").mockResolvedValue(
+      undefined
+    );
+    try {
+      const { ctx } = createCtx();
+      await executePublicApiOperation(
+        ctx,
+        {
+          body: { content: "A note" },
+          headers: { Authorization: `Bearer ${TOKEN}` },
+          operationId: "createCard",
+        },
+        { origin: "https://teak.test", resource: "mcp" }
+      );
+      expect(events(capture)).toEqual([]);
+    } finally {
+      capture.mockRestore();
+    }
   });
 });

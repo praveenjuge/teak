@@ -1,6 +1,7 @@
 import { api } from "@teak/convex";
+import { captureEvent } from "@teak/convex/shared/analytics";
 import { useConvexAuth } from "convex/react";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useCopyCard } from "@/hooks/useCardClipboard";
 import { useCardHighlights } from "@/hooks/useCardHighlights";
 import type { ClientCard } from "@/lib/cardTypes";
@@ -109,6 +110,21 @@ export function ConnectedCardModal({
       card ? actions.run(action, card, "dialog") : Promise.resolve(false),
     [actions, card]
   );
+
+  // Once per card shown: stepping to the next card opens another.
+  const openedCardIdRef = useRef<string | null>(null);
+  const openedCard = open && card?._id ? card : null;
+  useEffect(() => {
+    if (!openedCard) {
+      openedCardIdRef.current = null;
+      return;
+    }
+    if (openedCardIdRef.current === openedCard._id) {
+      return;
+    }
+    openedCardIdRef.current = openedCard._id;
+    captureEvent("card_opened", { card_type: openedCard.type, surface: "web" });
+  }, [openedCard]);
 
   useEffect(() => {
     if (

@@ -29,6 +29,7 @@ import {
 import { urlKey } from "./shared/utils/urlKey";
 import { queueObjectDeletion } from "./storage/objectDeletion";
 import { buildR2UserPrefix } from "./storage/r2";
+import { queueBackendEvent } from "./telemetry/schedule";
 
 const activeStatuses = new Set<string>(ACTIVE_IMPORT_STATUSES);
 
@@ -677,6 +678,9 @@ export const createPendingBatch = internalMutation({
           skippedCount: job.skippedCount + skipped,
           failedCount: job.failedCount + failed,
           updatedAt: Date.now(),
+        });
+        await queueBackendEvent(ctx, "card_limit_reached", userId, {
+          source: "import",
         });
         return { limitReached: true };
       }

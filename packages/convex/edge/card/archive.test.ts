@@ -234,6 +234,66 @@ describe("an archived card leaves the library but stays in Archive", () => {
   });
 });
 
+describe("analytics", () => {
+  test("reports card_archived and card_deleted with who made the change", async () => {
+    vi.stubEnv("POSTHOG_PROJECT_TOKEN", "phc_test");
+    vi.stubEnv("FILES_BASE", "https://files.test");
+    vi.stubEnv("FILES_SIGNING_SECRET", "test-files-secret");
+    try {
+      const { t, owner, insert, setArchived } = await setup();
+      const first = await insert({ content: "One", type: "text" });
+      const second = await insert({ content: "Two", type: "text" });
+      await setArchived(first, true);
+      // A repeat archive changes nothing, so it reports nothing.
+      await setArchived(first, true);
+      await owner.mutation(api.cards.updateCardField, {
+        cardId: first,
+        field: "delete",
+      });
+      await t.mutation(internal.publicApi.executeBulkCardsForUser, {
+        userId: "owner",
+        cardSource: "cli",
+        operation: "archive",
+        items: [{ cardId: second }],
+      });
+      await t.mutation(internal.publicApi.cardsForUser.softDeleteCardForUser, {
+        userId: "owner",
+        cardId: second,
+        source: "raycast",
+      });
+      const events = await t.run(async (ctx) =>
+        (await ctx.db.query("workflowDispatches").collect())
+          .map(
+            (row) =>
+              row.params as {
+                distinctId?: string;
+                event?: string;
+                properties?: { source?: string };
+              }
+          )
+          .filter(
+            (params) =>
+              params.event === "card_archived" ||
+              params.event === "card_deleted"
+          )
+          .map((params) => [
+            params.event,
+            params.properties?.source,
+            params.distinctId,
+          ])
+      );
+      expect(events).toEqual([
+        ["card_archived", "app", "owner"],
+        ["card_deleted", "app", "owner"],
+        ["card_archived", "cli", "owner"],
+        ["card_deleted", "raycast", "owner"],
+      ]);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+});
+
 describe("bulk actions", () => {
   test("archive, favorite and tag many cards at once", async () => {
     const { owner, insert, grid, t } = await setup();

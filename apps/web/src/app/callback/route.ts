@@ -1,6 +1,7 @@
 import { handleAuth } from "@workos-inc/authkit-nextjs";
 import { cookies } from "next/headers";
 import { connection, type NextRequest, NextResponse } from "next/server";
+import { authMethodCookie } from "@/lib/auth-method";
 import { signInUrl } from "@/lib/authUrls";
 import { sessionHintCookie } from "@/lib/session-hint";
 import { readWorkosWebConfig } from "@/lib/workos-config";
@@ -14,8 +15,17 @@ export async function GET(request: NextRequest): Promise<Response> {
   }
   return await handleAuth({
     baseURL: config.origin,
-    onSuccess: async () => {
-      (await cookies()).set(sessionHintCookie(config.origin, true));
+    onSuccess: async ({ authenticationMethod }) => {
+      const jar = await cookies();
+      jar.set(sessionHintCookie(config.origin, true));
+      if (authenticationMethod) {
+        jar.set(
+          authMethodCookie(
+            authenticationMethod,
+            new URL(config.origin).protocol === "https:"
+          )
+        );
+      }
     },
     // The SDK adds cache and PKCE-expiry headers to this response, so it must
     // be mutable. `Response.redirect` headers are immutable in Node.

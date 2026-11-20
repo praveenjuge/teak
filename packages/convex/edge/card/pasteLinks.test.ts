@@ -215,7 +215,10 @@ describe("pasting a list of links", () => {
   });
 
   test("stops at the free card limit, still moving links already in Teak", async () => {
-    const { seed, paste, job, runAll, liveCards } = await setup();
+    vi.stubEnv("POSTHOG_PROJECT_TOKEN", "phc_test");
+    vi.stubEnv("FILES_BASE", "https://files.test");
+    vi.stubEnv("FILES_SIGNING_SECRET", "test-files-secret");
+    const { t, seed, paste, job, runAll, liveCards } = await setup();
     await seed([
       {
         type: "link",
@@ -253,6 +256,14 @@ describe("pasting a list of links", () => {
       finishedAt: NOW,
     });
     expect(await liveCards()).toHaveLength(FREE_TIER_LIMIT);
+    const limitEvents = await t.run(async (ctx) =>
+      (await ctx.db.query("workflowDispatches").collect())
+        .map((row) => row.params as { event?: string; properties?: unknown })
+        .filter((params) => params.event === "card_limit_reached")
+        .map((params) => params.properties)
+    );
+    expect(limitEvents).toEqual([{ source: "paste", surface: "backend" }]);
+    vi.unstubAllEnvs();
   });
 
   test("counts a link that can never be saved as failed and moves on", async () => {

@@ -228,6 +228,16 @@ export const BACKEND_ENTRIES: EnvVarSpec[] = [
     required: false,
     note: "Self-hosting only: the numeric ID of the PostHog project POSTHOG_PROJECT_TOKEN belongs to, which account deletion and the admin console's queries act on. Unset means Teak's own project, 660923.",
   }),
+  spec("POSTHOG_INTERNAL_ACCOUNTS", {
+    owners: ["@teak/convex"],
+    targets: ["convex"],
+    profiles: ["production"],
+    secret: false,
+    validation: "string",
+    providers: ["convex-dashboard"],
+    required: false,
+    note: "Comma-separated email addresses and @domains of the team's own and test accounts. The backend sets the PostHog person property is_internal from it (E2E accounts, e2e-…, always count), on signup and through telemetry/internalAccounts:syncInternalAccounts.",
+  }),
   spec("POSTHOG_QUERY_API_KEY", {
     owners: ["@teak/convex"],
     targets: ["convex"],

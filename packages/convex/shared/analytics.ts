@@ -64,6 +64,67 @@ export type ThumbnailReplaceSource = "drop" | "paste" | "pick" | "api";
 
 type NoProperties = Record<string, never>;
 
+/**
+ * Where a free account was asked to upgrade: the toast after a save the card
+ * limit refused (`save_toast`), the toast the composer shows when it opens at
+ * the limit (`composer_toast`), a link paste that stopped at the limit
+ * (`paste_toast`), or the Upgrade button in Settings (`settings`, clicks
+ * only).
+ */
+export type UpgradePlacement =
+  | "save_toast"
+  | "composer_toast"
+  | "paste_toast"
+  | "settings";
+
+/**
+ * Who archived or deleted a card: `app` for the signed-in web and native apps
+ * (one card or a selection), or the public API caller's source
+ * (`publicApi/http/callerSource.ts`).
+ */
+export type CardChangeSource =
+  | "app"
+  | "api"
+  | "cli"
+  | "raycast"
+  | "extension"
+  | "mcp";
+
+/** The app a new account signed up in (`workosBootstrap:ensureUser`). */
+export const SIGNUP_PLATFORMS = ["web", "apple", "android"] as const;
+export type SignupPlatform = (typeof SIGNUP_PLATFORMS)[number] | "unknown";
+
+/** How a new account signed in, from WorkOS's `authenticationMethod`. */
+export const SIGNUP_METHODS = [
+  "google",
+  "apple",
+  "github",
+  "microsoft",
+  "password",
+  "magic_auth",
+  "passkey",
+  "sso",
+  "other",
+] as const;
+export type SignupMethod = (typeof SIGNUP_METHODS)[number];
+
+const WORKOS_METHODS: Readonly<Record<string, SignupMethod>> = {
+  AppleOAuth: "apple",
+  GitHubOAuth: "github",
+  GoogleOAuth: "google",
+  MagicAuth: "magic_auth",
+  MicrosoftOAuth: "microsoft",
+  Passkey: "passkey",
+  Password: "password",
+  SSO: "sso",
+};
+
+/** WorkOS's `authenticationMethod` (`GoogleOAuth`…) as a signup method. */
+export const signupMethodFromWorkos = (
+  method: string | undefined
+): SignupMethod | undefined =>
+  method ? (WORKOS_METHODS[method] ?? "other") : undefined;
+
 export type DeadLinkCheckOutcome =
   | "alive"
   | "dead"
@@ -80,6 +141,9 @@ export interface ClientEventCatalog {
     via?: string;
   };
   card_done_toggled: CardDoneToggled;
+  /** A save the free card limit refused, seen by the app that tried it. */
+  card_limit_reached: { source: CardCreationSource };
+  /** A card's detail view opened. */
   card_opened: { card_type: string; surface: "web" | "apple" | "android" };
   card_pin_toggled: CardPinToggled;
   card_pins_reordered: CardPinsReordered;
@@ -123,6 +187,8 @@ export interface ClientEventCatalog {
   };
   signed_in: NoProperties;
   similar_search_opened: { source: "panel" };
+  upgrade_clicked: { placement: UpgradePlacement };
+  upgrade_prompt_shown: { placement: UpgradePlacement };
 }
 
 export interface ServerEventCatalog {
@@ -138,18 +204,36 @@ export interface ServerEventCatalog {
     $ai_total_cost_usd?: number;
     $ai_trace_id?: string;
   };
+  /**
+   * One REST call to the public API (`publicApi/http/router.ts`); MCP calls
+   * send `mcp_tool_called` instead. `route` is the operation id, never the
+   * path; `error_code` is the API's error code for a 4xx or 5xx.
+   */
+  api_request: {
+    caller_source: string;
+    duration_ms: number;
+    error_code?: string;
+    outcome: "ok" | "error" | "unauthorized";
+    route: string;
+    status: number;
+  };
   article_extracted: {
     outcome: "article" | "none" | "failed";
     words_bucket: string;
   };
   billing_portal_opened: NoProperties;
+  card_archived: { source: CardChangeSource };
   card_create_failed: {
     card_type: string;
     error_class?: string;
     source: string;
   };
   card_created: { card_type: string; source: string };
+  /** A card moved to Trash. */
+  card_deleted: { source: CardChangeSource };
   card_done_toggled: CardDoneToggled;
+  /** A save the free card limit refused, where the backend saw it. */
+  card_limit_reached: { source: string };
   card_pin_toggled: CardPinToggled;
   card_pins_reordered: CardPinsReordered;
   card_processing_completed: {
@@ -204,7 +288,11 @@ export interface ServerEventCatalog {
     source: "extension" | "server";
   };
   subscription_ended: NoProperties;
-  user_signed_up: { source?: string };
+  user_signed_up: {
+    method?: SignupMethod;
+    platform?: SignupPlatform;
+    source?: string;
+  };
 }
 
 export type ClientEventName = keyof ClientEventCatalog;

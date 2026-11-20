@@ -98,7 +98,9 @@ const render = (useAuth = useSignedIn) =>
   );
 
 const ensureCalls = () =>
-  transport.calls.filter((call) => call.path === "workosBootstrap:ensureUser");
+  transport.calls.filter(
+    (call) => call.path === "workosBootstrap:ensureUserWithSignup"
+  );
 const text = () => container.textContent ?? "";
 const button = (name: string) => {
   const match = [...container.querySelectorAll("button")].find(
@@ -188,7 +190,7 @@ test("bootstraps after the backend accepts the session when the server found no 
   transport = createConvexTransport();
   serverProfile(null);
   transport.onCall((call) => {
-    if (call.path !== "workosBootstrap:ensureUser") {
+    if (call.path !== "workosBootstrap:ensureUserWithSignup") {
       return Promise.resolve(null);
     }
     transport.reply("auth:getAuthUser", profile);
@@ -198,9 +200,15 @@ test("bootstraps after the backend accepts the session when the server found no 
   expect(text()).toBe("App frame");
   expect(ensureCalls()).toHaveLength(0);
 
+  // biome-ignore lint/suspicious/noDocumentCookie: the AuthKit callback leaves this cookie, which the boundary reads
+  document.cookie = "teak_auth_method=GoogleOAuth";
   await act(() => answerAuth?.(true));
-  expect(ensureCalls()).toHaveLength(1);
+  expect(ensureCalls().map((call) => call.args)).toEqual([
+    { authMethod: "GoogleOAuth", platform: "web" },
+  ]);
   expect(text()).toBe("Vault open");
+  // biome-ignore lint/suspicious/noDocumentCookie: clears the cookie the test set
+  document.cookie = "teak_auth_method=; Max-Age=0";
 });
 
 test("asks to sign in again when the backend rejects a session the server opened", async () => {
@@ -232,7 +240,7 @@ test("bootstraps a new owner once, then opens the vault", async () => {
   transport = createConvexTransport();
   transport.seed("auth:getAuthUser", null);
   transport.onCall((call) => {
-    if (call.path !== "workosBootstrap:ensureUser") {
+    if (call.path !== "workosBootstrap:ensureUserWithSignup") {
       return Promise.resolve(null);
     }
     // Convex resolves a mutation only after queries reflect its writes.
@@ -243,6 +251,52 @@ test("bootstraps a new owner once, then opens the vault", async () => {
 
   expect(text()).toContain("Vault open");
   expect(ensureCalls()).toHaveLength(1);
+});
+
+test("falls back to ensureUser on a backend that predates ensureUserWithSignup", async () => {
+  transport = createConvexTransport();
+  transport.seed("auth:getAuthUser", null);
+  transport.onCall((call) => {
+    if (call.path === "workosBootstrap:ensureUserWithSignup") {
+      return Promise.reject(
+        new Error(
+          "[CONVEX M(workosBootstrap:ensureUserWithSignup)] [Request ID: 1] Server Error\nCould not find public function for 'workosBootstrap:ensureUserWithSignup'."
+        )
+      );
+    }
+    if (call.path !== "workosBootstrap:ensureUser") {
+      return Promise.resolve(null);
+    }
+    transport.reply("auth:getAuthUser", profile);
+    return Promise.resolve({ status: "ok", teakUserId: profile._id });
+  });
+  await mount();
+
+  expect(text()).toContain("Vault open");
+  expect(
+    transport.calls
+      .filter((call) => call.path.startsWith("workosBootstrap:"))
+      .map((call) => [call.path, call.args])
+  ).toEqual([
+    ["workosBootstrap:ensureUserWithSignup", { platform: "web" }],
+    ["workosBootstrap:ensureUser", {}],
+  ]);
+});
+
+test("does not fall back when ensureUserWithSignup fails for another reason", async () => {
+  transport = createConvexTransport();
+  transport.seed("auth:getAuthUser", null);
+  transport.onCall((call) =>
+    call.path === "workosBootstrap:ensureUserWithSignup"
+      ? Promise.reject(new Error("Server Error"))
+      : Promise.resolve(null)
+  );
+  await mount();
+
+  expect(text()).toContain("We couldn't check your session.");
+  expect(
+    transport.calls.filter((call) => call.path === "workosBootstrap:ensureUser")
+  ).toHaveLength(0);
 });
 
 test.each([
@@ -293,7 +347,7 @@ test("runs ensureUser again from Try again after it fails", async () => {
   transport.seed("auth:getAuthUser", null);
   let attempts = 0;
   transport.onCall((call) => {
-    if (call.path !== "workosBootstrap:ensureUser") {
+    if (call.path !== "workosBootstrap:ensureUserWithSignup") {
       return Promise.resolve(null);
     }
     attempts += 1;
