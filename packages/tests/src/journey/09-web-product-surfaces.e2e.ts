@@ -1,4 +1,3 @@
-import { LOCAL_STACK } from "@teak/scripts/dev/local-stack/config";
 import { apiFetch } from "../helpers/api";
 import { clientFor, createAccount, gotoApp } from "../helpers/app";
 import {
@@ -203,7 +202,7 @@ https://example.com/editor
         },
         { timeout: 180_000 }
       )
-      .toBe(LOCAL_STACK.fetchesLinks ? "completed" : "failed");
+      .toBe("completed");
   });
 
   test("web bulk actions, restore, and empty states stay coherent", async ({
