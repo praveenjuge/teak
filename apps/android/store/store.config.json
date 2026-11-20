@@ -1,7 +1,7 @@
 {
   "packageName": "com.praveenjuge.teak",
   "locale": "en-US",
-  "whatsNew": "Teak no longer closes unexpectedly when you sign in, open the app or sign out. Text is set in Allo, the same typeface as Teak on the web, and card previews tidy up nested bold and italic.",
+  "whatsNew": "",
   "listing": {
     "title": "Teak: Save Inspirations",
     "shortDescription": "Save links, images, notes and voice memos to your personal inspiration vault.",
