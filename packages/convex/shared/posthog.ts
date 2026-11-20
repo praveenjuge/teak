@@ -203,6 +203,12 @@ export const buildExceptionProperties = (
 
 export interface PostHogBatchOptions {
   fetch?: typeof fetch;
+  /**
+   * Lets PostHog geolocate events from the sender's IP. Only a batch sent
+   * from the person's own device (the extension) sets it: from a server, the
+   * IP is the data center's, and GeoIP would write it onto the person.
+   */
+  geoip?: boolean;
   host?: string;
   lib: string;
   libVersion?: string;
@@ -244,6 +250,7 @@ export const createPostHogBatch = (
           ...(raw ??
             (scrubTelemetryValue(input.properties ?? {}) as PostHogProperties)),
           $lib: options.lib,
+          ...(options.geoip ? {} : { $geoip_disable: true }),
           ...(options.libVersion ? { $lib_version: options.libVersion } : {}),
           ...(input.distinctId ? {} : { $process_person_profile: false }),
           ...(input.set ? { $set: input.set } : {}),

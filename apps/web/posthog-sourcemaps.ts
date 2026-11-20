@@ -55,6 +55,11 @@ export const uploadBrowserSourceMaps = async (
         releaseName,
         "--release-version",
         releaseVersion,
+        // The CLI's default `event` mode leaves maps unbound and expects a
+        // release id injected into each chunk, which these chunks don't
+        // carry, so the maps themselves name the release.
+        "--release-mode",
+        "symbol-set",
       ],
       { env: process.env, maxBuffer: 16 * 1024 * 1024 }
     );

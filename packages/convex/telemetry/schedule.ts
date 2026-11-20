@@ -5,7 +5,11 @@ import { ignoreTelemetryErrorAsync } from "../shared/telemetry";
 import { isCoreWorkerConfigured } from "../storage/coreWorkerClient";
 import { queueAnalyticsEvent } from "../workflowDispatch/outbox";
 import { type InboundEmailEventArgs, recordInboundEmailEvent } from "./events";
-import { backendAppVersion, isBackendCaptureEnabled } from "./posthog";
+import {
+  BACKEND_APP_VERSION,
+  backendCommitSha,
+  isBackendCaptureEnabled,
+} from "./posthog";
 
 /**
  * Mutations cannot fetch, so they queue each event in the workflow dispatch
@@ -24,13 +28,17 @@ export const queueBackendEvent = async <Name extends ServerEventName>(
   if (!(isBackendCaptureEnabled() && isCoreWorkerConfigured())) {
     return;
   }
-  const appVersion = backendAppVersion();
+  const commitSha = backendCommitSha();
   await ignoreTelemetryErrorAsync(() =>
     queueAnalyticsEvent(ctx, {
-      ...(appVersion ? { appVersion } : {}),
+      appVersion: BACKEND_APP_VERSION,
       ...(distinctId ? { distinctId } : {}),
       event,
-      properties: { surface: "backend", ...properties },
+      properties: {
+        surface: "backend",
+        ...(commitSha ? { commit_sha: commitSha } : {}),
+        ...properties,
+      },
       ...(options.set ? { set: options.set } : {}),
       timestamp: new Date().toISOString(),
       uuid: crypto.randomUUID(),

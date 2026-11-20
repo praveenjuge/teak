@@ -51,6 +51,7 @@ describe("PostHog batch", () => {
       distinct_id: "user_1",
       event: "card_created",
       properties: {
+        $geoip_disable: true,
         $lib: "teak-test",
         $set: { email: "owner@example.com" },
         card_type: "link",
@@ -63,6 +64,22 @@ describe("PostHog batch", () => {
     expect(batch.size).toBe(0);
     expect(await batch.flush()).toBe(false);
     expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  test("leaves GeoIP on only for a batch sent from the person's device", async () => {
+    const fetch = okFetch();
+    const batch = createPostHogBatch({
+      fetch,
+      geoip: true,
+      lib: "teak-extension",
+      token: "phc",
+    });
+    batch.capture({ distinctId: "user_1", event: "extension_card_saved" });
+    batch.captureException(new Error("boom"), { distinctId: "user_1" });
+    await batch.flush();
+    for (const event of sentBody(fetch).batch) {
+      expect(event.properties).not.toHaveProperty("$geoip_disable");
+    }
   });
 
   test("scrubs event properties but keeps person properties", async () => {

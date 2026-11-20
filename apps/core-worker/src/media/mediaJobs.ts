@@ -340,11 +340,16 @@ const runWhisper = async (
   env: MediaJobsEnv,
   ai: AiBinding,
   body: ReadableStream,
-  contentType: string
+  contentType: string,
+  audioSeconds: number | null
 ): Promise<FilesAudioTranscript> => {
   const result = (await meteredAiRun(
     env,
-    { functionId: "teak.ai.transcript", model: FILES_TRANSCRIPTION_MODEL },
+    {
+      ...(audioSeconds === null ? {} : { audioSeconds }),
+      functionId: "teak.ai.transcript",
+      model: FILES_TRANSCRIPTION_MODEL,
+    },
     () => ai.run(FILES_TRANSCRIPTION_MODEL, { audio: { body, contentType } })
   )) as { text?: unknown } | null;
   const text = result?.text ?? "";
@@ -385,6 +390,7 @@ const transcribe = async (
   env: MediaJobsEnv,
   ai: AiBinding,
   input: {
+    audioSeconds: number | null;
     converted: Uint8Array | undefined;
     mimeType: string | null;
     sourceKey: string;
@@ -393,7 +399,13 @@ const transcribe = async (
   const mp3 = (bytes: Uint8Array) => new Blob([bytes]).stream();
   try {
     if (input.converted) {
-      return await runWhisper(env, ai, mp3(input.converted), "audio/mpeg");
+      return await runWhisper(
+        env,
+        ai,
+        mp3(input.converted),
+        "audio/mpeg",
+        input.audioSeconds
+      );
     }
     const source = await r2SourceOpener(env.BUCKET, input.sourceKey)();
     try {
@@ -401,7 +413,8 @@ const transcribe = async (
         env,
         ai,
         source.body,
-        input.mimeType || source.contentType || "audio/mpeg"
+        input.mimeType || source.contentType || "audio/mpeg",
+        input.audioSeconds
       );
     } catch (error) {
       if (!isAudioDecodeError(error)) {
@@ -412,7 +425,13 @@ const transcribe = async (
     if (!converted) {
       return { reason: "audio_decode_failed", status: "failed" };
     }
-    return await runWhisper(env, ai, mp3(converted), "audio/mpeg");
+    return await runWhisper(
+      env,
+      ai,
+      mp3(converted),
+      "audio/mpeg",
+      input.audioSeconds
+    );
   } catch (error) {
     if (isAudioDecodeError(error)) {
       return { reason: "audio_decode_failed", status: "failed" };
@@ -448,6 +467,7 @@ export const processAudio = async (
     transcript = { reason: "not_requested", status: "skipped" };
   } else if (env.AI) {
     transcript = await transcribe(env, env.AI, {
+      audioSeconds: facts.durationSeconds,
       converted: result.parts.get("whisper"),
       mimeType: params.mimeType,
       sourceKey: params.sourceKey,

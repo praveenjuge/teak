@@ -15,6 +15,10 @@ Teak sends product analytics, error reports, web session replays, feedback and A
 
 Split any insight by `$lib`.
 
+Versions: every surface sends the lockstep release version (such as `1.0.94`) as `$app_version`, so one insight compares versions across surfaces. The web app registers it, and the deploy's 12-character commit as `commit_sha`, as super properties on every event; the web server, Convex and Convex's queued events send the same two (Convex's commit is `CONVEX_GIT_COMMIT_SHA`). Before Nov 2026, Convex sent the commit as `$app_version` and web events had none. Web source maps upload bound to the release `teak-web` `<version>+<commit>` (`--release-mode symbol-set` in `apps/web/posthog-sourcemaps.ts`): the CLI's default `event` mode expects a release id injected into each chunk, which Teak's chunks don't carry.
+
+Location: server-side captures (`createPostHogBatch`) send `$geoip_disable: true`, so the data center's IP never sets a person's location; only batches from the person's device (the extension, `geoip: true`) and the client SDKs are geolocated. Before Nov 2026, Convex and Core Worker events wrote a United States location onto most persons.
+
 | Surface | `$lib` | What it sends | Code |
 | --- | --- | --- | --- |
 | Web app | `web` | Pageviews, web vitals, exceptions, client events, masked replay, feedback survey | `apps/web/src/lib/posthog-client.ts`, `posthog-config.ts` |
@@ -78,7 +82,7 @@ Server events (`captureBackendEvent`):
 - `email_save_toggled` {enabled}: Save by email turned on or off in Settings
 - `email_received` {outcome}: one email from an account's owner reached Save by email. `outcome` is `saved`, `duplicate` (a redelivery), `empty`, `dropped_limit` (the free card limit), `dropped_rate` (over 60 an hour) or `deferred_rate` (the card creation limit; the sender retries). Mail Teak refuses at delivery never reaches Convex and has no event
 - `email_attachment_saved` {kind, size_bucket} and `email_attachment_skipped` {reason: `format`, `size` or `limit`}: an emailed attachment made, or didn't make, its own card. An upload that fails in the Core Worker's email handler has no event: a transient failure fails the delivery so the sender retries, and a part the Core Worker refuses is skipped there, seen only in the Worker's `upload_refused` log count. `card_created` with `source: "email"` is sent for every card Save by email makes
-- `$ai_generation` with `$ai_model`, `$ai_provider`, `$ai_input_tokens`, `$ai_output_tokens`, `$ai_latency` (seconds), `$ai_total_cost_usd`, `$ai_trace_id` (workflow or card id), `$ai_span_name`, `$ai_is_error`. Prompts and outputs are never sent.
+- `$ai_generation` with `$ai_model`, `$ai_provider`, `$ai_input_tokens`, `$ai_output_tokens`, `$ai_latency` (seconds), `$ai_total_cost_usd`, `$ai_trace_id` (workflow or card id), `$ai_span_name`, `$ai_is_error`. Prompts and outputs are never sent. `$ai_total_cost_usd` comes from `apps/core-worker/src/ai/aiPricing.ts`: tokens for text and image models, minutes of audio for Whisper (`teak.ai.transcript`, priced since Nov 2026).
 
 Exceptions are `$exception` events built by `buildExceptionProperties` in `packages/convex/shared/posthog.ts` (raw frames, scrubbed with `scrubTelemetryValue`). Backend retryable errors (rate limits, validation retries) are not reported; workflow retries own them.
 

@@ -26,6 +26,7 @@ export interface AiUsageEnv {
 export type AiCallOutcome = "capacity" | "error" | "ok";
 
 interface AiCallFacts {
+  audioSeconds?: number;
   functionId: string;
   inputTokens: number;
   latencyMs: number;
@@ -99,6 +100,7 @@ export const recordAiCall = (env: AiUsageEnv, facts: AiCallFacts): void => {
       calls: 1,
       costUsd:
         estimateWorkersAiCostUsd({
+          audioSeconds: facts.audioSeconds,
           inputTokens: facts.inputTokens,
           model: facts.model,
           outputTokens: facts.outputTokens,
@@ -123,6 +125,8 @@ export const recordAiCall = (env: AiUsageEnv, facts: AiCallFacts): void => {
 export const meteredAiRun = async <T>(
   env: AiUsageEnv,
   call: {
+    /** Seconds of audio sent to a speech-to-text model, which bills by the minute. */
+    audioSeconds?: number;
     functionId: string;
     isCapacity?: (error: unknown) => boolean;
     model: string;
@@ -133,6 +137,7 @@ export const meteredAiRun = async <T>(
   try {
     const response = await run();
     recordAiCall(env, {
+      audioSeconds: call.audioSeconds,
       functionId: call.functionId,
       latencyMs: Date.now() - startedAt,
       model: call.model,

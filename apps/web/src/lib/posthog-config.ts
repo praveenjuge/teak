@@ -41,6 +41,22 @@ export const resolvePostHogToken = (env: {
   return reports ? env.token?.trim() || undefined : undefined;
 };
 
+/**
+ * The release every web event reports: `$app_version` is the lockstep
+ * version the apps, the Core Worker and the backend send too, and
+ * `commit_sha` the deploy's commit, shortened like the backend's.
+ */
+export const releaseProperties = (build: {
+  commitSha?: string;
+  version?: string;
+}): Record<string, string> => {
+  const commitSha = build.commitSha?.trim().slice(0, 12);
+  return {
+    ...(build.version ? { $app_version: build.version } : {}),
+    ...(commitSha ? { commit_sha: commitSha } : {}),
+  };
+};
+
 interface ExceptionFrame {
   filename?: string;
 }

@@ -140,7 +140,12 @@ export const transcribeStoredAudio = async (
         if (transcript.status !== "completed") {
           throw new TranscriptUnavailable(transcript.reason);
         }
-        return { text: transcript.text };
+        return {
+          text: transcript.text,
+          usage: {
+            audioSeconds: outcome.data.facts.durationSeconds ?? undefined,
+          },
+        };
       }
     ));
   } catch (error) {

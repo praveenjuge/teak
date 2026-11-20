@@ -1,7 +1,7 @@
 import { createPostHogBatch } from "@teak/convex/shared/posthog";
 import type { Instrumentation } from "next";
 import packageJson from "../package.json";
-import { resolvePostHogToken } from "./lib/posthog-config";
+import { releaseProperties, resolvePostHogToken } from "./lib/posthog-config";
 
 export const onRequestError: Instrumentation.onRequestError = async (
   error,
@@ -25,7 +25,10 @@ export const onRequestError: Instrumentation.onRequestError = async (
   batch.captureException(error, {
     handled: false,
     properties: {
-      $app_version: packageJson.version,
+      ...releaseProperties({
+        commitSha: process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA,
+        version: packageJson.version,
+      }),
       digest:
         error && typeof error === "object" && "digest" in error
           ? String(error.digest)

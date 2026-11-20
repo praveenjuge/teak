@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { NonRetryableError } from "cloudflare:workflows";
+import { FILES_TRANSCRIPTION_MODEL } from "@teak/files-protocol";
 import { runWithAiUsage } from "../ai/aiUsage";
 import {
   emitCardProcessingCompleted,
@@ -95,6 +96,19 @@ describe("AI generations", () => {
         () => Promise.resolve({ usage: { inputTokens: 3, outputTokens: 2 } })
       )
     );
+
+  test("price a transcript by the minutes of audio Whisper was sent", async () => {
+    const events = capturePostHog();
+    await withWorkflowTelemetry(ENV, (telemetry) =>
+      observeAiGeneration(
+        telemetry,
+        { functionId: "teak.ai.transcript", model: FILES_TRANSCRIPTION_MODEL },
+        () => Promise.resolve({ text: "hi", usage: { audioSeconds: 90 } })
+      )
+    );
+    // $0.0005 per audio minute, for a minute and a half.
+    expect(events[0]?.properties.$ai_total_cost_usd).toBeCloseTo(0.000_75, 12);
+  });
 
   test("are sent as the owner whose AI usage they run under", async () => {
     const events = capturePostHog();

@@ -1,5 +1,6 @@
 import { filesOpErrorCode, isTransientFilesOpCode } from "@teak/files-protocol";
 import { env } from "../_generated/server";
+import packageJson from "../package.json";
 import type { ServerEventCatalog, ServerEventName } from "../shared/analytics";
 import {
   BACKEND_POSTHOG_LIB,
@@ -17,7 +18,7 @@ import {
   type TelemetrySurface,
 } from "../shared/telemetry";
 
-const APP_VERSION_LENGTH = 12;
+const COMMIT_SHA_LENGTH = 12;
 
 interface TelemetryScope {
   batch: PostHogBatch;
@@ -37,8 +38,13 @@ const readToken = (): string | undefined =>
 
 export const isBackendCaptureEnabled = (): boolean => Boolean(readToken());
 
-export const backendAppVersion = (): string | undefined =>
-  env.CONVEX_GIT_COMMIT_SHA?.trim().slice(0, APP_VERSION_LENGTH) || undefined;
+// `$app_version` is the lockstep release version every surface reports, so
+// one insight compares versions across them; the deploy's commit rides
+// beside it.
+export const BACKEND_APP_VERSION = packageJson.version;
+
+export const backendCommitSha = (): string | undefined =>
+  env.CONVEX_GIT_COMMIT_SHA?.trim().slice(0, COMMIT_SHA_LENGTH) || undefined;
 
 const createBatch = (): PostHogBatch =>
   createPostHogBatch({
@@ -48,8 +54,12 @@ const createBatch = (): PostHogBatch =>
   });
 
 const baseProperties = (): PostHogProperties => {
-  const version = backendAppVersion();
-  return { surface: "backend", ...(version ? { $app_version: version } : {}) };
+  const commitSha = backendCommitSha();
+  return {
+    $app_version: BACKEND_APP_VERSION,
+    surface: "backend",
+    ...(commitSha ? { commit_sha: commitSha } : {}),
+  };
 };
 
 const enqueue = async (

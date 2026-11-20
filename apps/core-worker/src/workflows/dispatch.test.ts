@@ -311,6 +311,7 @@ describe("runDispatch analytics events", () => {
               event: "user_signed_up",
               properties: {
                 $app_version: "abc123def456",
+                $geoip_disable: true,
                 $lib: "teak-backend",
                 $set: { email: "a@example.com", plan: "free" },
                 source: "auth",
@@ -323,6 +324,7 @@ describe("runDispatch analytics events", () => {
               distinct_id: "teak-anonymous",
               event: "card_processing_failed",
               properties: {
+                $geoip_disable: true,
                 $lib: "teak-backend",
                 $process_person_profile: false,
                 error_class: "timeout",

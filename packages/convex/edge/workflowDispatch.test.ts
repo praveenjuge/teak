@@ -5,6 +5,7 @@ import type { Id } from "../_generated/dataModel";
 import { queueAccountDeletionWorkflow } from "../accountDeletion/workflowRun";
 import { queueExportWorkflow } from "../export/workflowRun";
 import { queueImportWorkflow } from "../import/workflowRun";
+import packageJson from "../package.json";
 import { queueObjectDeletion } from "../storage/objectDeletion";
 import { buildR2UserPrefix } from "../storage/r2";
 import {
@@ -1119,19 +1120,24 @@ describe("analytics events", () => {
     const now = new Date(NOW).toISOString();
     expect(claimed.map(({ item }: { item: unknown }) => item)).toEqual([
       {
-        appVersion: "abc123def456",
+        appVersion: packageJson.version,
         distinctId: "teak_u1",
         event: "user_signed_up",
-        properties: { source: "auth", surface: "backend" },
+        properties: {
+          commit_sha: "abc123def456",
+          source: "auth",
+          surface: "backend",
+        },
         set: { email: "a@example.com", plan: "free", signed_up_at: now },
         timestamp: now,
         type: "analytics-event",
         uuid: expect.stringMatching(UUID),
       },
       {
-        appVersion: "abc123def456",
+        appVersion: packageJson.version,
         event: "card_processing_failed",
         properties: {
+          commit_sha: "abc123def456",
           error_class: "timeout",
           stage: "renderables",
           surface: "backend",

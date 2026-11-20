@@ -2,6 +2,7 @@ import {
   CLEF_FLASH_MODEL_ID,
   CLEF_INPUT_USD_PER_MILLION,
   CLEF_MODEL_ID,
+  FILES_TRANSCRIPTION_MODEL,
 } from "@teak/files-protocol";
 
 const ONE_MILLION = 1_000_000;
@@ -23,11 +24,21 @@ export const WORKERS_AI_PRICING_USD_PER_MILLION = {
 export type PricedWorkersAiModel =
   keyof typeof WORKERS_AI_PRICING_USD_PER_MILLION;
 
+// Speech-to-text models bill each minute of audio sent.
+export const WORKERS_AI_PRICING_USD_PER_AUDIO_MINUTE: Record<string, number> = {
+  [FILES_TRANSCRIPTION_MODEL]: 0.0005,
+};
+
 export const estimateWorkersAiCostUsd = (input: {
+  audioSeconds?: number;
   inputTokens?: number;
   model: string;
   outputTokens?: number;
 }): number | undefined => {
+  const audioPrice = WORKERS_AI_PRICING_USD_PER_AUDIO_MINUTE[input.model];
+  if (audioPrice !== undefined) {
+    return ((input.audioSeconds ?? 0) / 60) * audioPrice;
+  }
   const prices =
     WORKERS_AI_PRICING_USD_PER_MILLION[input.model as PricedWorkersAiModel];
   if (!prices) {

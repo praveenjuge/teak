@@ -60,6 +60,8 @@ export const withWorkflowTelemetry = async <T>(
 };
 
 interface AiUsage {
+  /** Seconds of audio a speech-to-text model was sent; it bills by the minute. */
+  audioSeconds?: number;
   inputTokens?: number;
   outputTokens?: number;
 }
@@ -90,6 +92,7 @@ export const observeAiGeneration = async <T>(
         $ai_provider: WORKERS_AI_PROVIDER,
         $ai_span_name: input.functionId,
         $ai_total_cost_usd: estimateWorkersAiCostUsd({
+          audioSeconds: usage?.audioSeconds,
           inputTokens: usage?.inputTokens,
           model: input.model,
           outputTokens: usage?.outputTokens,

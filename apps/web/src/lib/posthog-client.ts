@@ -38,7 +38,14 @@ const whenIdle = (callback: () => void) => {
   setTimeout(callback, IDLE_TIMEOUT_MS);
 };
 
-export const startPostHog = (token: string | undefined): void => {
+/**
+ * `superProperties` ride on every event, the first pageview and early
+ * exceptions included: they're registered before the SDK sends anything.
+ */
+export const startPostHog = (
+  token: string | undefined,
+  superProperties: Record<string, string> = {}
+): void => {
   if (!token || enabled) {
     return;
   }
@@ -59,6 +66,7 @@ export const startPostHog = (token: string | undefined): void => {
     import("posthog-js")
       .then(({ default: posthog }) => {
         posthog.init(token, buildPostHogOptions());
+        posthog.register(superProperties);
         window.removeEventListener("error", onError);
         window.removeEventListener("unhandledrejection", onRejection);
         client = posthog;

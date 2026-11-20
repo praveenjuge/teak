@@ -13,6 +13,7 @@ type RecordEvents = (
 
 const flush = async (token: string, record: RecordEvents): Promise<void> => {
   const batch = createPostHogBatch({
+    geoip: true,
     lib: "teak-extension",
     libVersion: chrome.runtime.getManifest().version,
     platform: "web:javascript",
