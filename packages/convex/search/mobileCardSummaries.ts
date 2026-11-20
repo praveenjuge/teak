@@ -7,7 +7,6 @@ import {
 } from "../card/queryUtils";
 import { cardTypeValidator } from "../schema/validators/cards";
 import { cardDisplayTitle, cardPreviewText } from "../shared/cardTitle";
-import { withReadMeter } from "./readMeter";
 import {
   searchCardsPaginatedArgsValidator,
   searchCardsPaginatedHandler,
@@ -100,12 +99,9 @@ export const searchMobileCardSummariesPaginated = query({
   args: searchCardsPaginatedArgsValidator.fields,
   returns: paginationResultValidator,
   handler: async (ctx, args) => {
-    const result = await withReadMeter(ctx, args, (metered, reportSearch) =>
-      searchCardsPaginatedHandler(metered, args, {
-        attach: attachCardSummaryUrls,
-        reportSearch,
-      })
-    );
+    const result = await searchCardsPaginatedHandler(ctx, args, {
+      attach: attachCardSummaryUrls,
+    });
 
     return {
       ...result,
