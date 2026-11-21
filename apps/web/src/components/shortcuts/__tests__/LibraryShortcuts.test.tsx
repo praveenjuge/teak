@@ -11,9 +11,6 @@ mock.module(
   "../../command-palette/CommandPalette",
   () => new Promise(() => undefined)
 );
-mock.module("../../../hooks/useTheme", () => ({
-  useTheme: () => ({ resolvedTheme: "light", setTheme: () => undefined }),
-}));
 
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");

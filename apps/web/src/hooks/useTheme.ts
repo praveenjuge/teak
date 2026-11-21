@@ -56,10 +56,17 @@ function listen(): () => void {
     notify();
   };
   const onStorage = (event: StorageEvent) => {
-    if (event.key === THEME_STORAGE_KEY) {
-      chosen = parseThemePreference(event.newValue);
-      onSystemChange();
+    if (event.key !== THEME_STORAGE_KEY) {
+      return;
     }
+    // What storage holds now, not the event's value: events can arrive
+    // after a newer choice. Storage that can't be read keeps this page's.
+    try {
+      chosen = parseThemePreference(localStorage.getItem(THEME_STORAGE_KEY));
+    } catch {
+      // Keep `chosen`.
+    }
+    onSystemChange();
   };
   media.addEventListener("change", onSystemChange);
   window.addEventListener("storage", onStorage);

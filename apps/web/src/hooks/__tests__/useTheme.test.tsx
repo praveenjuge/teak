@@ -17,6 +17,7 @@ afterEach(async () => {
   await act(() => root?.unmount());
   root = undefined;
   document.body.innerHTML = "";
+  localStorage.clear();
 });
 
 function ThemeProbe() {
@@ -25,7 +26,7 @@ function ThemeProbe() {
 }
 
 test("a theme picked while storage refuses writes is still the one in use", async () => {
-  const refuse = spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+  const refuse = spyOn(localStorage, "setItem").mockImplementation(() => {
     throw new DOMException("denied", "SecurityError");
   });
   try {
@@ -49,6 +50,8 @@ test("a choice made in another tab applies here", async () => {
   root = createRoot(container);
   await act(() => root?.render(<ThemeProbe />));
 
+  // The other tab writes the shared storage, then this tab hears of it.
+  localStorage.setItem("theme", "light");
   await act(() => {
     window.dispatchEvent(
       new StorageEvent("storage", { key: "theme", newValue: "light" })
@@ -57,6 +60,22 @@ test("a choice made in another tab applies here", async () => {
 
   expect(container.textContent).toBe("light light");
   expect(document.documentElement.classList.contains("light")).toBe(true);
+});
+
+test("an out-of-date event from another tab doesn't undo a newer choice", async () => {
+  const container = document.createElement("div");
+  document.body.append(container);
+  root = createRoot(container);
+  await act(() => root?.render(<ThemeProbe />));
+
+  await act(() => setThemePreference("dark"));
+  await act(() => {
+    window.dispatchEvent(
+      new StorageEvent("storage", { key: "theme", newValue: "light" })
+    );
+  });
+
+  expect(container.textContent).toBe("dark dark");
 });
 
 test("the window listeners come off when the last reader goes, whichever it is", async () => {

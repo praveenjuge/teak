@@ -54,6 +54,31 @@ const runHeadScript = (saved: string | null, systemDark: boolean) => {
   return `${root.className} ${root.style.colorScheme}`;
 };
 
+test("with storage that refuses to be read, the head script follows the system", () => {
+  const storage = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    get() {
+      throw new DOMException("denied", "SecurityError");
+    },
+  });
+  const realMatchMedia = window.matchMedia;
+  window.matchMedia = ((query: string) => ({
+    matches: query === DARK_SCHEME_QUERY,
+  })) as typeof window.matchMedia;
+  const root = document.documentElement;
+  root.className = "";
+  try {
+    new Function(THEME_FROM_STORAGE)();
+    expect(root.className).toBe("dark");
+  } finally {
+    window.matchMedia = realMatchMedia;
+    if (storage) {
+      Object.defineProperty(globalThis, "localStorage", storage);
+    }
+  }
+});
+
 test.each([
   ["dark", false, "dark dark"],
   ["light", true, "light light"],
