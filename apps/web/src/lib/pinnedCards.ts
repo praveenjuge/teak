@@ -41,6 +41,17 @@ export function showsPinnedStrip({
   );
 }
 
+/**
+ * The cards query the library grid runs. Where the pinned strip shows, it
+ * holds the pinned cards and the grid's list leaves them out. The server's
+ * first-load seed builds its arguments here too, so the two always match.
+ */
+export const gridCardsQueryArgs = <Args extends CardsSearchQueryArgs>(
+  queryArgs: Args,
+  pinnedStripShown: boolean
+): Args & { excludePinned?: true } =>
+  pinnedStripShown ? { ...queryArgs, excludePinned: true } : queryArgs;
+
 /** A card to pin or unpin: its id and whether it's pinned now. */
 export interface PinTarget {
   _id: string;

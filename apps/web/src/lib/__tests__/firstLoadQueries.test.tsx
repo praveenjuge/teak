@@ -8,16 +8,29 @@ import { useCardsSearchController } from "../../hooks/useCardsSearchController";
 import { type FirstLoadContext, firstLoadQueries } from "../firstLoadQueries";
 import type { LibraryView } from "../libraryViews";
 import { libraryViewForPath } from "../libraryViews";
+import { showsPinnedStrip } from "../pinnedCards";
 import { parseSearchUrlState } from "../searchUrlState";
 
+// The cards query CardsScreen runs first: the search's arguments, and
+// `excludePinned` wherever the pinned strip shows (usePinnedStrip).
 function libraryFirstQuery(url: URL, view: LibraryView, folderId?: string) {
   let args: unknown;
   function Probe() {
-    args = useCardsSearchController({
+    const { queryArgs } = useCardsSearchController({
       folderId: folderId as Id<"folders"> | undefined,
       initialUrlState: parseSearchUrlState(url.searchParams),
       view,
-    }).queryArgs;
+    });
+    const pinnedStripShown = showsPinnedStrip({
+      isAddingToFolder: !folderId && Boolean(url.searchParams.get("addTo")),
+      isFolderView: Boolean(folderId),
+      queryArgs,
+      view,
+    });
+    args = {
+      ...queryArgs,
+      ...(pinnedStripShown ? { excludePinned: true } : {}),
+    };
     return null;
   }
   renderToStaticMarkup(<Probe />);
@@ -58,6 +71,7 @@ describe("first-load queries", () => {
     "/?type=link,image",
     "/?tag=design",
     "/favorites?q=red&type=palette&sort=oldest",
+    "/?addTo=manual123",
   ])("warm the same first page of cards the library asks for at %s", (path) => {
     const url = new URL(path, "https://app.example");
     const view = libraryViewForPath(url.pathname);
@@ -72,6 +86,32 @@ describe("first-load queries", () => {
       id: 0,
       numItems: 30,
     });
+  });
+
+  test("warm the pinned row, and a grid without its cards, on the plain library only", () => {
+    const page = (path: string) => {
+      const url = new URL(path, "https://app.example");
+      return {
+        excludePinned: warmedCardsArgs(url, { folders })?.args.excludePinned,
+        pinned: names(url, { folders }).includes("cards:getPinnedCards"),
+      };
+    };
+    expect(page("/")).toEqual({ excludePinned: true, pinned: true });
+    for (const path of [
+      "/favorites",
+      "/archive",
+      "/trash",
+      "/?q=bauhaus",
+      "/?sort=oldest",
+      "/?tag=design",
+      "/?addTo=manual123",
+      "/f/manual123",
+    ]) {
+      expect([path, page(path)]).toEqual([
+        path,
+        { excludePinned: undefined, pinned: false },
+      ]);
+    }
   });
 
   test("warm a search's Newest order when the URL picked it over Best match", () => {

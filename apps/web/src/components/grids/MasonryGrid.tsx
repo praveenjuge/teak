@@ -209,9 +209,16 @@ export const MasonryGrid = memo(function MasonryGrid({
     return () => observer.disconnect();
   }, [gutter, maxColumns, minColumnWidth]);
   const resolvedColumns = measuredColumns ?? FALLBACK_COLUMNS;
+  // The masonry stacks every item in one corner until it has measured them,
+  // so it stays out of sight until its first layout. On a server-rendered
+  // page the plain grid stands in meanwhile; a grid first made in the browser
+  // (a search, a smart folder, a page whose cards came late) shows nothing for
+  // that frame instead of a pile of cards that then jump apart.
   const hydrated = useHydrated();
-  const [firstPaint, setFirstPaint] = useState(!hydrated);
-  const endFirstPaint = useCallback(() => setFirstPaint(false), []);
+  const [serverRendered] = useState(!hydrated);
+  const [measuring, setMeasuring] = useState(true);
+  const endMeasuring = useCallback(() => setMeasuring(false), []);
+  const firstPaint = measuring && serverRendered;
   const loadMoreRequestedRef = useRef(false);
   const resetKeyRef = useRef(resetKey);
   const prevCardsLengthRef = useRef(filteredCards.length);
@@ -867,7 +874,7 @@ export const MasonryGrid = memo(function MasonryGrid({
       {/* biome-ignore lint/a11y/noNoninteractiveElementInteractions: keys reach this wrapper from the focused card, which is the interactive element */}
       {/* biome-ignore lint/a11y/noStaticElementInteractions: as above */}
       <div
-        className={firstPaint ? "relative" : undefined}
+        className={measuring ? "relative" : undefined}
         data-slot="card-grid"
         onFocus={handleGridFocus}
         onKeyDown={handleGridKeyDown}
@@ -893,8 +900,8 @@ export const MasonryGrid = memo(function MasonryGrid({
             gutter={gutter}
             itemRender={renderItem}
             items={masonryItems}
-            onLayoutChange={firstPaint ? endFirstPaint : undefined}
-            style={firstPaint ? MEASURING_STYLE : undefined}
+            onLayoutChange={measuring ? endMeasuring : undefined}
+            style={measuring ? MEASURING_STYLE : undefined}
           />
         </ConfigProvider>
       </div>
