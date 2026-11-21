@@ -4,17 +4,12 @@ import {
   createStart,
 } from "@tanstack/react-start";
 import { authkitMiddleware } from "@workos/authkit-tanstack-react-start";
-import { proxyAnalytics } from "@/server/analyticsProxy";
 import {
   sessionHintHeader,
   signInGuard,
   signInUnavailable,
 } from "@/server/session";
 import { configureWorkos } from "@/server/workos";
-
-const analyticsMiddleware = createMiddleware().server(
-  async ({ request, next }) => (await proxyAnalytics(request)) ?? next()
-);
 
 const csrfMiddleware = createCsrfMiddleware({
   filter: (ctx) => ctx.handlerType === "serverFn",
@@ -76,5 +71,5 @@ const sessionMiddleware = createMiddleware()
   });
 
 export const startInstance = createStart(() => ({
-  requestMiddleware: [analyticsMiddleware, csrfMiddleware, sessionMiddleware],
+  requestMiddleware: [csrfMiddleware, sessionMiddleware],
 }));

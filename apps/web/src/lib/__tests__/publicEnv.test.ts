@@ -3,8 +3,8 @@ import { DEFAULT_TEAK_DEV_CONVEX_URL } from "@teak/convex/devUrls";
 import { filesOrigin } from "../public-env";
 
 const previous = {
-  convex: process.env.NEXT_PUBLIC_CONVEX_URL,
-  files: process.env.NEXT_PUBLIC_FILES_BASE,
+  convex: process.env.VITE_PUBLIC_CONVEX_URL,
+  files: process.env.VITE_PUBLIC_FILES_BASE,
 };
 
 const restore = (name: string, value: string | undefined) => {
@@ -16,8 +16,8 @@ const restore = (name: string, value: string | undefined) => {
 };
 
 afterEach(() => {
-  restore("NEXT_PUBLIC_CONVEX_URL", previous.convex);
-  restore("NEXT_PUBLIC_FILES_BASE", previous.files);
+  restore("VITE_PUBLIC_CONVEX_URL", previous.convex);
+  restore("VITE_PUBLIC_FILES_BASE", previous.files);
 });
 
 describe("the files origin the page connects to early", () => {
@@ -47,8 +47,8 @@ describe("the files origin the page connects to early", () => {
       "https://files.teakvault.com",
     ],
   ])("is %s", (_name, convexUrl, filesBase, origin) => {
-    restore("NEXT_PUBLIC_CONVEX_URL", convexUrl);
-    restore("NEXT_PUBLIC_FILES_BASE", filesBase);
+    restore("VITE_PUBLIC_CONVEX_URL", convexUrl);
+    restore("VITE_PUBLIC_FILES_BASE", filesBase);
     expect(filesOrigin()).toBe(origin);
   });
 });

@@ -44,10 +44,10 @@ export const emulatorDeploymentVars = (ports: StackPorts) => ({
 export const emulatorWebEnv = (ports: StackPorts) => {
   const urls = stackUrls(ports);
   return {
-    NEXT_PUBLIC_CONVEX_URL: urls.convexUrl,
-    NEXT_PUBLIC_CONVEX_SITE_URL: urls.apiOrigin,
-    NEXT_PUBLIC_FILES_BASE: coreWorkerOrigin(ports),
-    NEXT_PUBLIC_WORKOS_REDIRECT_URI: `${urls.appOrigin}/callback`,
+    VITE_PUBLIC_CONVEX_URL: urls.convexUrl,
+    VITE_PUBLIC_CONVEX_SITE_URL: urls.apiOrigin,
+    VITE_PUBLIC_FILES_BASE: coreWorkerOrigin(ports),
+    VITE_PUBLIC_WORKOS_REDIRECT_URI: `${urls.appOrigin}/callback`,
     WORKOS_CLIENT_ID: EMULATOR_CLIENT_ID,
     WORKOS_COOKIE_PASSWORD: EMULATOR_COOKIE_PASSWORD,
     WORKOS_API_HOSTNAME: "localhost",

@@ -23,7 +23,6 @@ const directiveTokens = (name: string) =>
 
 describe("web security headers", () => {
   test("ships a content security policy for authenticated and auth routes", () => {
-    expect(headers.get("Content-Security-Policy")).toBe(contentSecurityPolicy);
     expect(contentSecurityPolicy).toContain("frame-ancestors 'none'");
     expect(contentSecurityPolicy).toContain("object-src 'none'");
     expect(contentSecurityPolicy).toContain("base-uri 'self'");
@@ -68,7 +67,7 @@ describe("web security headers", () => {
     );
     expect(directiveTokens("media-src")).not.toContain("https://*.r2.dev");
     expect(directiveTokens("script-src")).not.toContain("https:");
-    expect(directiveTokens("script-src")).toContain("'unsafe-inline'");
+    expect(directiveTokens("script-src")).not.toContain("'unsafe-inline'");
     expect(directiveTokens("script-src")).not.toContain("'unsafe-eval'");
     expect(directiveTokens("connect-src")).not.toContain("https:");
     expect(directiveTokens("connect-src")).not.toContain("wss:");
@@ -87,11 +86,11 @@ describe("web security headers", () => {
   });
 
   test("allows self-hosted file origins from build-time configuration", () => {
-    const names = ["NEXT_PUBLIC_FILES_BASE"];
+    const names = ["VITE_PUBLIC_FILES_BASE"];
     const previous = new Map(
       names.map((name) => [name, process.env[name]] as const)
     );
-    process.env.NEXT_PUBLIC_FILES_BASE = "https://files.example.com/worker";
+    process.env.VITE_PUBLIC_FILES_BASE = "https://files.example.com/worker";
     try {
       const policy = buildContentSecurityPolicy("production");
       const tokens = (name: string) =>
@@ -117,16 +116,16 @@ describe("web security headers", () => {
   });
 
   test("ignores non-https file origins", () => {
-    const previous = process.env.NEXT_PUBLIC_FILES_BASE;
-    process.env.NEXT_PUBLIC_FILES_BASE = "http://files.example.com";
+    const previous = process.env.VITE_PUBLIC_FILES_BASE;
+    process.env.VITE_PUBLIC_FILES_BASE = "http://files.example.com";
     try {
       const policy = buildContentSecurityPolicy("production");
       expect(policy).not.toContain("files.example.com");
     } finally {
       if (previous === undefined) {
-        delete process.env.NEXT_PUBLIC_FILES_BASE;
+        delete process.env.VITE_PUBLIC_FILES_BASE;
       } else {
-        process.env.NEXT_PUBLIC_FILES_BASE = previous;
+        process.env.VITE_PUBLIC_FILES_BASE = previous;
       }
     }
   });
@@ -162,24 +161,33 @@ describe("web security headers", () => {
     }
   });
 
-  test("allows framework bootstraps in production but eval only in development", () => {
-    const scriptTokens = (environment: "development" | "production") =>
-      buildContentSecurityPolicy(environment)
+  test("runs inline scripts only with the request's nonce, and eval only in development", () => {
+    const scriptTokens = (
+      environment: "development" | "production",
+      nonce?: string
+    ) =>
+      buildContentSecurityPolicy(environment, nonce)
         .split("; ")
         .find((directive) => directive.startsWith("script-src "))
         ?.split(" ")
         .slice(1) ?? [];
 
+    expect(scriptTokens("production", "abc123")).toContain("'nonce-abc123'");
+    expect(scriptTokens("development", "abc123")).toContain("'nonce-abc123'");
+    for (const environment of ["development", "production"] as const) {
+      expect(scriptTokens(environment, "abc123")).not.toContain(
+        "'unsafe-inline'"
+      );
+    }
     expect(scriptTokens("development")).toContain("'unsafe-eval'");
-    expect(scriptTokens("development")).toContain("'unsafe-inline'");
     expect(scriptTokens("production")).not.toContain("'unsafe-eval'");
-    expect(scriptTokens("production")).toContain("'unsafe-inline'");
   });
 
   test("keeps baseline browser security headers enabled", () => {
+    // The CSP carries each request's nonce, so withSecurityHeaders adds it.
     expect(
       staticSecurityHeaders.some(({ key }) => key === "Content-Security-Policy")
-    ).toBe(true);
+    ).toBe(false);
     expect(headers.get("Strict-Transport-Security")).toContain(
       "includeSubDomains"
     );
@@ -199,26 +207,26 @@ describe("configured local backend security policy", () => {
     convexUrl: string,
     filesBase?: string
   ) => {
-    const previousConvex = process.env.NEXT_PUBLIC_CONVEX_URL;
-    const previousFiles = process.env.NEXT_PUBLIC_FILES_BASE;
-    process.env.NEXT_PUBLIC_CONVEX_URL = convexUrl;
+    const previousConvex = process.env.VITE_PUBLIC_CONVEX_URL;
+    const previousFiles = process.env.VITE_PUBLIC_FILES_BASE;
+    process.env.VITE_PUBLIC_CONVEX_URL = convexUrl;
     if (filesBase === undefined) {
-      delete process.env.NEXT_PUBLIC_FILES_BASE;
+      delete process.env.VITE_PUBLIC_FILES_BASE;
     } else {
-      process.env.NEXT_PUBLIC_FILES_BASE = filesBase;
+      process.env.VITE_PUBLIC_FILES_BASE = filesBase;
     }
     try {
       return buildContentSecurityPolicy(environment);
     } finally {
       if (previousConvex === undefined) {
-        delete process.env.NEXT_PUBLIC_CONVEX_URL;
+        delete process.env.VITE_PUBLIC_CONVEX_URL;
       } else {
-        process.env.NEXT_PUBLIC_CONVEX_URL = previousConvex;
+        process.env.VITE_PUBLIC_CONVEX_URL = previousConvex;
       }
       if (previousFiles === undefined) {
-        delete process.env.NEXT_PUBLIC_FILES_BASE;
+        delete process.env.VITE_PUBLIC_FILES_BASE;
       } else {
-        process.env.NEXT_PUBLIC_FILES_BASE = previousFiles;
+        process.env.VITE_PUBLIC_FILES_BASE = previousFiles;
       }
     }
   };

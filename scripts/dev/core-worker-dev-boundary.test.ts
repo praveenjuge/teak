@@ -182,7 +182,7 @@ describe("readDevelopmentFilesRouting", () => {
     CONVEX_SELF_HOSTED_ADMIN_KEY: "ambient-self-hosted-admin",
     CONVEX_URL: "https://uncommon-ladybug-882.convex.cloud",
     CONVEX_SITE_URL: "https://uncommon-ladybug-882.convex.site",
-    NEXT_PUBLIC_CONVEX_URL: "https://uncommon-ladybug-882.convex.cloud",
+    VITE_PUBLIC_CONVEX_URL: "https://uncommon-ladybug-882.convex.cloud",
   };
   const devValues: Record<string, string> = {
     R2_KEY_PREFIX: "dev/",

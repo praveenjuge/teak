@@ -11,7 +11,7 @@ mock.module(
   "../../command-palette/CommandPalette",
   () => new Promise(() => undefined)
 );
-mock.module("next-themes", () => ({
+mock.module("../../../hooks/useTheme", () => ({
   useTheme: () => ({ resolvedTheme: "light", setTheme: () => undefined }),
 }));
 

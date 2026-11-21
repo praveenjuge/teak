@@ -151,22 +151,22 @@ Teak's `bun run setup`, `bun run dev` and `bun run doctor` work only against Tea
     Later deploys are `bun run deploy:self-host`. On the Convex deployment, set `FILES_BASE` to the Worker's public origin, the same `FILES_SIGNING_SECRET`, and the derived `WORKFLOW_RPC_SECRET`.
   </Step>
   <Step title="Build and deploy the web app">
-    The web app runs as a Cloudflare Worker named `teak-app` (`apps/web/wrangler.jsonc`) on your Cloudflare account. Build it with the [web values](#web-appswebenvlocal) for production: your production `NEXT_PUBLIC_CONVEX_URL` and `NEXT_PUBLIC_CONVEX_SITE_URL`, `NEXT_PUBLIC_WORKOS_REDIRECT_URI` set to `https://app.yourdomain.com/callback`, and `NEXT_PUBLIC_FILES_BASE`. Export them in your shell or write them to `apps/web/.env.production.local`, which wins over `.env.local`. Then build and deploy:
+    The web app runs as a Cloudflare Worker named `teak-app` (`apps/web/wrangler.jsonc`) on your Cloudflare account. Build it with the [web values](#web-appswebenvlocal) for production: your production `VITE_PUBLIC_CONVEX_URL` and `VITE_PUBLIC_CONVEX_SITE_URL`, `VITE_PUBLIC_WORKOS_REDIRECT_URI` set to `https://app.yourdomain.com/callback`, and `VITE_PUBLIC_FILES_BASE`. Export them in your shell or write them to `apps/web/.env.production.local`, which wins over `.env.local`. Then build and deploy:
 
     ```bash
     bun run --cwd apps/web build
     bun run --cwd apps/web deploy
     ```
 
-    From `apps/web`, give the Worker its runtime values as secrets: the same `WORKOS_CLIENT_ID`, its own `WORKOS_COOKIE_PASSWORD`, and `NEXT_PUBLIC_WORKOS_REDIRECT_URI` again. Use secrets even for the redirect URI: each deploy deletes plain variables set in the dashboard, and keeps secrets.
+    From `apps/web`, give the Worker its runtime values as secrets: the same `WORKOS_CLIENT_ID`, its own `WORKOS_COOKIE_PASSWORD`, and `VITE_PUBLIC_WORKOS_REDIRECT_URI` again. Use secrets even for the redirect URI: each deploy deletes plain variables set in the dashboard, and keeps secrets.
 
     ```bash
     bunx wrangler secret put WORKOS_CLIENT_ID
     bunx wrangler secret put WORKOS_COOKIE_PASSWORD
-    bunx wrangler secret put NEXT_PUBLIC_WORKOS_REDIRECT_URI
+    bunx wrangler secret put VITE_PUBLIC_WORKOS_REDIRECT_URI
     ```
 
-    The config has no routes and no `workers.dev` address, so attach your domain in the Cloudflare dashboard: open the `teak-app` Worker, then **Settings → Domains & Routes → Add → Custom Domain**, and enter `app.yourdomain.com` (its zone must be on Cloudflare). Later deploys keep it. There is no Node server to run: `bun run --cwd apps/web start` previews a build locally only.
+    The config has no routes and no `workers.dev` address, so attach your domain in the Cloudflare dashboard: open the `teak-app` Worker, then **Settings → Domains & Routes → Add → Custom Domain**, and enter `app.yourdomain.com` (its zone must be on Cloudflare). Later deploys keep it. There is no Node server to run: `bun run --cwd apps/web preview` previews a build locally only.
   </Step>
   <Step title="Turn billing off, or add it">
     Set `BILLING_DISABLED=true` on the Convex deployment to give every account Pro with no card limit, or set the `POLAR_*` values to sell plans with your [Polar](https://polar.sh/) account. See [Billing](#billing-optional).
@@ -296,17 +296,17 @@ Save by email runs in the Core Worker (`apps/core-worker/src/email`) and needs C
 ### Web (`apps/web/.env.local`)
 
 ```bash
-NEXT_PUBLIC_CONVEX_URL=https://deployment.convex.cloud
-NEXT_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
+VITE_PUBLIC_CONVEX_URL=https://deployment.convex.cloud
+VITE_PUBLIC_CONVEX_SITE_URL=https://deployment.convex.site
 WORKOS_CLIENT_ID=client_...                  # Same as the Convex deployment
 WORKOS_COOKIE_PASSWORD=...                   # At least 32 random characters: openssl rand -base64 32
-NEXT_PUBLIC_WORKOS_REDIRECT_URI=http://localhost:3000/callback
-NEXT_PUBLIC_FILES_BASE=https://files.yourdomain.com # Same as FILES_BASE, for the Content-Security-Policy
+VITE_PUBLIC_WORKOS_REDIRECT_URI=http://localhost:3000/callback
+VITE_PUBLIC_FILES_BASE=https://files.yourdomain.com # Same as FILES_BASE, for the Content-Security-Policy
 ```
 
-`bun run --cwd apps/web dev` reads this file, and the Cloudflare Vite plugin loads it into the Worker it runs locally. A production build inlines the `NEXT_PUBLIC_*` values, so changing one means building and deploying again; the Worker reads `WORKOS_CLIENT_ID`, `WORKOS_COOKIE_PASSWORD` and `NEXT_PUBLIC_WORKOS_REDIRECT_URI` from its secrets at runtime ([Build and deploy the web app](#production-basics)).
+`bun run --cwd apps/web dev` reads this file, and the Cloudflare Vite plugin loads it into the Worker it runs locally. A production build inlines the `VITE_PUBLIC_*` values, so changing one means building and deploying again; the Worker reads `WORKOS_CLIENT_ID`, `WORKOS_COOKIE_PASSWORD` and `VITE_PUBLIC_WORKOS_REDIRECT_URI` from its secrets at runtime ([Build and deploy the web app](#production-basics)).
 
-The Content-Security-Policy always allows Teak's own file origins; `NEXT_PUBLIC_FILES_BASE` adds yours at build time.
+The Content-Security-Policy always allows Teak's own file origins; `VITE_PUBLIC_FILES_BASE` adds yours at build time.
 
 ### Browser Extension (`apps/extension`)
 
@@ -345,6 +345,6 @@ A self-hosted Teak sends no analytics or error reports, to Teak or anyone else, 
 | --- | --- | --- |
 | Convex backend | `POSTHOG_PROJECT_TOKEN`, `POSTHOG_PROJECT_ID` (the project's numeric ID, from its settings), and `POSTHOG_PERSON_DELETION_API_KEY` (a personal API key with `person:write` on that project) so deleting an account also deletes its analytics. Without the deletion key, account deletions stop at their last stage and retry until it's set | Convex env |
 | Core Worker | `POSTHOG_PROJECT_TOKEN` | `self-host/.env` |
-| Web app | `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN` and `TEAK_ANALYTICS_ENABLED=true` | Both in the build environment, and `TEAK_ANALYTICS_ENABLED` also as a Worker secret (`bunx wrangler secret put TEAK_ANALYTICS_ENABLED` from `apps/web`) |
+| Web app | `VITE_PUBLIC_POSTHOG_PROJECT_TOKEN` and `TEAK_ANALYTICS_ENABLED=true` | Both in the build environment, and `TEAK_ANALYTICS_ENABLED` also as a Worker secret (`bunx wrangler secret put TEAK_ANALYTICS_ENABLED` from `apps/web`) |
 
 The web app reports only while `TEAK_ANALYTICS_ENABLED` is `true`. The token and the browser's reporting are fixed when you build, so changing either value means building and deploying again; the Worker's error reports also check `TEAK_ANALYTICS_ENABLED` at runtime. Leave a part's token unset and that part sends nothing.

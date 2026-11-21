@@ -31,7 +31,7 @@
       "inputs": ["$TURBO_DEFAULT$"],
       "outputs": []
     },
-    "start": {
+    "preview": {
       "dependsOn": ["build"],
       "cache": false,
       "persistent": true

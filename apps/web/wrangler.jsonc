@@ -4,8 +4,8 @@
   // Vite plugin adds the built client as static assets.
   "name": "teak-app",
   "main": "src/server.ts",
-  "compatibility_date": "2026-10-15",
-  "compatibility_flags": ["nodejs_compat"],
+  // Node.js compatibility is on by default from 2026-08-04.
+  "compatibility_date": "2026-11-19",
   "workers_dev": false,
   // Page loads query Convex before they answer; running near it beats
   // running near the visitor.

@@ -6,7 +6,7 @@ const keys = [
   "WORKOS_CLIENT_ID",
   "WORKOS_API_KEY",
   "WORKOS_COOKIE_PASSWORD",
-  "NEXT_PUBLIC_WORKOS_REDIRECT_URI",
+  "VITE_PUBLIC_WORKOS_REDIRECT_URI",
   "NODE_ENV",
 ];
 const originalEnvironment = Object.fromEntries(
@@ -16,11 +16,13 @@ process.env.WORKOS_CLIENT_ID = "client_web123";
 // The web app signs in as a public client, without an API key.
 Reflect.deleteProperty(process.env, "WORKOS_API_KEY");
 process.env.WORKOS_COOKIE_PASSWORD = "test-session-password-for-fixtures-only";
-process.env.NEXT_PUBLIC_WORKOS_REDIRECT_URI = "http://localhost:3142/callback";
+process.env.VITE_PUBLIC_WORKOS_REDIRECT_URI = "http://localhost:3142/callback";
 process.env.NODE_ENV = "development";
 const { sessionHintHeader, signInGuard } = await import("../server/session");
 const { proxyAnalytics } = await import("../server/analyticsProxy");
-const { withSecurityHeaders } = await import("../server/securityHeaders");
+const { createNonce, withSecurityHeaders } = await import(
+  "../server/securityHeaders"
+);
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
@@ -193,6 +195,23 @@ describe("response headers", () => {
     );
     expect(page.headers.get("x-frame-options")).toBe("DENY");
     expect(page.headers.get("cache-control")).toBe("private, no-store");
+  });
+
+  test("a page's CSP runs inline scripts only with its own nonce", () => {
+    const nonce = createNonce();
+    expect(nonce).not.toBe(createNonce());
+    const page = withSecurityHeaders(
+      new Response("<html></html>", {
+        headers: { "Content-Type": "text/html; charset=utf-8" },
+      }),
+      nonce
+    );
+    const scriptSrc = page.headers
+      .get("content-security-policy")
+      ?.split("; ")
+      .find((directive) => directive.startsWith("script-src "));
+    expect(scriptSrc).toContain(`'nonce-${nonce}'`);
+    expect(scriptSrc).not.toContain("'unsafe-inline'");
   });
 
   test("other responses keep their own caching and headers", () => {

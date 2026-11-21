@@ -12,7 +12,6 @@ import { type ReactNode, useEffect } from "react";
 import { NotFoundContent } from "@/components/feedback/NotFoundContent";
 import { CookieLocaleProvider } from "@/components/providers/CookieLocaleProvider";
 import { ShareWorkerRegistration } from "@/components/providers/ShareWorkerRegistration";
-import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { RouteAnnouncer } from "@/components/RouteAnnouncer";
 import { StatusScreen } from "@/components/StatusScreen";
 import { Toaster } from "@/components/ui/sonner";
@@ -26,6 +25,7 @@ import {
   SIDEBAR_MIN_WIDTH,
   SIDEBAR_WIDTH_COOKIE_NAME,
 } from "@/lib/sidebarState";
+import { THEME_FROM_STORAGE } from "@/lib/theme";
 import alloFont from "@/styles/fonts/AlloVariableFriendly.woff2?url";
 import appCss from "@/styles/globals.css?url";
 
@@ -92,7 +92,12 @@ export const Route = createRootRoute({
       { rel: "dns-prefetch", href: FILES_ORIGIN },
       { rel: "preconnect", href: FILES_ORIGIN },
     ],
-    scripts: [{ children: HTML_LANG_FROM_COOKIE + SIDEBAR_FROM_COOKIE }],
+    scripts: [
+      {
+        children:
+          THEME_FROM_STORAGE + HTML_LANG_FROM_COOKIE + SIDEBAR_FROM_COOKIE,
+      },
+    ],
   }),
   shellComponent: RootDocument,
   component: RootComponent,
@@ -107,17 +112,12 @@ function RootDocument({ children }: { children: ReactNode }) {
         <HeadContent />
       </head>
       <body className='touch-manipulation font-features-["ss01"] font-sans text-sm antialiased caret-primary accent-primary [text-rendering:optimizeLegibility] selection:bg-primary selection:text-primary-foreground'>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          disableTransitionOnChange
-          enableSystem={true}
-        >
-          {children}
-          <Toaster position="bottom-center" />
-          <ShareWorkerRegistration />
-          <RouteAnnouncer />
-        </ThemeProvider>
+        {children}
+        {/* It reads the theme, which keeps the page in step with the system's
+            color scheme and with a choice made in another tab. */}
+        <Toaster position="bottom-center" />
+        <ShareWorkerRegistration />
+        <RouteAnnouncer />
         <Scripts />
       </body>
     </html>

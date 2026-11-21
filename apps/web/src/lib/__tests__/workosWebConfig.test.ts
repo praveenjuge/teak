@@ -5,7 +5,7 @@ const clientId = "client_web123";
 const environment = {
   WORKOS_CLIENT_ID: clientId,
   WORKOS_COOKIE_PASSWORD: "test-session-password-for-fixtures-only",
-  NEXT_PUBLIC_WORKOS_REDIRECT_URI: "http://localhost:3142/callback",
+  VITE_PUBLIC_WORKOS_REDIRECT_URI: "http://localhost:3142/callback",
   NODE_ENV: "development",
 };
 
@@ -14,7 +14,7 @@ describe("AuthKit web configuration", () => {
     expect(() =>
       readWorkosWebConfig({
         ...environment,
-        NEXT_PUBLIC_WORKOS_REDIRECT_URI: "not-a-url",
+        VITE_PUBLIC_WORKOS_REDIRECT_URI: "not-a-url",
       })
     ).toThrow("Invalid sign-in callback configuration.");
   });
@@ -22,20 +22,20 @@ describe("AuthKit web configuration", () => {
     expect(readWorkosWebConfig(environment)).toEqual({
       clientId,
       origin: "http://localhost:3142",
-      redirectUri: environment.NEXT_PUBLIC_WORKOS_REDIRECT_URI,
+      redirectUri: environment.VITE_PUBLIC_WORKOS_REDIRECT_URI,
     });
     expect(
       readWorkosWebConfig({
         ...environment,
         NODE_ENV: "production",
-        NEXT_PUBLIC_WORKOS_REDIRECT_URI: "https://app.teakvault.com/callback",
+        VITE_PUBLIC_WORKOS_REDIRECT_URI: "https://app.teakvault.com/callback",
       }).origin
     ).toBe("https://app.teakvault.com");
   });
   test.each([
     "WORKOS_CLIENT_ID",
     "WORKOS_COOKIE_PASSWORD",
-    "NEXT_PUBLIC_WORKOS_REDIRECT_URI",
+    "VITE_PUBLIC_WORKOS_REDIRECT_URI",
   ])("denies absent %s", (key) => {
     expect(() =>
       readWorkosWebConfig({ ...environment, [key]: undefined })
@@ -51,7 +51,7 @@ describe("AuthKit web configuration", () => {
     expect(() =>
       readWorkosWebConfig({
         ...environment,
-        NEXT_PUBLIC_WORKOS_REDIRECT_URI: url,
+        VITE_PUBLIC_WORKOS_REDIRECT_URI: url,
       })
     ).toThrow("Invalid sign-in callback configuration.");
   });

@@ -69,7 +69,7 @@ export const CONVEX_SELECTOR_VARIABLES = [
   "CONVEX_SELF_HOSTED_ADMIN_KEY",
   "CONVEX_URL",
   "CONVEX_SITE_URL",
-  "NEXT_PUBLIC_CONVEX_URL",
+  "VITE_PUBLIC_CONVEX_URL",
 ] as const;
 
 export const readDevelopmentFilesRouting = async (

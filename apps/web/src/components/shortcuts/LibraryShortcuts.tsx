@@ -1,4 +1,3 @@
-import { useTheme } from "next-themes";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   type KeyboardShortcut,
@@ -6,6 +5,7 @@ import {
 } from "../../hooks/useKeyboardShortcuts";
 import { useReturnFocus } from "../../hooks/useReturnFocus";
 import { useRunAfterClose } from "../../hooks/useRunAfterClose";
+import { useTheme } from "../../hooks/useTheme";
 import {
   type AppActionId,
   appActionKey,

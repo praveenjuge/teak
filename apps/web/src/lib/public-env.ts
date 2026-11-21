@@ -11,11 +11,11 @@ const missing = (name: string, local: string): Error =>
   );
 
 export const readConvexUrl = (): string | undefined =>
-  process.env.NEXT_PUBLIC_CONVEX_URL;
+  import.meta.env.VITE_PUBLIC_CONVEX_URL;
 
 /** A self-hosted deployment's files host; Teak's own when unset. */
 const readFilesBase = (): string | undefined =>
-  process.env.NEXT_PUBLIC_FILES_BASE;
+  import.meta.env.VITE_PUBLIC_FILES_BASE;
 
 /**
  * The origin of a configured URL the page may talk to: https, or plain http
@@ -75,7 +75,7 @@ export const filesOrigin = (): string =>
 export const getConvexUrl = (): string => {
   const url = readConvexUrl();
   if (!url) {
-    throw missing("NEXT_PUBLIC_CONVEX_URL", "http://127.0.0.1:3210");
+    throw missing("VITE_PUBLIC_CONVEX_URL", "http://127.0.0.1:3210");
   }
   return url;
 };

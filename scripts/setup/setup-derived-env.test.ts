@@ -14,9 +14,9 @@ import {
 describe("webEnvTemplate", () => {
   test("contains the local Convex URLs", () => {
     const template = webEnvTemplate();
-    expect(template).toContain("NEXT_PUBLIC_CONVEX_URL=http://127.0.0.1:3210");
+    expect(template).toContain("VITE_PUBLIC_CONVEX_URL=http://127.0.0.1:3210");
     expect(template).toContain(
-      "NEXT_PUBLIC_CONVEX_SITE_URL=http://127.0.0.1:3211"
+      "VITE_PUBLIC_CONVEX_SITE_URL=http://127.0.0.1:3211"
     );
   });
 
@@ -25,9 +25,9 @@ describe("webEnvTemplate", () => {
       convexUrl: "https://cloud.example",
       convexSiteUrl: "https://site.example",
     });
-    expect(template).toContain("NEXT_PUBLIC_CONVEX_URL=https://cloud.example");
+    expect(template).toContain("VITE_PUBLIC_CONVEX_URL=https://cloud.example");
     expect(template).toContain(
-      "NEXT_PUBLIC_CONVEX_SITE_URL=https://site.example"
+      "VITE_PUBLIC_CONVEX_SITE_URL=https://site.example"
     );
   });
 });
@@ -106,7 +106,7 @@ describe("web environment writer", () => {
     // biome-ignore lint/suspicious/noBitwiseOperators: POSIX permissions exclude the file type bits.
     expect(statSync(path).mode & 0o777).toBe(0o600);
     expect(first).toContain(
-      "NEXT_PUBLIC_WORKOS_REDIRECT_URI=http://localhost:3142/callback"
+      "VITE_PUBLIC_WORKOS_REDIRECT_URI=http://localhost:3142/callback"
     );
     const seal = first
       .split("\n")
@@ -117,7 +117,7 @@ describe("web environment writer", () => {
     expect(readFileSync(path, "utf-8")).toBe(first);
     writeFileSync(
       path,
-      "WORKOS_COOKIE_PASSWORD=human-set-password-preserved\nNEXT_PUBLIC_WORKOS_REDIRECT_URI=http://localhost:3999/callback\n"
+      "WORKOS_COOKIE_PASSWORD=human-set-password-preserved\nVITE_PUBLIC_WORKOS_REDIRECT_URI=http://localhost:3999/callback\n"
     );
     expect(ensureWebEnv(path, values)).toBe("repaired");
     const repaired = readFileSync(path, "utf-8");
@@ -125,7 +125,7 @@ describe("web environment writer", () => {
       "WORKOS_COOKIE_PASSWORD=human-set-password-preserved"
     );
     expect(repaired).toContain(
-      "NEXT_PUBLIC_WORKOS_REDIRECT_URI=http://localhost:3142/callback"
+      "VITE_PUBLIC_WORKOS_REDIRECT_URI=http://localhost:3142/callback"
     );
   });
 
@@ -134,7 +134,7 @@ describe("web environment writer", () => {
     const path = join(dir, ".env.local");
     writeFileSync(
       path,
-      "NEXT_PUBLIC_WORKOS_REDIRECT_URI=https://teak.example.test/callback\nNEXT_PUBLIC_CONVEX_URL=http://127.0.0.1:3210\n"
+      "VITE_PUBLIC_WORKOS_REDIRECT_URI=https://teak.example.test/callback\nVITE_PUBLIC_CONVEX_URL=http://127.0.0.1:3210\n"
     );
     ensureWebEnv(path, {
       ...DEV,
@@ -143,9 +143,9 @@ describe("web environment writer", () => {
     });
     const content = readFileSync(path, "utf-8");
     expect(content).toContain(
-      "NEXT_PUBLIC_WORKOS_REDIRECT_URI=https://teak.example.test/callback"
+      "VITE_PUBLIC_WORKOS_REDIRECT_URI=https://teak.example.test/callback"
     );
-    expect(content).toContain(`NEXT_PUBLIC_CONVEX_URL=${DEV.convexUrl}`);
+    expect(content).toContain(`VITE_PUBLIC_CONVEX_URL=${DEV.convexUrl}`);
   });
 
   test("treats loopback URLs and the emulator port as machine-local", () => {

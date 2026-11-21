@@ -10,7 +10,7 @@ describe("readConvexDotenvUrls", () => {
     const dotenv = join(dir, ".env.local");
     writeFileSync(
       dotenv,
-      "CONVEX_DEPLOYMENT=dev:x\nNEXT_PUBLIC_CONVEX_URL=https://c.example\n"
+      "CONVEX_DEPLOYMENT=dev:x\nVITE_PUBLIC_CONVEX_URL=https://c.example\n"
     );
     expect(readConvexDotenvUrls(dotenv)).toEqual({
       convexUrl: "https://c.example",

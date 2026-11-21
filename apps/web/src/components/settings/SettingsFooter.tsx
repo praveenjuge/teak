@@ -17,7 +17,7 @@ interface SettingsFooterProps {
 export function SettingsFooter({
   twitterUrl = "https://x.com/praveenjuge",
   email = "hello@praveenjuge.com",
-  version = process.env.NEXT_PUBLIC_APP_VERSION,
+  version = import.meta.env.VITE_PUBLIC_APP_VERSION,
 }: SettingsFooterProps) {
   const t = useTranslations("settings.footer");
   return (

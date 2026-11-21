@@ -61,8 +61,8 @@ if [[ "${CLAUDE_CODE_REMOTE:-}" == "true" ]]; then
   # Exports win over the dotenv files bun run dev and the E2E suite manage.
   stray=()
   for name in CONVEX_DEPLOYMENT WORKOS_CLIENT_ID WORKOS_API_KEY \
-    WORKOS_COOKIE_PASSWORD NEXT_PUBLIC_CONVEX_URL NEXT_PUBLIC_CONVEX_SITE_URL \
-    NEXT_PUBLIC_WORKOS_REDIRECT_URI; do
+    WORKOS_COOKIE_PASSWORD VITE_PUBLIC_CONVEX_URL VITE_PUBLIC_CONVEX_SITE_URL \
+    VITE_PUBLIC_WORKOS_REDIRECT_URI; do
     [[ -n "${!name:-}" ]] && stray+=("$name")
   done
   if ((${#stray[@]} > 0)); then

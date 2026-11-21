@@ -25,10 +25,10 @@ export const webEnvTemplate = (overrides?: {
   siteUrl?: string;
 }): string =>
   derivedEnvTemplate({
-    NEXT_PUBLIC_CONVEX_URL: overrides?.convexUrl ?? LOCAL_CONVEX_URL,
-    NEXT_PUBLIC_CONVEX_SITE_URL:
+    VITE_PUBLIC_CONVEX_URL: overrides?.convexUrl ?? LOCAL_CONVEX_URL,
+    VITE_PUBLIC_CONVEX_SITE_URL:
       overrides?.convexSiteUrl ?? LOCAL_CONVEX_SITE_URL,
-    NEXT_PUBLIC_WORKOS_REDIRECT_URI: new URL(
+    VITE_PUBLIC_WORKOS_REDIRECT_URI: new URL(
       "/callback",
       overrides?.siteUrl ?? MAIN_SITE_URL
     ).toString(),
@@ -134,6 +134,10 @@ const REMOVED_WEB_KEYS = [
   "WORKOS_API_PORT",
   "WORKOS_API_HTTPS",
   "WORKOS_API_KEY",
+  // Renamed to VITE_PUBLIC_* when the web app moved to Vite.
+  "NEXT_PUBLIC_CONVEX_URL",
+  "NEXT_PUBLIC_CONVEX_SITE_URL",
+  "NEXT_PUBLIC_WORKOS_REDIRECT_URI",
 ] as const;
 
 export const ensureWebEnv = (
@@ -152,9 +156,9 @@ export const ensureWebEnv = (
     path,
     {
       ...values.workos,
-      NEXT_PUBLIC_CONVEX_URL: values.convexUrl,
-      NEXT_PUBLIC_CONVEX_SITE_URL: values.convexSiteUrl,
-      NEXT_PUBLIC_WORKOS_REDIRECT_URI: new URL(
+      VITE_PUBLIC_CONVEX_URL: values.convexUrl,
+      VITE_PUBLIC_CONVEX_SITE_URL: values.convexSiteUrl,
+      VITE_PUBLIC_WORKOS_REDIRECT_URI: new URL(
         "/callback",
         values.siteUrl
       ).toString(),

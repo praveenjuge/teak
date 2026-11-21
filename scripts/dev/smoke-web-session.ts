@@ -141,7 +141,7 @@ export const runSmoke = async (baseUrl: string): Promise<SmokeReport> => {
     apiKey: await readDevWorkosApiKey(),
     clientId: values.get("WORKOS_CLIENT_ID") ?? "",
     cookiePassword: values.get("WORKOS_COOKIE_PASSWORD") ?? "",
-    redirectUri: values.get("NEXT_PUBLIC_WORKOS_REDIRECT_URI") ?? "",
+    redirectUri: values.get("VITE_PUBLIC_WORKOS_REDIRECT_URI") ?? "",
   };
   if (!Object.values(config).every(Boolean)) {
     steps.push({
@@ -179,7 +179,7 @@ export const runSmoke = async (baseUrl: string): Promise<SmokeReport> => {
 
 const main = async (): Promise<void> => {
   const args = process.argv.slice(2);
-  const redirectUri = webSettings().get("NEXT_PUBLIC_WORKOS_REDIRECT_URI");
+  const redirectUri = webSettings().get("VITE_PUBLIC_WORKOS_REDIRECT_URI");
   const fallback = redirectUri
     ? new URL(redirectUri).origin
     : "http://localhost:3000";

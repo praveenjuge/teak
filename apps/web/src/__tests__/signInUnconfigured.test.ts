@@ -4,14 +4,14 @@ import { afterAll, expect, test } from "bun:test";
 const keys = [
   "WORKOS_CLIENT_ID",
   "WORKOS_COOKIE_PASSWORD",
-  "NEXT_PUBLIC_WORKOS_REDIRECT_URI",
+  "VITE_PUBLIC_WORKOS_REDIRECT_URI",
 ];
 const originalEnvironment = Object.fromEntries(
   keys.map((key) => [key, process.env[key]])
 );
 process.env.WORKOS_CLIENT_ID = "client_web123";
 process.env.WORKOS_COOKIE_PASSWORD = "short";
-process.env.NEXT_PUBLIC_WORKOS_REDIRECT_URI = "http://localhost:3142/callback";
+process.env.VITE_PUBLIC_WORKOS_REDIRECT_URI = "http://localhost:3142/callback";
 const { signInGuard } = await import("../server/session");
 
 test("fails closed when sign-in is not configured", async () => {

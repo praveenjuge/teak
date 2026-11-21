@@ -15,10 +15,10 @@ export const readConvexDotenvUrls = (
     return {};
   }
   const content = readFileSync(dotenvPath, "utf-8");
-  const convexUrl = parseDotenvValue(content, "NEXT_PUBLIC_CONVEX_URL");
+  const convexUrl = parseDotenvValue(content, "VITE_PUBLIC_CONVEX_URL");
   const convexSiteUrl = parseDotenvValue(
     content,
-    "NEXT_PUBLIC_CONVEX_SITE_URL"
+    "VITE_PUBLIC_CONVEX_SITE_URL"
   );
   return {
     ...(convexUrl ? { convexUrl } : {}),
