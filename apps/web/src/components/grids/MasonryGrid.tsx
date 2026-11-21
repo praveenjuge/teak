@@ -76,6 +76,12 @@ const MEASURING_STYLE = {
   position: "absolute",
   top: 0,
 } as const;
+// With no stand-in grid there is nothing to keep focus for, so the cards are
+// out of the tab order and the accessibility tree until they are placed.
+const MEASURING_ALONE_STYLE = {
+  ...MEASURING_STYLE,
+  visibility: "hidden",
+} as const;
 
 const FALLBACK_COLUMNS = { xs: 1, sm: 2, md: 3, lg: 5, xl: 5, xxl: 5 };
 /** How far below the screen the next cards start to load. */
@@ -209,9 +215,19 @@ export const MasonryGrid = memo(function MasonryGrid({
     return () => observer.disconnect();
   }, [gutter, maxColumns, minColumnWidth]);
   const resolvedColumns = measuredColumns ?? FALLBACK_COLUMNS;
+  // The masonry stacks every item in one corner until it has measured them,
+  // so it stays out of sight until its first layout. On a server-rendered
+  // page the plain grid stands in meanwhile; a grid first made in the browser
+  // (a search, a smart folder, a page whose cards came late) shows nothing for
+  // that frame instead of a pile of cards that then jump apart.
   const hydrated = useHydrated();
-  const [firstPaint, setFirstPaint] = useState(!hydrated);
-  const endFirstPaint = useCallback(() => setFirstPaint(false), []);
+  const [serverRendered] = useState(!hydrated);
+  const [measuring, setMeasuring] = useState(true);
+  const endMeasuring = useCallback(() => setMeasuring(false), []);
+  const firstPaint = measuring && serverRendered;
+  const measuringStyle = serverRendered
+    ? MEASURING_STYLE
+    : MEASURING_ALONE_STYLE;
   const loadMoreRequestedRef = useRef(false);
   const resetKeyRef = useRef(resetKey);
   const prevCardsLengthRef = useRef(filteredCards.length);
@@ -867,7 +883,7 @@ export const MasonryGrid = memo(function MasonryGrid({
       {/* biome-ignore lint/a11y/noNoninteractiveElementInteractions: keys reach this wrapper from the focused card, which is the interactive element */}
       {/* biome-ignore lint/a11y/noStaticElementInteractions: as above */}
       <div
-        className={firstPaint ? "relative" : undefined}
+        className={measuring ? "relative" : undefined}
         data-slot="card-grid"
         onFocus={handleGridFocus}
         onKeyDown={handleGridKeyDown}
@@ -893,8 +909,8 @@ export const MasonryGrid = memo(function MasonryGrid({
             gutter={gutter}
             itemRender={renderItem}
             items={masonryItems}
-            onLayoutChange={firstPaint ? endFirstPaint : undefined}
-            style={firstPaint ? MEASURING_STYLE : undefined}
+            onLayoutChange={measuring ? endMeasuring : undefined}
+            style={measuring ? measuringStyle : undefined}
           />
         </ConfigProvider>
       </div>

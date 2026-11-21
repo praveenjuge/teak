@@ -5,7 +5,9 @@ import type { FunctionReference } from "convex/server";
 import type { JSONValue } from "convex/values";
 import { initialCardsSearchQueryArgs } from "./cardsSearchState";
 import { type FolderSummary, folderIdForPath } from "./folders";
+import { ADD_TO_FOLDER_PARAM } from "./libraryUrl";
 import { libraryViewForPath } from "./libraryViews";
+import { gridCardsQueryArgs, showsPinnedStrip } from "./pinnedCards";
 import { parseSearchUrlState } from "./searchUrlState";
 import {
   settingsDataForPath,
@@ -112,10 +114,24 @@ export function firstLoadQueries(
           parseSearchUrlState(url.searchParams)
         );
   if (cardsArgs) {
+    // The plain library shows its pinned cards in a row above the grid, and
+    // the grid's own query leaves them out.
+    const pinnedStrip = showsPinnedStrip({
+      isAddingToFolder: Boolean(url.searchParams.get(ADD_TO_FOLDER_PARAM)),
+      isFolderView: folderId !== null,
+      queryArgs: cardsArgs,
+      view,
+    });
+    if (pinnedStrip) {
+      queries.push({ query: api.cards.getPinnedCards, args: {} });
+    }
     queries.push({
       query: api.cards.searchCardsPaginated,
       args: firstPageArgs(
-        { ...cardsArgs, ...(folderId ? { folderId } : {}) },
+        {
+          ...gridCardsQueryArgs(cardsArgs, pinnedStrip),
+          ...(folderId ? { folderId } : {}),
+        },
         LIBRARY_PAGE_SIZE
       ),
     });

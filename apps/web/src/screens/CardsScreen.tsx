@@ -92,6 +92,7 @@ import {
   libraryViewLabel,
   libraryViewSearchPlaceholder,
 } from "../lib/libraryViews";
+import { gridCardsQueryArgs } from "../lib/pinnedCards";
 import {
   parseSearchUrlState,
   type SearchUrlState,
@@ -271,8 +272,7 @@ export function CardsScreen({
     (isFolderView && !folder) || relevance.holding
       ? "skip"
       : {
-          ...queryArgs,
-          ...(pinned.shown ? { excludePinned: true } : {}),
+          ...gridCardsQueryArgs(queryArgs, pinned.shown),
           ...(relevance.useRelevanceScores ? { useRelevanceScores: true } : {}),
           ...(queryRetryKey ? { retryKey: queryRetryKey } : {}),
         },
