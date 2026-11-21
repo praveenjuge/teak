@@ -1,6 +1,5 @@
-import "server-only";
 import { api } from "@teak/convex";
-import { fetchQuery } from "convex/nextjs";
+import { ConvexHttpClient } from "convex/browser";
 import { getFunctionName } from "convex/server";
 import { convexToJson, type Value } from "convex/values";
 import {
@@ -30,6 +29,7 @@ export async function fetchFirstLoadSeeds(
   budgetMs = FIRST_LOAD_SEED_BUDGET_MS
 ): Promise<QuerySeed[]> {
   const url = new URL(href);
+  const client = new ConvexHttpClient(getConvexUrl(), { auth: token });
   const seeds: QuerySeed[] = [];
   const started = new Set<string>();
   const seed = async ({ query, args }: FirstLoadQuery) => {
@@ -46,10 +46,7 @@ export async function fetchFirstLoadSeeds(
     }
     started.add(key);
     try {
-      const value = await fetchQuery(query, args, {
-        token,
-        url: getConvexUrl(),
-      });
+      const value = await client.query(query, args);
       seeds.push({ name, args: argsJson, value: convexToJson(value) });
       return value;
     } catch {

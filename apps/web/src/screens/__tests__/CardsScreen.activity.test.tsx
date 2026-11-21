@@ -1,11 +1,11 @@
 import { afterAll, afterEach, expect, test } from "bun:test";
-import "@/__tests__/helpers/nextRouter";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import type { Root } from "react-dom/client";
 
 GlobalRegistrator.register({ url: "http://localhost:3000/" });
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
+const { TestRouter } = await import("@/__tests__/helpers/router");
 const { act, Activity } = await import("react");
 const { createRoot } = await import("react-dom/client");
 const { ConvexProviderWithAuth } = await import("convex/react");
@@ -74,11 +74,17 @@ test("a library revealed on a new URL never writes its old search back", async (
   const container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
-  await act(() => root?.render(library("visible", "q=poster")));
-  await act(() => root?.render(library("hidden", "q=poster")));
+  await act(() =>
+    root?.render(<TestRouter>{library("visible", "q=poster")}</TestRouter>)
+  );
+  await act(() =>
+    root?.render(<TestRouter>{library("hidden", "q=poster")}</TestRouter>)
+  );
   writes.length = 0;
 
-  await act(() => root?.render(library("visible", "tag=design")));
+  await act(() =>
+    root?.render(<TestRouter>{library("visible", "tag=design")}</TestRouter>)
+  );
 
   expect(writes.filter((state) => state.q === "poster")).toEqual([]);
   const input = container.querySelector<HTMLInputElement>('input[name="q"]');

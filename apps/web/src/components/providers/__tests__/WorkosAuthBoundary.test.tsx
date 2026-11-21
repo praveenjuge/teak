@@ -12,10 +12,9 @@ import type { Root } from "react-dom/client";
 
 GlobalRegistrator.register({ url: "http://localhost:3000/cards?view=grid" });
 
-mock.module("server-only", () => ({}));
 const session = { user: { id: "user_A" }, sessionId: "session_A" };
 const accessToken: { error?: Error; refresh?: () => Promise<string> } = {};
-mock.module("@workos-inc/authkit-nextjs/components", () => ({
+mock.module("@workos/authkit-tanstack-react-start/client", () => ({
   useAuth: () => ({ ...session, loading: false }),
   useAccessToken: () => ({
     error: accessToken.error,

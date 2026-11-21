@@ -1,3 +1,5 @@
+import type { CookieInit } from "./cookie";
+
 /**
  * How the last sign-in authenticated (WorkOS's `authenticationMethod`, such
  * as `GoogleOAuth`), from the AuthKit callback to the app's first
@@ -8,12 +10,12 @@ const AUTH_METHOD_COOKIE = "teak_auth_method";
 const AUTH_METHOD_MAX_AGE_SECONDS = 10 * 60;
 const AUTH_METHOD = /^[A-Za-z]{1,32}$/u;
 
-export function authMethodCookie(method: string, secure: boolean) {
+export function authMethodCookie(method: string, secure: boolean): CookieInit {
   return {
     name: AUTH_METHOD_COOKIE,
     value: AUTH_METHOD.test(method) ? method : "",
     path: "/",
-    sameSite: "lax" as const,
+    sameSite: "lax",
     secure,
     maxAge: AUTH_METHOD_MAX_AGE_SECONDS,
   };

@@ -4,7 +4,6 @@ import type { Doc, Id } from "@teak/convex/_generated/dataModel";
 import type { OptimisticLocalStore } from "convex/browser";
 import { getFunctionName } from "convex/server";
 import type { Root } from "react-dom/client";
-import { routerPush } from "@/__tests__/helpers/nextRouter";
 
 GlobalRegistrator.register({ url: "http://localhost:3000" });
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
@@ -91,12 +90,14 @@ mock.module("@/components/text-editor", () => ({
 const { createRoot } = await import("react-dom/client");
 const { AddCardForm } = await import("../AddCardForm");
 const { ComposerProvider } = await import("../ComposerProvider");
+const { TestRouter, testRouter } = await import("@/__tests__/helpers/router");
 
 const KNOWN = "https://www.example.com/post/";
 const links = (count: number) =>
   Array.from({ length: count }, (_, index) => `https://example.com/${index}`);
 
 let root: Root | undefined;
+let router: ReturnType<typeof testRouter>;
 
 beforeEach(() => {
   canCreateCard = true;
@@ -121,11 +122,14 @@ async function render(props: Record<string, unknown> = {}) {
   const container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
+  router = testRouter();
   await act(() =>
     root?.render(
-      <ComposerProvider>
-        <AddCardForm {...props} />
-      </ComposerProvider>
+      <TestRouter router={router}>
+        <ComposerProvider>
+          <AddCardForm {...props} />
+        </ComposerProvider>
+      </TestRouter>
     )
   );
 }
@@ -136,9 +140,11 @@ const nextTick = () =>
 async function rerender(props: Record<string, unknown> = {}) {
   await act(() =>
     root?.render(
-      <ComposerProvider>
-        <AddCardForm {...props} />
-      </ComposerProvider>
+      <TestRouter router={router}>
+        <ComposerProvider>
+          <AddCardForm {...props} />
+        </ComposerProvider>
+      </TestRouter>
     )
   );
 }
@@ -335,7 +341,6 @@ describe("pasting a list of links", () => {
   });
 
   test("ends at the card limit with Upgrade, which opens the plan page in the app", async () => {
-    routerPush.mockClear();
     pasteProgress = {
       status: "stopped_at_limit",
       total: 12,
@@ -357,7 +362,7 @@ describe("pasting a list of links", () => {
     expect(message).toBe("Saved 4 of 12 links · You've reached 200 cards");
     expect(options.action.label).toBe("Upgrade");
     options.action.onClick();
-    expect(routerPush.mock.calls).toEqual([["/settings/plan"]]);
+    expect(router.history.location.href).toBe("/settings/plan");
   });
 
   test("keeps the draft when the last paste is still saving", async () => {
@@ -404,9 +409,11 @@ describe("pasting a list of links", () => {
     // The empty library's composer gives way to the grid's.
     await act(() =>
       root?.render(
-        <ComposerProvider>
-          <AddCardForm key="grid" />
-        </ComposerProvider>
+        <TestRouter router={router}>
+          <ComposerProvider>
+            <AddCardForm key="grid" />
+          </ComposerProvider>
+        </TestRouter>
       )
     );
     await nextTick();
@@ -423,9 +430,11 @@ describe("pasting a list of links", () => {
     };
     await act(() =>
       root?.render(
-        <ComposerProvider>
-          <AddCardForm key="grid" />
-        </ComposerProvider>
+        <TestRouter router={router}>
+          <ComposerProvider>
+            <AddCardForm key="grid" />
+          </ComposerProvider>
+        </TestRouter>
       )
     );
 
@@ -443,11 +452,13 @@ describe("pasting a list of links", () => {
     root = createRoot(container);
     await act(() =>
       root?.render(
-        <React.StrictMode>
-          <ComposerProvider>
-            <AddCardForm />
-          </ComposerProvider>
-        </React.StrictMode>
+        <TestRouter router={router}>
+          <React.StrictMode>
+            <ComposerProvider>
+              <AddCardForm />
+            </ComposerProvider>
+          </React.StrictMode>
+        </TestRouter>
       )
     );
     await type(links(3).join("\n"));
@@ -467,11 +478,13 @@ describe("pasting a list of links", () => {
     };
     await act(() =>
       root?.render(
-        <React.StrictMode>
-          <ComposerProvider>
-            <AddCardForm />
-          </ComposerProvider>
-        </React.StrictMode>
+        <TestRouter router={router}>
+          <React.StrictMode>
+            <ComposerProvider>
+              <AddCardForm />
+            </ComposerProvider>
+          </React.StrictMode>
+        </TestRouter>
       )
     );
     await nextTick();

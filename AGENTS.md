@@ -18,7 +18,7 @@ The public docs in `apps/docs/content/docs` are the only source for how Teak is 
 
 - Before your first change in a session, read "Rules every change keeps" in `architecture.mdx`: they hold for every change, whatever its size.
 - Use Bun. Read the pinned version and available commands from `package.json`; do not duplicate that inventory here.
-- Read the nearest nested `AGENTS.md` before changing a workspace: the Next.js and Convex ones carry tool-written rules (in `packages/convex`, read `_generated/ai/guidelines.md` first).
+- Read the nearest nested `AGENTS.md` before changing a workspace: the web app's points at TanStack Start's bundled docs, and the Convex one carries tool-written rules (in `packages/convex`, read `_generated/ai/guidelines.md` first).
 - Run the app with `bun run dev --detach`; `bun run dev --status` prints the URLs and sign-in, and `bun run dev --stop` stops it. Never bind production credentials locally.
 - New English text goes into all seven other catalogs in the same PR.
 - Inspect the current implementation and tests before choosing a pattern. Treat repository code and configuration as the source of truth.

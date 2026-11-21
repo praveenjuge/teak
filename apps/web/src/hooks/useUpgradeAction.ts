@@ -1,10 +1,10 @@
+import { useNavigate } from "@tanstack/react-router";
 import {
   captureEvent,
   type UpgradePlacement,
 } from "@teak/convex/shared/analytics";
 import { SETTINGS_PATHS } from "@teak/convex/shared/webRoutes";
 import { useTranslations } from "@teak/i18n/react";
-import { useRouter } from "next/navigation";
 import { useCallback } from "react";
 import { type ExternalToast, toast } from "sonner";
 import { MANUAL_CLOSE_TOAST_OPTIONS, TOAST_IDS } from "@/constants/toast";
@@ -36,15 +36,15 @@ const withNote = (message: string, note?: string) =>
  * recordings, Save PDF) says these the same way.
  */
 export function useUpgradeAction() {
-  const router = useRouter();
+  const navigate = useNavigate();
   const tLimits = useTranslations("forms.limits");
 
   const handleUpgrade = useCallback(
     (placement: UpgradePlacement) => {
       captureEvent("upgrade_clicked", { placement });
-      router.push(SETTINGS_PATHS.plan);
+      navigate({ href: SETTINGS_PATHS.plan });
     },
-    [router]
+    [navigate]
   );
 
   const showUpgradeToast = useCallback(

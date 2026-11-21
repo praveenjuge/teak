@@ -1,8 +1,6 @@
-"use client";
-
+import { useLocation } from "@tanstack/react-router";
 import { useTranslations } from "@teak/i18n/react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { AppLink } from "@/components/AppLink";
 import { useBillingEnabled } from "@/hooks/useBillingEnabled";
 import {
   SETTINGS_SECTIONS,
@@ -46,7 +44,7 @@ const NAV_LINK =
 
 export function SettingsNav() {
   const t = useTranslations("settings.nav");
-  const pathname = usePathname();
+  const pathname = useLocation({ select: (location) => location.pathname });
   const active = settingsSectionForPath(pathname);
   const sections = visibleSettingsSections(useBillingEnabled());
   return (
@@ -56,7 +54,7 @@ export function SettingsNav() {
           const current = active?.id === id;
           return (
             <li key={id}>
-              <Link
+              <AppLink
                 aria-current={current ? "page" : undefined}
                 className={cn(
                   NAV_LINK,
@@ -68,7 +66,7 @@ export function SettingsNav() {
               >
                 <SettingsSectionTile id={id} />
                 <span className="min-w-0 break-words">{t(id)}</span>
-              </Link>
+              </AppLink>
             </li>
           );
         })}

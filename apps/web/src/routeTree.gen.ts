@@ -9,12 +9,50 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as AppRouteImport } from './routes/_app'
+import { Route as StandaloneRouteImport } from './routes/_standalone'
 import { Route as CallbackRouteImport } from './routes/callback'
+import { Route as ManifestDotwebmanifestRouteImport } from './routes/manifest[.]webmanifest'
+import { Route as ShareRouteImport } from './routes/share'
 import { Route as SignInRouteImport } from './routes/sign-in'
+import { Route as SignUpRouteImport } from './routes/sign-up'
+import { Route as SwDotjsRouteImport } from './routes/sw[.]js'
+import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AppArchiveRouteImport } from './routes/_app/archive'
+import { Route as AppFavoritesRouteImport } from './routes/_app/favorites'
+import { Route as AppSettingsRouteImport } from './routes/_app/settings'
+import { Route as AppTagsRouteImport } from './routes/_app/tags'
+import { Route as AppTrashRouteImport } from './routes/_app/trash'
+import { Route as AppFFolderIdRouteImport } from './routes/_app/f/$folderId'
+import { Route as AppSettingsIndexRouteImport } from './routes/_app/settings/index'
+import { Route as AppSettingsAppearanceRouteImport } from './routes/_app/settings/appearance'
+import { Route as AppSettingsDataRouteImport } from './routes/_app/settings/data'
+import { Route as AppSettingsIntegrationsRouteImport } from './routes/_app/settings/integrations'
+import { Route as AppSettingsPlanRouteImport } from './routes/_app/settings/plan'
+import { Route as AppSettingsSecurityRouteImport } from './routes/_app/settings/security'
+import { Route as StandaloneOpenCardIdRouteImport } from './routes/_standalone/open/$cardId'
 
+const AppRoute = AppRouteImport.update({
+  id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StandaloneRoute = StandaloneRouteImport.update({
+  id: '/_standalone',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CallbackRoute = CallbackRouteImport.update({
   id: '/callback',
   path: '/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ManifestDotwebmanifestRoute = ManifestDotwebmanifestRouteImport.update({
+  id: '/manifest.webmanifest',
+  path: '/manifest.webmanifest',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ShareRoute = ShareRouteImport.update({
+  id: '/share',
+  path: '/share',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SignInRoute = SignInRouteImport.update({
@@ -22,40 +60,271 @@ const SignInRoute = SignInRouteImport.update({
   path: '/sign-in',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SignUpRoute = SignUpRouteImport.update({
+  id: '/sign-up',
+  path: '/sign-up',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SwDotjsRoute = SwDotjsRouteImport.update({
+  id: '/sw.js',
+  path: '/sw.js',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppIndexRoute = AppIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppArchiveRoute = AppArchiveRouteImport.update({
+  id: '/archive',
+  path: '/archive',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppFavoritesRoute = AppFavoritesRouteImport.update({
+  id: '/favorites',
+  path: '/favorites',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTagsRoute = AppTagsRouteImport.update({
+  id: '/tags',
+  path: '/tags',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTrashRoute = AppTrashRouteImport.update({
+  id: '/trash',
+  path: '/trash',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppFFolderIdRoute = AppFFolderIdRouteImport.update({
+  id: '/f/$folderId',
+  path: '/f/$folderId',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSettingsIndexRoute = AppSettingsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppSettingsAppearanceRoute = AppSettingsAppearanceRouteImport.update({
+  id: '/appearance',
+  path: '/appearance',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppSettingsDataRoute = AppSettingsDataRouteImport.update({
+  id: '/data',
+  path: '/data',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppSettingsIntegrationsRoute = AppSettingsIntegrationsRouteImport.update({
+  id: '/integrations',
+  path: '/integrations',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppSettingsPlanRoute = AppSettingsPlanRouteImport.update({
+  id: '/plan',
+  path: '/plan',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppSettingsSecurityRoute = AppSettingsSecurityRouteImport.update({
+  id: '/security',
+  path: '/security',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const StandaloneOpenCardIdRoute = StandaloneOpenCardIdRouteImport.update({
+  id: '/open/$cardId',
+  path: '/open/$cardId',
+  getParentRoute: () => StandaloneRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
+  '/': typeof AppIndexRoute
   '/callback': typeof CallbackRoute
+  '/manifest.webmanifest': typeof ManifestDotwebmanifestRoute
+  '/share': typeof ShareRoute
   '/sign-in': typeof SignInRoute
+  '/sign-up': typeof SignUpRoute
+  '/sw.js': typeof SwDotjsRoute
+  '/archive': typeof AppArchiveRoute
+  '/favorites': typeof AppFavoritesRoute
+  '/settings': typeof AppSettingsRouteWithChildren
+  '/tags': typeof AppTagsRoute
+  '/trash': typeof AppTrashRoute
+  '/f/$folderId': typeof AppFFolderIdRoute
+  '/settings/appearance': typeof AppSettingsAppearanceRoute
+  '/settings/data': typeof AppSettingsDataRoute
+  '/settings/integrations': typeof AppSettingsIntegrationsRoute
+  '/settings/plan': typeof AppSettingsPlanRoute
+  '/settings/security': typeof AppSettingsSecurityRoute
+  '/open/$cardId': typeof StandaloneOpenCardIdRoute
+  '/settings/': typeof AppSettingsIndexRoute
 }
 export interface FileRoutesByTo {
+  '/': typeof AppIndexRoute
   '/callback': typeof CallbackRoute
+  '/manifest.webmanifest': typeof ManifestDotwebmanifestRoute
+  '/share': typeof ShareRoute
   '/sign-in': typeof SignInRoute
+  '/sign-up': typeof SignUpRoute
+  '/sw.js': typeof SwDotjsRoute
+  '/archive': typeof AppArchiveRoute
+  '/favorites': typeof AppFavoritesRoute
+  '/tags': typeof AppTagsRoute
+  '/trash': typeof AppTrashRoute
+  '/f/$folderId': typeof AppFFolderIdRoute
+  '/settings/appearance': typeof AppSettingsAppearanceRoute
+  '/settings/data': typeof AppSettingsDataRoute
+  '/settings/integrations': typeof AppSettingsIntegrationsRoute
+  '/settings/plan': typeof AppSettingsPlanRoute
+  '/settings/security': typeof AppSettingsSecurityRoute
+  '/open/$cardId': typeof StandaloneOpenCardIdRoute
+  '/settings': typeof AppSettingsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
+  '/_app': typeof AppRouteWithChildren
+  '/_standalone': typeof StandaloneRouteWithChildren
   '/callback': typeof CallbackRoute
+  '/manifest.webmanifest': typeof ManifestDotwebmanifestRoute
+  '/share': typeof ShareRoute
   '/sign-in': typeof SignInRoute
+  '/sign-up': typeof SignUpRoute
+  '/sw.js': typeof SwDotjsRoute
+  '/_app/archive': typeof AppArchiveRoute
+  '/_app/favorites': typeof AppFavoritesRoute
+  '/_app/settings': typeof AppSettingsRouteWithChildren
+  '/_app/tags': typeof AppTagsRoute
+  '/_app/trash': typeof AppTrashRoute
+  '/_app/': typeof AppIndexRoute
+  '/_app/f/$folderId': typeof AppFFolderIdRoute
+  '/_app/settings/appearance': typeof AppSettingsAppearanceRoute
+  '/_app/settings/data': typeof AppSettingsDataRoute
+  '/_app/settings/integrations': typeof AppSettingsIntegrationsRoute
+  '/_app/settings/plan': typeof AppSettingsPlanRoute
+  '/_app/settings/security': typeof AppSettingsSecurityRoute
+  '/_standalone/open/$cardId': typeof StandaloneOpenCardIdRoute
+  '/_app/settings/': typeof AppSettingsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/callback' | '/sign-in'
+  fullPaths:
+    | '/'
+    | '/callback'
+    | '/manifest.webmanifest'
+    | '/share'
+    | '/sign-in'
+    | '/sign-up'
+    | '/sw.js'
+    | '/archive'
+    | '/favorites'
+    | '/settings'
+    | '/tags'
+    | '/trash'
+    | '/f/$folderId'
+    | '/settings/appearance'
+    | '/settings/data'
+    | '/settings/integrations'
+    | '/settings/plan'
+    | '/settings/security'
+    | '/open/$cardId'
+    | '/settings/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/callback' | '/sign-in'
-  id: '__root__' | '/callback' | '/sign-in'
+  to:
+    | '/'
+    | '/callback'
+    | '/manifest.webmanifest'
+    | '/share'
+    | '/sign-in'
+    | '/sign-up'
+    | '/sw.js'
+    | '/archive'
+    | '/favorites'
+    | '/tags'
+    | '/trash'
+    | '/f/$folderId'
+    | '/settings/appearance'
+    | '/settings/data'
+    | '/settings/integrations'
+    | '/settings/plan'
+    | '/settings/security'
+    | '/open/$cardId'
+    | '/settings'
+  id:
+    | '__root__'
+    | '/_app'
+    | '/_standalone'
+    | '/callback'
+    | '/manifest.webmanifest'
+    | '/share'
+    | '/sign-in'
+    | '/sign-up'
+    | '/sw.js'
+    | '/_app/archive'
+    | '/_app/favorites'
+    | '/_app/settings'
+    | '/_app/tags'
+    | '/_app/trash'
+    | '/_app/'
+    | '/_app/f/$folderId'
+    | '/_app/settings/appearance'
+    | '/_app/settings/data'
+    | '/_app/settings/integrations'
+    | '/_app/settings/plan'
+    | '/_app/settings/security'
+    | '/_standalone/open/$cardId'
+    | '/_app/settings/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
+  AppRoute: typeof AppRouteWithChildren
+  StandaloneRoute: typeof StandaloneRouteWithChildren
   CallbackRoute: typeof CallbackRoute
+  ManifestDotwebmanifestRoute: typeof ManifestDotwebmanifestRoute
+  ShareRoute: typeof ShareRoute
   SignInRoute: typeof SignInRoute
+  SignUpRoute: typeof SignUpRoute
+  SwDotjsRoute: typeof SwDotjsRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/_app': {
+      id: '/_app'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_standalone': {
+      id: '/_standalone'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof StandaloneRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/callback': {
       id: '/callback'
       path: '/callback'
       fullPath: '/callback'
       preLoaderRoute: typeof CallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/manifest.webmanifest': {
+      id: '/manifest.webmanifest'
+      path: '/manifest.webmanifest'
+      fullPath: '/manifest.webmanifest'
+      preLoaderRoute: typeof ManifestDotwebmanifestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/share': {
+      id: '/share'
+      path: '/share'
+      fullPath: '/share'
+      preLoaderRoute: typeof ShareRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sign-in': {
@@ -65,12 +334,186 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SignInRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/sign-up': {
+      id: '/sign-up'
+      path: '/sign-up'
+      fullPath: '/sign-up'
+      preLoaderRoute: typeof SignUpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sw.js': {
+      id: '/sw.js'
+      path: '/sw.js'
+      fullPath: '/sw.js'
+      preLoaderRoute: typeof SwDotjsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_app/': {
+      id: '/_app/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/archive': {
+      id: '/_app/archive'
+      path: '/archive'
+      fullPath: '/archive'
+      preLoaderRoute: typeof AppArchiveRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/favorites': {
+      id: '/_app/favorites'
+      path: '/favorites'
+      fullPath: '/favorites'
+      preLoaderRoute: typeof AppFavoritesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/settings': {
+      id: '/_app/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/tags': {
+      id: '/_app/tags'
+      path: '/tags'
+      fullPath: '/tags'
+      preLoaderRoute: typeof AppTagsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/trash': {
+      id: '/_app/trash'
+      path: '/trash'
+      fullPath: '/trash'
+      preLoaderRoute: typeof AppTrashRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/f/$folderId': {
+      id: '/_app/f/$folderId'
+      path: '/f/$folderId'
+      fullPath: '/f/$folderId'
+      preLoaderRoute: typeof AppFFolderIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/settings/': {
+      id: '/_app/settings/'
+      path: '/'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof AppSettingsIndexRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/appearance': {
+      id: '/_app/settings/appearance'
+      path: '/appearance'
+      fullPath: '/settings/appearance'
+      preLoaderRoute: typeof AppSettingsAppearanceRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/data': {
+      id: '/_app/settings/data'
+      path: '/data'
+      fullPath: '/settings/data'
+      preLoaderRoute: typeof AppSettingsDataRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/integrations': {
+      id: '/_app/settings/integrations'
+      path: '/integrations'
+      fullPath: '/settings/integrations'
+      preLoaderRoute: typeof AppSettingsIntegrationsRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/plan': {
+      id: '/_app/settings/plan'
+      path: '/plan'
+      fullPath: '/settings/plan'
+      preLoaderRoute: typeof AppSettingsPlanRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/security': {
+      id: '/_app/settings/security'
+      path: '/security'
+      fullPath: '/settings/security'
+      preLoaderRoute: typeof AppSettingsSecurityRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_standalone/open/$cardId': {
+      id: '/_standalone/open/$cardId'
+      path: '/open/$cardId'
+      fullPath: '/open/$cardId'
+      preLoaderRoute: typeof StandaloneOpenCardIdRouteImport
+      parentRoute: typeof StandaloneRoute
+    }
   }
 }
 
+interface AppSettingsRouteChildren {
+  AppSettingsAppearanceRoute: typeof AppSettingsAppearanceRoute
+  AppSettingsDataRoute: typeof AppSettingsDataRoute
+  AppSettingsIntegrationsRoute: typeof AppSettingsIntegrationsRoute
+  AppSettingsPlanRoute: typeof AppSettingsPlanRoute
+  AppSettingsSecurityRoute: typeof AppSettingsSecurityRoute
+  AppSettingsIndexRoute: typeof AppSettingsIndexRoute
+}
+
+const AppSettingsRouteChildren: AppSettingsRouteChildren = {
+  AppSettingsAppearanceRoute: AppSettingsAppearanceRoute,
+  AppSettingsDataRoute: AppSettingsDataRoute,
+  AppSettingsIntegrationsRoute: AppSettingsIntegrationsRoute,
+  AppSettingsPlanRoute: AppSettingsPlanRoute,
+  AppSettingsSecurityRoute: AppSettingsSecurityRoute,
+  AppSettingsIndexRoute: AppSettingsIndexRoute,
+}
+
+const AppSettingsRouteWithChildren = AppSettingsRoute._addFileChildren(
+  AppSettingsRouteChildren,
+)
+
+interface AppRouteChildren {
+  AppArchiveRoute: typeof AppArchiveRoute
+  AppFavoritesRoute: typeof AppFavoritesRoute
+  AppSettingsRoute: typeof AppSettingsRouteWithChildren
+  AppTagsRoute: typeof AppTagsRoute
+  AppTrashRoute: typeof AppTrashRoute
+  AppIndexRoute: typeof AppIndexRoute
+  AppFFolderIdRoute: typeof AppFFolderIdRoute
+}
+
+const AppRouteChildren: AppRouteChildren = {
+  AppArchiveRoute: AppArchiveRoute,
+  AppFavoritesRoute: AppFavoritesRoute,
+  AppSettingsRoute: AppSettingsRouteWithChildren,
+  AppTagsRoute: AppTagsRoute,
+  AppTrashRoute: AppTrashRoute,
+  AppIndexRoute: AppIndexRoute,
+  AppFFolderIdRoute: AppFFolderIdRoute,
+}
+
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
+
+interface StandaloneRouteChildren {
+  StandaloneOpenCardIdRoute: typeof StandaloneOpenCardIdRoute
+}
+
+const StandaloneRouteChildren: StandaloneRouteChildren = {
+  StandaloneOpenCardIdRoute: StandaloneOpenCardIdRoute,
+}
+
+const StandaloneRouteWithChildren = StandaloneRoute._addFileChildren(
+  StandaloneRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
+  AppRoute: AppRouteWithChildren,
+  StandaloneRoute: StandaloneRouteWithChildren,
   CallbackRoute: CallbackRoute,
+  ManifestDotwebmanifestRoute: ManifestDotwebmanifestRoute,
+  ShareRoute: ShareRoute,
   SignInRoute: SignInRoute,
+  SignUpRoute: SignUpRoute,
+  SwDotjsRoute: SwDotjsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

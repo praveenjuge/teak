@@ -1,6 +1,5 @@
 import { afterAll, afterEach, expect, mock, test } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
-import type { ReactNode } from "react";
 import type { Root } from "react-dom/client";
 
 if (!GlobalRegistrator.isRegistered) {
@@ -8,23 +7,6 @@ if (!GlobalRegistrator.isRegistered) {
 }
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
-let pathname = "/settings";
-const realNavigation = await import("next/navigation");
-mock.module("next/navigation", () => ({
-  ...realNavigation,
-  usePathname: () => pathname,
-}));
-mock.module("next/link", () => ({
-  default: ({
-    children,
-    href,
-    ...props
-  }: { children?: ReactNode; href: string } & Record<string, unknown>) => (
-    <a href={href} {...props}>
-      {children}
-    </a>
-  ),
-}));
 mock.module("@/components/sidebar", () => ({
   SidebarToggle: () => null,
 }));
@@ -32,6 +14,7 @@ mock.module("@/components/sidebar", () => ({
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
 const { SettingsHeader } = await import("../SettingsHeader");
+const { TestRouter, testRouter } = await import("@/__tests__/helpers/router");
 
 let root: Root | undefined;
 
@@ -45,10 +28,15 @@ afterAll(async () => {
 });
 
 const render = async (path: string) => {
-  pathname = path;
   const container = document.body.appendChild(document.createElement("div"));
   root = createRoot(container);
-  await act(() => root?.render(<SettingsHeader />));
+  await act(() =>
+    root?.render(
+      <TestRouter router={testRouter(path)}>
+        <SettingsHeader />
+      </TestRouter>
+    )
+  );
   return container;
 };
 
@@ -72,7 +60,7 @@ test("the account page is titled Settings", async () => {
 test("keeps its title when the route's metadata title lands later", async () => {
   await render("/settings/security");
   expect(document.title).toBe("Security · Settings · Teak");
-  // Next.js writes the route's (English) metadata title after a client-side
+  // The route's (English) head title can be written after a client-side
   // navigation or a language switch; the header's title is put back.
   await act(async () => {
     document.title = "Metadata title · Teak";

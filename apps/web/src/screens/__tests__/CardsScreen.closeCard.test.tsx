@@ -1,11 +1,11 @@
 import { afterAll, afterEach, expect, test } from "bun:test";
-import "@/__tests__/helpers/nextRouter";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import type { Root } from "react-dom/client";
 
 GlobalRegistrator.register({ url: "http://localhost:3000/" });
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
+const { TestRouter } = await import("@/__tests__/helpers/router");
 const { act, createElement } = await import("react");
 const { mock } = await import("bun:test");
 const realGrids = { ...(await import("@/components/grids")) };
@@ -79,20 +79,22 @@ test("closing the open card hands the grid the same props, so it skips a re-rend
   const render = (selectedCardId: string | null) =>
     act(() =>
       root?.render(
-        <ConvexProviderWithAuth client={transport.client} useAuth={useAuth}>
-          <ConvexQueryCacheProvider>
-            <ComposerProvider>
-              <CardsScreen
-                {...libraryUrlProps()}
-                onCloseCard={() => undefined}
-                onOpenCard={() => undefined}
-                onSwitchCard={() => undefined}
-                selectedCardId={selectedCardId}
-                view="all"
-              />
-            </ComposerProvider>
-          </ConvexQueryCacheProvider>
-        </ConvexProviderWithAuth>
+        <TestRouter>
+          <ConvexProviderWithAuth client={transport.client} useAuth={useAuth}>
+            <ConvexQueryCacheProvider>
+              <ComposerProvider>
+                <CardsScreen
+                  {...libraryUrlProps()}
+                  onCloseCard={() => undefined}
+                  onOpenCard={() => undefined}
+                  onSwitchCard={() => undefined}
+                  selectedCardId={selectedCardId}
+                  view="all"
+                />
+              </ComposerProvider>
+            </ConvexQueryCacheProvider>
+          </ConvexProviderWithAuth>
+        </TestRouter>
       )
     );
 

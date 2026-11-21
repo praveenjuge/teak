@@ -209,7 +209,6 @@ What runs in a Claude Code on the web session (and similar Linux VMs), what does
 - **End-to-end suite:** `bun run dev --stop` first, then `bun run --cwd packages/tests e2e`, then `bun run dev --detach`. Run one Chromium at a time on 4 vCPUs. If a browser is missing, run `env -u PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD bun --cwd=packages/tests x e2e-web install chromium webkit`.
 - **The backend is whatever was pushed last.** If `.agents/.state/stack.log` says "Schema validation failed", another branch's documents block your push and your frontend runs against its backend. Check `bunx convex run devPushLease:status` in `packages/convex` before trusting a backend result.
 - **Checks beside the running stack** can push `@teak/convex` HTTP tests past vitest's 5 s timeout; rerun a failing file alone before calling it a regression.
-- **After `bun install` changes `next`**, restart the stack: the running server answers "Internal Server Error".
 - **The first watch-mode `convex dev`** sometimes crashes downloading the local dashboard behind the proxy; the local stack restarts itself up to twice.
 
 **Doesn't work**
@@ -231,14 +230,14 @@ Every environment value has one owner and one classification. Names and metadata
 
 1. Explicit shell exports (CI, `export`, a command prefix).
 2. The dotenv files declared for the command's target in `scripts/env/env-targets.ts`, read through `scripts/env/env-loader.ts`.
-3. Provider stores: the Convex dashboard, Vercel, Wrangler, GitHub.
+3. Provider stores: the Convex dashboard, Cloudflare (Wrangler and Workers Builds), GitHub.
 4. Files setup writes from canonical facts, which are never edited by hand.
 
 Precedence is top-down: a shell export wins over a dotenv file, and a dotenv file wins over a generated default. Setup never overwrites a value a person set, but refreshes what it generated (loopback URLs and ports, and the WorkOS credentials it syncs from the deployment). Because shell exports win, don't export `CONVEX_DEPLOYMENT`, `WORKOS_*` or `NEXT_PUBLIC_*` in your shell.
 
 ### Canonical facts and generated aliases
 
-`CONVEX_URL` and `CONVEX_SITE_URL` are the canonical deployment facts, and `SITE_URL` is the canonical app origin. Framework aliases (`NEXT_PUBLIC_*`, `VITE_PUBLIC_*`) are generated from them by setup (`scripts/env/env-aliases.ts`). Frameworks need the aliases at build time, but nobody maintains them by hand.
+`CONVEX_URL` and `CONVEX_SITE_URL` are the canonical deployment facts, and `SITE_URL` is the canonical app origin. Framework aliases (`NEXT_PUBLIC_*`, `VITE_PUBLIC_*`) are generated from them by setup (`scripts/env/env-aliases.ts`). Builds need the aliases at build time, but nobody maintains them by hand. The web app keeps the `NEXT_PUBLIC_*` names: `apps/web/vite.config.ts` reads them from `apps/web/.env.local` and inlines them, and in development the Cloudflare Vite plugin loads the same file into the Worker.
 
 Supported commands ignore root `.env*` files; put values in a shell export or the target's declared file. `scripts/env/dotenv-audit.ts` still scans root files for production selectors, because editors and other tools may load them. Teak never deletes or rewrites your dotenv files.
 

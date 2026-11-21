@@ -56,6 +56,5 @@ Check each, live, and report one table (product, where, status, next step):
 ## Gotchas
 
 - This shell aliases `cp` to ask before overwriting, which hangs a command; use `/bin/cp -f`. `rm` is blocked; use `trash`. The shell sets `pipefail`, so `… | grep -q` can fail when the producer gets SIGPIPE; capture into a variable first.
-- A docs preview that fails on "CannotFetchFontFile" is Google Fonts timing out: `npx --yes vercel@64.5.0 redeploy <deployment id> --scope teak`, or Redeploy in the Vercel dashboard.
 - Never launch the Mac app or take desktop screenshots unasked; drive Raycast's UI only when asked.
 - Outward steps (store submissions and the Raycast PR) are what "release" asks for.

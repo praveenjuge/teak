@@ -1,52 +1,51 @@
-import { afterEach, describe, expect, mock, test } from "bun:test";
-import { renderToStaticMarkup } from "react-dom/server";
+import { afterAll, describe, expect, spyOn, test } from "bun:test";
+import { GlobalRegistrator } from "@happy-dom/global-registrator";
+
+GlobalRegistrator.register({ url: "http://localhost:3000/" });
+
+const { renderToStaticMarkup } = await import("react-dom/server");
+const { TestRouter, testRouter } = await import("./helpers/router");
+const { useLibraryUrl } = await import("../hooks/useLibraryUrl");
 
 let screenProps: Record<string, any> = {};
-
-let currentSearch = "";
-const router = { back: mock(), push: mock(), replace: mock() };
-// Bun module mocks outlive this file, so keep the real exports (`redirect`
-// and friends) that the auth tests import after it.
-const realNavigation = await import("next/navigation");
-mock.module("next/navigation", () => ({
-  ...realNavigation,
-  usePathname: () => "/",
-  useRouter: () => router,
-  useSearchParams: () => new URLSearchParams(currentSearch),
-}));
-
-const { useLibraryUrl } = await import("../hooks/useLibraryUrl");
+let router: ReturnType<typeof testRouter>;
 
 function Harness() {
   screenProps = useLibraryUrl();
   return null;
 }
 
-const originalWindow = globalThis.window;
-const installWindow = (search: string) => {
-  const history = { pushState: mock(), replaceState: mock() };
-  Object.defineProperty(globalThis, "window", {
-    configurable: true,
-    value: { history, location: { pathname: "/", search } },
-  });
-  return history;
-};
-
-afterEach(() => {
-  Object.defineProperty(globalThis, "window", {
-    configurable: true,
-    value: originalWindow,
-  });
-  screenProps = {};
-  currentSearch = "";
-  router.back.mockReset();
-  router.push.mockReset();
-  router.replace.mockReset();
+afterAll(async () => {
+  await GlobalRegistrator.unregister();
 });
 
+// The library at `search`, with a router on the window's history as in the
+// app, so navigations land in real history entries.
 const render = (search: string) => {
-  currentSearch = search;
-  renderToStaticMarkup(<Harness />);
+  window.history.replaceState(null, "", search ? `/?${search}` : "/");
+  router = testRouter("/", { browser: true });
+  renderToStaticMarkup(
+    <TestRouter router={router}>
+      <Harness />
+    </TestRouter>
+  );
+};
+
+// The router writes the browser's history a microtask later; tests read it
+// straight after.
+const url = () => {
+  router.history.flush();
+  return `${window.location.pathname}${window.location.search}`;
+};
+const entries = () => {
+  router.history.flush();
+  return window.history.length;
+};
+const back = async () => {
+  router.history.flush();
+  window.history.back();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  return `${window.location.pathname}${window.location.search}`;
 };
 
 describe("library URL", () => {
@@ -84,66 +83,58 @@ describe("library URL", () => {
 
   test("typing replaces the history entry and keeps the open card", () => {
     render("card=card_1");
-    const history = installWindow("?card=card_1");
+    const before = entries();
     screenProps.onSearchUrlStateChange(
       { q: "design", sort: "newest", types: [] },
       { sortChanged: false, tagChanged: false, typesChanged: false }
     );
-    expect(history.pushState).not.toHaveBeenCalled();
-    expect(history.replaceState).toHaveBeenCalledWith(
-      null,
-      "",
-      "/?card=card_1&q=design"
-    );
+    expect(url()).toBe("/?card=card_1&q=design");
+    expect(entries()).toBe(before);
   });
 
-  test("changing the sort adds a history entry so Back restores it", () => {
+  test("changing the sort adds a history entry so Back restores it", async () => {
     render("q=design");
-    const history = installWindow("?q=design");
+    const before = entries();
     screenProps.onSearchUrlStateChange(
       { q: "design", sort: "oldest", types: [] },
       { sortChanged: true, tagChanged: false, typesChanged: false }
     );
-    expect(history.pushState).toHaveBeenCalledWith(
-      null,
-      "",
-      "/?q=design&sort=oldest"
-    );
+    expect(url()).toBe("/?q=design&sort=oldest");
+    expect(entries()).toBe(before + 1);
+    expect(await back()).toBe("/?q=design");
   });
 
   test("an unchanged search writes nothing", () => {
     render("q=design");
-    const history = installWindow("?q=design");
+    const before = entries();
+    const navigate = spyOn(router, "navigate");
     screenProps.onSearchUrlStateChange(
       { q: "design", sort: "newest", types: [] },
       { sortChanged: false, tagChanged: false, typesChanged: false }
     );
-    expect(history.pushState).not.toHaveBeenCalled();
-    expect(history.replaceState).not.toHaveBeenCalled();
+    expect(navigate).not.toHaveBeenCalled();
+    expect(url()).toBe("/?q=design");
+    expect(entries()).toBe(before);
   });
 
-  test("removing a card type adds a history entry so Back restores it", () => {
+  test("removing a card type adds a history entry so Back restores it", async () => {
     render("type=link,image");
-    const history = installWindow("?type=link,image");
     screenProps.onSearchUrlStateChange(
       { q: "", sort: "newest", types: ["link"] },
       { sortChanged: false, tagChanged: false, typesChanged: true }
     );
-    expect(history.pushState).toHaveBeenCalledWith(null, "", "/?type=link");
+    expect(url()).toBe("/?type=link");
+    expect(await back()).toBe("/?type=link,image");
   });
 
-  test("picking a sidebar tag adds a history entry so Back restores it", () => {
+  test("picking a sidebar tag adds a history entry so Back restores it", async () => {
     render("q=blue");
-    const history = installWindow("?q=blue");
     screenProps.onSearchUrlStateChange(
       { q: "blue", sort: "newest", tag: "design", types: [] },
       { sortChanged: false, tagChanged: true, typesChanged: false }
     );
-    expect(history.pushState).toHaveBeenCalledWith(
-      null,
-      "",
-      "/?q=blue&tag=design"
-    );
+    expect(url()).toBe("/?q=blue&tag=design");
+    expect(await back()).toBe("/?q=blue");
   });
 
   test("keeps the same search while a card opens and closes", () => {
@@ -153,79 +144,82 @@ describe("library URL", () => {
     expect(screenProps.searchUrlState).toEqual(withCard);
   });
 
-  test("a quick command in search opens that view", () => {
+  test("a quick command in search opens that view", async () => {
     render("");
-    const history = installWindow("");
     screenProps.onNavigateView("trash");
-    expect(router.push).toHaveBeenCalledWith("/trash");
-    expect(history.replaceState).not.toHaveBeenCalled();
+    expect(url()).toBe("/trash");
+    expect(await back()).toBe("/");
   });
 
-  test("a quick command drops its search text from this page's entry before navigating, so Back shows the page without it", () => {
+  test("a quick command drops its search text from this page's entry before navigating, so Back shows the page without it", async () => {
     render("q=trash&sort=oldest");
-    const history = installWindow("?q=trash&sort=oldest");
-    const order: string[] = [];
-    history.replaceState.mockImplementation(() => order.push("replace"));
-    router.push.mockImplementation(() => order.push("push"));
     screenProps.onNavigateView("trash");
-    expect(history.replaceState).toHaveBeenCalledWith(
-      null,
-      "",
-      "/?sort=oldest"
-    );
-    expect(router.push).toHaveBeenCalledWith("/trash");
-    expect(order).toEqual(["replace", "push"]);
+    expect(url()).toBe("/trash");
+    expect(await back()).toBe("/?sort=oldest");
   });
 
-  test("Search everything reruns this page's search in the library and leaves this entry alone, so Back returns to it", () => {
+  test("Search everything reruns this page's search in the library and leaves this entry alone, so Back returns to it", async () => {
     render("q=tomato%20soup&type=link,image&card=card_1");
-    const history = installWindow(
-      "?q=tomato%20soup&type=link,image&card=card_1"
-    );
     screenProps.onSearchEverything();
-    expect(router.push).toHaveBeenCalledWith("/?q=tomato+soup&type=link,image");
-    expect(history.replaceState).not.toHaveBeenCalled();
+    expect(url()).toBe("/?q=tomato+soup&type=link,image");
+    expect(await back()).toBe("/?q=tomato%20soup&type=link,image&card=card_1");
   });
 
-  test("opening a card keeps the search in the URL", () => {
+  test("opening a card keeps the search in the URL and the scroll position", async () => {
     render("q=design&sort=oldest");
+    const navigate = spyOn(router, "navigate");
     screenProps.pushCardId("card_9");
-    expect(router.push).toHaveBeenCalledWith(
-      "/?q=design&sort=oldest&card=card_9",
-      { scroll: false }
+    expect(url()).toBe("/?q=design&sort=oldest&card=card_9");
+    expect(navigate).toHaveBeenCalledWith(
+      expect.objectContaining({ resetScroll: false })
     );
+    expect(await back()).toBe("/?q=design&sort=oldest");
   });
 
-  test("closing a card the page opened goes Back to the list entry", () => {
+  test("closing a card the page opened goes Back to the list entry", async () => {
     render("q=design");
     screenProps.pushCardId("card_9");
-    installWindow("?q=design&card=card_9");
+    expect(url()).toBe("/?q=design&card=card_9");
     expect(screenProps.popCardEntry()).toBe(true);
-    expect(router.back).toHaveBeenCalledTimes(1);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(url()).toBe("/?q=design");
   });
 
-  test("after Previous or Next the card still goes Back to the list entry", () => {
+  test("closing a card opened under a type filter goes Back to the list entry", async () => {
+    render("type=link,image");
+    screenProps.pushCardId("card_9");
+    expect(url()).toBe("/?type=link,image&card=card_9");
+    expect(screenProps.popCardEntry()).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(url()).toBe("/?type=link,image");
+  });
+
+  test("after Previous or Next the card still goes Back to the list entry", async () => {
     render("q=design");
     screenProps.pushCardId("card_9");
     screenProps.replaceCardId("card_10");
-    installWindow("?q=design&card=card_10");
+    expect(url()).toBe("/?q=design&card=card_10");
     expect(screenProps.popCardEntry()).toBe(true);
-    expect(router.back).toHaveBeenCalledTimes(1);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(url()).toBe("/?q=design");
   });
 
   test("doesn't go Back once the URL moved on from the card it opened", () => {
     render("q=design");
     screenProps.pushCardId("card_9");
-    installWindow("?q=design&card=card_9&sort=oldest");
+    url();
+    window.history.replaceState(null, "", "/?q=design&card=card_9&sort=oldest");
     expect(screenProps.popCardEntry()).toBe(false);
-    expect(router.back).not.toHaveBeenCalled();
+    expect(url()).toBe("/?q=design&card=card_9&sort=oldest");
   });
 
-  test("doesn't go Back from a card it didn't open", () => {
+  test("doesn't go Back from a card it didn't open", async () => {
+    render("q=design");
+    window.history.pushState(null, "", "/?card=card_1");
     render("card=card_1");
-    installWindow("?card=card_1");
     expect(screenProps.popCardEntry()).toBe(false);
-    expect(router.back).not.toHaveBeenCalled();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(url()).toBe("/?card=card_1");
   });
 
   test("a new-note request in the URL asks the library to focus the composer", () => {
@@ -237,10 +231,13 @@ describe("library URL", () => {
 
   test("a handled new-note request leaves the URL without it", () => {
     render("card=card_1&compose=1");
-    installWindow("?card=card_1&compose=1");
+    const before = entries();
+    const navigate = spyOn(router, "navigate");
     screenProps.onFocusComposerHandled();
-    expect(router.replace).toHaveBeenCalledWith("/?card=card_1", {
-      scroll: false,
-    });
+    expect(url()).toBe("/?card=card_1");
+    expect(entries()).toBe(before);
+    expect(navigate).toHaveBeenCalledWith(
+      expect.objectContaining({ resetScroll: false })
+    );
   });
 });

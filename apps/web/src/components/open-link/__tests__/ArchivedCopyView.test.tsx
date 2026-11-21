@@ -13,6 +13,7 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
+const { TestRouter } = await import("@/__tests__/helpers/router");
 const { ArchiveFrame, ArchivedCopyBar, ArchivedCopyView, ArchiveMissing } =
   await import("../ArchivedCopyView");
 
@@ -46,7 +47,11 @@ describe("the archived copy's frame", () => {
 describe("the archived copy's bar", () => {
   const bar = () => {
     const container = document.createElement("div");
-    container.innerHTML = renderToStaticMarkup(<ArchivedCopyBar {...COPY} />);
+    container.innerHTML = renderToStaticMarkup(
+      <TestRouter>
+        <ArchivedCopyBar {...COPY} />
+      </TestRouter>
+    );
     return container;
   };
 
@@ -108,7 +113,11 @@ describe("the archive view", () => {
     document.body.append(container);
     root = createRoot(container);
     await act(async () => {
-      root?.render(<ArchivedCopyView {...COPY} archiveUrl={archiveUrl} />);
+      root?.render(
+        <TestRouter>
+          <ArchivedCopyView {...COPY} archiveUrl={archiveUrl} />
+        </TestRouter>
+      );
       await Promise.resolve();
     });
     return container;
@@ -138,7 +147,13 @@ describe("the archive view", () => {
     const container = document.createElement("div");
     document.body.append(container);
     root = createRoot(container);
-    await act(() => root?.render(<ArchivedCopyView {...COPY} />));
+    await act(() =>
+      root?.render(
+        <TestRouter>
+          <ArchivedCopyView {...COPY} />
+        </TestRouter>
+      )
+    );
     expect(container.querySelector("iframe")).toBeNull();
     expect(container.textContent).toContain("Teak’s copy couldn’t be loaded.");
   });

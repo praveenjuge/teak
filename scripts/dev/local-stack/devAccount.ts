@@ -85,7 +85,7 @@ export const seedLocalDevAccount = async (
       : `seeding skipped (${seeded.stderr.trim().split("\n").at(-1)})`;
   // The stack warms the modules the app reads first without auth; a signed-in
   // first read still loads more of them, which can outlast the 1 s query limit
-  // on a busy VM while Next.js compiles the page. Do that read here.
+  // on a busy VM while Vite compiles the page. Do that read here.
   for (let round = 0; round < 2; round += 1) {
     await Promise.allSettled([
       client.query(api.auth.getAuthUser, {}),

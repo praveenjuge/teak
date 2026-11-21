@@ -1,5 +1,4 @@
-"use client";
-
+import { useRouter } from "@tanstack/react-router";
 import { api } from "@teak/convex";
 import { captureEvent } from "@teak/convex/shared/analytics";
 import {
@@ -12,7 +11,6 @@ import {
 } from "@teak/i18n";
 import { useTranslations } from "@teak/i18n/react";
 import { useMutation } from "convex/react";
-import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useLocaleSwitch } from "@/components/providers/LocaleProvider";
@@ -54,7 +52,7 @@ export function useLanguageSetting(): LanguageSetting | null {
       } finally {
         setPending(false);
       }
-      router.refresh();
+      router.invalidate();
       captureEvent("locale_changed", { from, to: next });
       setPostHogPersonProperties({ locale: next });
       // Said in the new language, which this render's `t` doesn't speak yet.

@@ -34,7 +34,7 @@ Save inspiration in one click and find it in two seconds — no more lost bookma
 ```text
 teak/
 ├── apps/
-│   ├── web/           # Next.js web app
+│   ├── web/           # Web app (TanStack Start on Cloudflare Workers)
 │   ├── apple/         # Native iPhone, iPad and Mac app with its Safari extension
 │   ├── android/       # Native Android app
 │   ├── extension/     # Chrome and Firefox extension (WXT)

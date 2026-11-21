@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, expect, jest, mock, test } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import type { Root } from "react-dom/client";
-import { routerPush } from "@/__tests__/helpers/nextRouter";
 
 GlobalRegistrator.register({ url: "http://localhost:3000" });
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
@@ -37,6 +36,7 @@ mock.module("sonner", () => ({
 
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
+const { TestRouter, testRouter } = await import("@/__tests__/helpers/router");
 const { MAX_FILES_PER_UPLOAD } = await import("@teak/convex/shared");
 const { configureAnalytics, resetAnalytics } = await import(
   "@teak/convex/shared/analytics"
@@ -47,6 +47,7 @@ const { GlobalFileDropProvider, useGlobalFileDrop } = await import(
 
 const realFetch = globalThis.fetch;
 let root: Root | undefined;
+let router: ReturnType<typeof testRouter>;
 let drop: ReturnType<typeof useGlobalFileDrop>;
 
 function Harness() {
@@ -86,11 +87,14 @@ beforeEach(async () => {
   const container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
+  router = testRouter();
   await act(() =>
     root?.render(
-      <GlobalFileDropProvider>
-        <Harness />
-      </GlobalFileDropProvider>
+      <TestRouter router={router}>
+        <GlobalFileDropProvider>
+          <Harness />
+        </GlobalFileDropProvider>
+      </TestRouter>
     )
   );
 });
@@ -169,7 +173,6 @@ test("each queued file counts as a submitted card, as picked uploads always mean
 });
 
 test("an upload over the card limit offers Upgrade, which opens the plan page in the app", async () => {
-  routerPush.mockClear();
   finalizeResult = {
     success: false,
     error: "Card limit reached",
@@ -182,7 +185,7 @@ test("an upload over the card limit offers Upgrade, which opens the plan page in
   expect(message).toBe("Free card limit reached");
   expect(options.action.label).toBe("Upgrade");
   options.action.onClick();
-  expect(routerPush.mock.calls).toEqual([["/settings/plan"]]);
+  expect(router.history.location.href).toBe("/settings/plan");
 });
 
 function pasteFile() {

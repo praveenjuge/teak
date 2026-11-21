@@ -41,9 +41,9 @@ export const buildContentSecurityPolicy = (
     [
       "script-src 'self'",
       "blob:",
-      // Next.js emits inline bootstrap scripts in both production and
-      // development. SHA-384 SRI still covers external framework chunks, while
-      // eval remains limited to development tooling.
+      // TanStack Start inlines its hydration data and boot script, and the
+      // document runs two small fixed scripts before paint. Eval stays
+      // limited to development tooling.
       "'unsafe-inline'",
       ...(environment === "development" ? ["'unsafe-eval'"] : []),
     ].join(" "),

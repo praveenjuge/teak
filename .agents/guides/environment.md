@@ -1,6 +1,6 @@
 # Environment ownership and Teak's own credentials
 
-Last reviewed: 2026-11-01
+Last reviewed: 2026-11-21
 
 Every environment value in Teak has one owner and one classification. Names and
 metadata live in `scripts/env/env-contract.ts`; values are never committed,
@@ -18,8 +18,8 @@ is specific to Teak's own production and development deployments.
 | Owner | Values | Examples |
 | --- | --- | --- |
 | Convex dashboard | Backend runtime values | `SITE_URL`, `FILES_BASE` |
-| Vercel | Web deployment values | `NEXT_PUBLIC_CONVEX_URL` |
-| Wrangler / Cloudflare | Worker vars, secrets, bindings | `FILES_SIGNING_SECRET`, `BUCKET` |
+| Workers Builds (`teak-app`, `teak-site`) | Build values for the web app and docs site | `NEXT_PUBLIC_CONVEX_URL` |
+| Wrangler / Cloudflare | Worker vars, secrets, bindings | `FILES_SIGNING_SECRET`, `BUCKET`, `WORKOS_COOKIE_PASSWORD` |
 | GitHub variables | Non-secret CI values | release SHAs, origins |
 | GitHub environment secrets | CI credentials | `CONVEX_DEPLOY_KEY` |
 | Target dotenv file | Local-only development values | `apps/web/.env.local` |
@@ -39,6 +39,19 @@ only its own `WORKFLOW_RPC_SECRET`, derived from that root and its origin
 with `bun scripts/cloudflare/workflow-rpc-secret.ts`; unlike `FILES_SIGNING_SECRET` it is
 never shared between development and production (see the Core Worker
 README, "Background work").
+
+The web app is the `teak-app` Worker (`apps/web/wrangler.jsonc`), which
+Workers Builds builds from `main` with `bun run build` and deploys with
+`bun run deploy`; app.teakvault.com is its Custom Domain. Its build variables
+are the public `NEXT_PUBLIC_*` values, `TEAK_ANALYTICS_ENABLED=true` and the
+`POSTHOG_CLI_*` source map upload pair; `vite.config.ts` inlines the public
+values. At runtime it holds `WORKOS_CLIENT_ID` and `WORKOS_COOKIE_PASSWORD`
+as secrets (`bunx wrangler secret put <NAME>` from `apps/web`), and reads
+`NEXT_PUBLIC_WORKOS_REDIRECT_URI` and `TEAK_ANALYTICS_ENABLED` from its
+environment too. Its config has no `vars` and no `keep_vars`, and
+`wrangler deploy` deletes plain variables set in the dashboard, so keep
+runtime values as secrets. The Vercel `teak` project stays for a week as a
+fallback, then is deleted.
 
 Save by email runs in the Core Worker (`apps/core-worker/src/email`) and adds
 one secret, `EMAIL_INBOUND_SIGNING_SECRET`: one value per environment, set in
@@ -78,8 +91,8 @@ sign-in fails. The owner sets the value and registers the resources.
 
 - `CONVEX_DEPLOY_KEY` (Backend Deploy): Convex non-interactive auth has no OIDC
   alternative; the deploy key stays, scoped to that workflow's `env` block.
-- Web deploys through the Vercel Git integration, and the docs site (the
-  `teak-site` Worker) through Workers Builds, neither with a repository
+- The web app (the `teak-app` Worker) and the docs site (the `teak-site`
+  Worker) deploy through Workers Builds, neither with a repository
   credential; App Store and Chrome Web Store credentials are vendor JWT/OAuth
   flows without an OIDC alternative.
 

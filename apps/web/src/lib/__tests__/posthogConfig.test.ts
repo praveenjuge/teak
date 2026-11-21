@@ -24,21 +24,7 @@ const frame = (filename: string) => ({
 });
 
 describe("web PostHog configuration", () => {
-  test("reports only from production deployments, even with a production token in a local env file", () => {
-    expect(
-      resolvePostHogToken({ token: " phc_1 ", vercelEnvironment: "production" })
-    ).toBe("phc_1");
-    for (const vercelEnvironment of ["preview", "development", undefined]) {
-      expect(
-        resolvePostHogToken({ token: "phc_1", vercelEnvironment })
-      ).toBeUndefined();
-    }
-    expect(
-      resolvePostHogToken({ token: " ", vercelEnvironment: "production" })
-    ).toBeUndefined();
-  });
-
-  test("off Vercel, reports only when TEAK_ANALYTICS_ENABLED is true", () => {
+  test("reports only when TEAK_ANALYTICS_ENABLED is true", () => {
     expect(
       resolvePostHogToken({ analyticsEnabled: "true", token: " phc_own " })
     ).toBe("phc_own");
@@ -50,25 +36,6 @@ describe("web PostHog configuration", () => {
     expect(
       resolvePostHogToken({ analyticsEnabled: "true", token: " " })
     ).toBeUndefined();
-  });
-
-  test("on Vercel, TEAK_ANALYTICS_ENABLED never makes a preview report", () => {
-    for (const vercelEnvironment of ["preview", "development"]) {
-      expect(
-        resolvePostHogToken({
-          analyticsEnabled: "true",
-          token: "phc_1",
-          vercelEnvironment,
-        })
-      ).toBeUndefined();
-    }
-    expect(
-      resolvePostHogToken({
-        analyticsEnabled: "false",
-        token: "phc_1",
-        vercelEnvironment: "production",
-      })
-    ).toBe("phc_1");
   });
 
   test("keeps the SDK lean and replays private", () => {
@@ -105,7 +72,7 @@ describe("web PostHog configuration", () => {
           stacktrace: {
             frames: [
               {
-                filename: "https://app.teakvault.com/_next/static/chunks/a.js",
+                filename: "https://app.teakvault.com/assets/index-Bx1.js",
               },
             ],
           },
@@ -133,7 +100,7 @@ describe("web PostHog configuration", () => {
   test.each([
     ["no stack", []],
     [
-      "a frame outside React and Next chunks",
+      "a frame outside React and the app's chunks",
       [{ filename: "https://app.teakvault.com/sw.js" }],
     ],
   ])("keeps a removeChild NotFoundError with %s", (_name, frames) => {
@@ -151,7 +118,7 @@ describe("web PostHog configuration", () => {
   test("keeps a browser-noise message that carries a stack", () => {
     const entries = [
       {
-        ...frame("https://app.teakvault.com/_next/static/chunks/app.js"),
+        ...frame("https://app.teakvault.com/assets/app-C2d.js"),
         type: "Error",
         value: "Script error.",
       },
@@ -163,7 +130,7 @@ describe("web PostHog configuration", () => {
     const kept = filterPostHogEvent(
       exception([
         {
-          ...frame("https://app.teakvault.com/_next/static/chunks/app.js"),
+          ...frame("https://app.teakvault.com/assets/app-C2d.js"),
           type: "Error",
           value: "Save failed for owner@example.com",
         },

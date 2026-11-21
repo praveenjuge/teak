@@ -1,0 +1,42 @@
+/* Allo by Josh Puckett (SIL OFL 1.1, ./fonts/Allo-OFL.txt). The upright face
+   is variable; Allo has no variable oblique, so italics use its drawn
+   obliques at the weights the app sets. */
+@font-face {
+  font-family: "Allo";
+  src: url("./fonts/AlloVariableFriendly.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Allo";
+  src: url("./fonts/Allo-Oblique.woff2") format("woff2");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Allo";
+  src: url("./fonts/Allo-MediumOblique.woff2") format("woff2");
+  font-weight: 500;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Allo";
+  src: url("./fonts/Allo-SemiBoldOblique.woff2") format("woff2");
+  font-weight: 600;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Allo";
+  src: url("./fonts/Allo-BoldOblique.woff2") format("woff2");
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
+}

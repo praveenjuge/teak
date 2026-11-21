@@ -1,8 +1,14 @@
 {
   "$schema": "../../node_modules/wrangler/config-schema.json",
+  // app.teakvault.com. Workers Builds deploys it from main; the Cloudflare
+  // Vite plugin adds the built client as static assets.
   "name": "teak-app",
+  "main": "src/server.ts",
   "compatibility_date": "2026-10-15",
   "compatibility_flags": ["nodejs_compat"],
-  "main": "@tanstack/react-start/server-entry",
-  "workers_dev": false
+  "workers_dev": false,
+  // Page loads query Convex before they answer; running near it beats
+  // running near the visitor.
+  "placement": { "mode": "smart" },
+  "observability": { "enabled": true }
 }

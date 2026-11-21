@@ -51,8 +51,8 @@ export const DEV_USAGE =
 export const describeTargets = (): string =>
   [
     "Available dev targets:",
-    "  web (default) — Next.js on the shared cloud dev deployment, seeded",
-    "  web --local — Next.js on a local backend, WorkOS emulator and Core Worker, seeded",
+    "  web (default) — TanStack Start on the shared cloud dev deployment, seeded",
+    "  web --local — TanStack Start on a local backend, WorkOS emulator and Core Worker, seeded",
     "  convex — Convex backend only",
     "  docs — Docs site",
     "  extension — Chrome extension + Convex",

@@ -1,5 +1,4 @@
 import { afterEach, expect, mock, test } from "bun:test";
-import "@/__tests__/helpers/nextRouter";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import type { Root } from "react-dom/client";
 
@@ -10,6 +9,7 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
 const saves: unknown[] = [];
 let finishSave: (() => void) | undefined;
+const { TestRouter } = await import("@/__tests__/helpers/router");
 const realConvexReact = await import("convex/react");
 mock.module("convex/react", () => {
   const create = (args: unknown) => {
@@ -54,7 +54,13 @@ afterEach(async () => {
 
 async function render(noteText: string | null) {
   root = createRoot(document.createElement("div"));
-  await act(() => root?.render(<Harness noteText={noteText} />));
+  await act(() =>
+    root?.render(
+      <TestRouter>
+        <Harness noteText={noteText} />
+      </TestRouter>
+    )
+  );
 }
 
 test("a second tap while the first save is in flight saves nothing more", async () => {

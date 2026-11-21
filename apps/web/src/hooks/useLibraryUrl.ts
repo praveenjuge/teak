@@ -1,5 +1,5 @@
+import { useLocation, useNavigate, useRouter } from "@tanstack/react-router";
 import { CARD_PARAM } from "@teak/convex/shared/webRoutes";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { folderPath } from "@/lib/folders";
 import {
@@ -35,8 +35,13 @@ import { useSharedFiles } from "./useSharedFiles";
  */
 export function useLibraryUrl({ folderId }: { folderId?: string } = {}) {
   const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const navigate = useNavigate();
+  const pathname = useLocation({ select: (location) => location.pathname });
+  const searchStr = useLocation({ select: (location) => location.searchStr });
+  const searchParams = useMemo(
+    () => new URLSearchParams(searchStr),
+    [searchStr]
+  );
   const cardIdFromUrl = searchParams.get(CARD_PARAM);
   const addToFolderId = folderId
     ? undefined
@@ -68,8 +73,8 @@ export function useLibraryUrl({ folderId }: { folderId?: string } = {}) {
     openCardIdRef.current = cardIdFromUrl;
   }, [cardIdFromUrl]);
 
-  // Native history updates the URL synchronously, unlike the router, so an
-  // older search can never land after a newer one.
+  // Router navigations commit in the order they're called, so an older
+  // search can never land after a newer one.
   const onSearchUrlStateChange = useCallback(
     (state: SearchUrlState, change: SearchUrlChange) => {
       const query = searchUrlQuery(
@@ -81,18 +86,16 @@ export function useLibraryUrl({ folderId }: { folderId?: string } = {}) {
       if (nextUrl === `${window.location.pathname}${window.location.search}`) {
         return;
       }
-      if (
+      // A new sort, type, tag or filter is a step Back returns from; typing
+      // only replaces the entry.
+      const step =
         change.sortChanged ||
         change.typesChanged ||
         change.tagChanged ||
-        change.filtersChanged
-      ) {
-        window.history.pushState(null, "", nextUrl);
-      } else {
-        window.history.replaceState(null, "", nextUrl);
-      }
+        change.filtersChanged;
+      navigate({ href: nextUrl, replace: !step, resetScroll: false });
     },
-    []
+    [navigate]
   );
 
   const onNavigateView = useCallback(
@@ -102,15 +105,18 @@ export function useLibraryUrl({ folderId }: { folderId?: string } = {}) {
       const current = parseSearchUrlState(new URLSearchParams(search));
       if (current.q) {
         const query = serializeSearchUrlState({ ...current, q: "" }, search);
-        window.history.replaceState(
-          null,
-          "",
-          query ? `${path}?${query}` : path
-        );
+        navigate({
+          href: query ? `${path}?${query}` : path,
+          replace: true,
+          resetScroll: false,
+        });
+        // The router's browser history writes changes made in the same tick
+        // as one entry, which would drop this replace into the push below.
+        router.history.flush();
       }
-      router.push(LIBRARY_VIEW_PATHS[nextView]);
+      navigate({ href: LIBRARY_VIEW_PATHS[nextView] });
     },
-    [router]
+    [navigate, router]
   );
 
   // The same search in the whole library, from a view that found nothing.
@@ -124,8 +130,8 @@ export function useLibraryUrl({ folderId }: { folderId?: string } = {}) {
         search.set(name, value);
       }
     }
-    router.push(libraryHref(LIBRARY_VIEW_PATHS.all, search));
-  }, [router]);
+    navigate({ href: libraryHref(LIBRARY_VIEW_PATHS.all, search) });
+  }, [navigate]);
 
   const cardEntryUrlRef = useRef<string | null>(null);
 
@@ -133,11 +139,7 @@ export function useLibraryUrl({ folderId }: { folderId?: string } = {}) {
     openCardIdRef.current = cardId;
     const nextUrl = cardHref(cardId, pathname, searchParams.toString());
     cardEntryUrlRef.current = cardId ? nextUrl : null;
-    if (replace) {
-      router.replace(nextUrl, { scroll: false });
-    } else {
-      router.push(nextUrl, { scroll: false });
-    }
+    navigate({ href: nextUrl, replace, resetScroll: false });
   };
 
   // Back only while the URL is still the card entry this page pushed: any
@@ -151,39 +153,41 @@ export function useLibraryUrl({ folderId }: { folderId?: string } = {}) {
     ) {
       return false;
     }
-    router.back();
+    router.history.back();
     return true;
   };
 
   const onAddToFolderDone = useCallback(
     (targetFolderId: string, added: boolean) => {
       if (added) {
-        router.push(folderPath(targetFolderId));
+        navigate({ href: folderPath(targetFolderId) });
         return;
       }
-      router.replace(
-        libraryHref(
+      navigate({
+        href: libraryHref(
           window.location.pathname,
           searchWithout(window.location.search, ADD_TO_FOLDER_PARAM)
         ),
-        { scroll: false }
-      );
+        replace: true,
+        resetScroll: false,
+      });
     },
-    [router]
+    [navigate]
   );
 
   const onFocusComposerHandled = useCallback(() => {
-    router.replace(
-      libraryHref(
+    navigate({
+      href: libraryHref(
         window.location.pathname,
         searchWithout(
           withoutShareParams(window.location.search),
           FOCUS_COMPOSER_PARAM
         )
       ),
-      { scroll: false }
-    );
-  }, [router]);
+      replace: true,
+      resetScroll: false,
+    });
+  }, [navigate]);
 
   return {
     addToFolderId,
@@ -191,15 +195,17 @@ export function useLibraryUrl({ folderId }: { folderId?: string } = {}) {
     composerDraft,
     focusComposer,
     onAddCardsToFolder: useCallback(
-      (targetFolderId: string) => router.push(addToFolderHref(targetFolderId)),
-      [router]
+      (targetFolderId: string) =>
+        navigate({ href: addToFolderHref(targetFolderId) }),
+      [navigate]
     ),
     onAddToFolderDone,
     onFocusComposerHandled,
     onNavigateView,
     onOpenFolder: useCallback(
-      (targetFolderId: string) => router.push(folderPath(targetFolderId)),
-      [router]
+      (targetFolderId: string) =>
+        navigate({ href: folderPath(targetFolderId) }),
+      [navigate]
     ),
     onSearchEverything,
     onSearchUrlStateChange,

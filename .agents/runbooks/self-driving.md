@@ -9,7 +9,7 @@ The run's log lives only in the PostHog notebook "Teak self-driving log": read t
 ## Every run
 
 - No `CONVEX_DEPLOY_KEY` in the routine environment: do not run `bun run dev`; rely on unit tests, typecheck and CI.
-- Order: inbox (`inbox-reports-list`) → error tracking (`query-error-tracking-issues-list`, `-24h`, by users, then by `first_seen`) → product events → web vitals → surveys → Vercel/Cloudflare.
+- Order: inbox (`inbox-reports-list`) → error tracking (`query-error-tracking-issues-list`, `-24h`, by users, then by `first_seen`) → product events → web vitals → surveys → Cloudflare.
 - Check the latest `Backend Deploy`, `Unit Tests` and `E2E` runs on `main` every run. Backend Deploy's typecheck covers test files, so a test-only type error blocks every backend deploy.
 - Fail events (`card_create_failed`, `card_processing_failed`, `export_failed`, ...) only exist in the PostHog taxonomy once they have fired; "not found in taxonomy" means zero occurrences, not a typo.
 - Before counting "users" on an error, check `$lib` and `distinct_id`: a crash loop on one device inflates it. `inbox-reports-list` returns an empty list when nothing is flagged.

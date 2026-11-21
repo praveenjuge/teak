@@ -372,27 +372,6 @@
       }
     },
     {
-      // Plain <img> on purpose: card media and favicons load straight from
-      // their source with Teak's own retry and sizing, the browser extension
-      // and the MCP App have no next/image, and OG images render through
-      // ImageResponse.
-      "includes": [
-        "apps/web/src/components/card-previews/**",
-        "apps/web/src/components/cards/**",
-        "apps/web/src/components/media/**",
-        "apps/extension/**",
-        "packages/mcp-app/**",
-        "apps/web/src/app/opengraph-image.tsx"
-      ],
-      "linter": {
-        "rules": {
-          "performance": {
-            "noImgElement": "off"
-          }
-        }
-      }
-    },
-    {
       // Raycast's AI tool schema extractor (`ray build`) only reads the tool's
       // `Input` when declared as a type alias; interfaces break extraction with
       // "No item type".

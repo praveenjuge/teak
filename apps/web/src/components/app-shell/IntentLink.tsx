@@ -1,22 +1,16 @@
-"use client";
-
-import Link from "next/link";
-import type { ComponentProps } from "react";
+import { AppLink, type AppLinkProps } from "@/components/AppLink";
 import { prewarmRouteQueries } from "@/lib/convexClient";
 
-type IntentLinkProps = Omit<ComponentProps<typeof Link>, "href"> & {
-  href: string;
-};
-
+/** An app link that starts its page's first queries when someone heads for it. */
 export function IntentLink({
   href,
   onFocus,
   onMouseEnter,
   onTouchStart,
   ...props
-}: IntentLinkProps) {
+}: AppLinkProps) {
   return (
-    <Link
+    <AppLink
       href={href}
       onFocus={(event) => {
         prewarmRouteQueries(href);
