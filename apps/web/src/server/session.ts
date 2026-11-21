@@ -46,14 +46,16 @@ const PUBLIC_PATHS = new Set(["/share", "/sw.js", "/manifest.webmanifest"]);
  */
 export function signInGuard(request: Request): Response | null {
   const url = new URL(request.url);
-  if (PUBLIC_PATHS.has(url.pathname)) {
-    return null;
-  }
+  // AuthKit's middleware runs on every path and checks its settings until
+  // they pass, so public paths configure it too; only the rest need it.
   let origin: string;
   try {
     ({ origin } = configureWorkos());
   } catch {
-    return signInUnavailable();
+    return PUBLIC_PATHS.has(url.pathname) ? null : signInUnavailable();
+  }
+  if (PUBLIC_PATHS.has(url.pathname)) {
+    return null;
   }
   if (url.origin !== origin) {
     return new Response("Invalid sign-in origin.", { status: 400 });
