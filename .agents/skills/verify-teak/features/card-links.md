@@ -44,5 +44,6 @@ Steps:
 - Links are only to your own cards; a token naming another account's card never makes a backlink and shows "Missing card".
 - A note tagged `secret` or `hidden` never shows under "Linked from" or in `backlinks`.
 - A note indexes at most 500 linked cards for "Linked from"; later pills still render.
+- A token inside code is not a link. A line such as "```code```" (backticks again after the opening ones) is inline code, not the start of a code block, so links after it still count: save that line, a blank line and a token through `POST /v1/cards`, and `GET /v1/cards/<id>` lists the target in `links`.
 - Native apps (Mac, iPhone, iPad, Android) show the link as its title on tiles and as a pill in the card, but the raw token in the Edit field; their `[[` picker uses the web menu's query, `cards:searchCardLinkSuggestions`.
 - Bold or italic around a link keeps the note as literal Markdown, as with other syntax the editor can't round-trip.

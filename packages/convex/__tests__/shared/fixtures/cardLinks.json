@@ -40,6 +40,26 @@
       "ids": []
     },
     {
+      "name": "a tilde fence with backticks in its info string",
+      "markdown": "~~~ `md`\n[[Plan|teak:k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]]\n~~~\n[[B|teak:k27a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]]",
+      "ids": ["k27a8m9x2p3q4r5s6t7u8v9w0y1z2a3b"]
+    },
+    {
+      "name": "a backtick fence with an info string",
+      "markdown": "```js\n[[Plan|teak:k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]]\n```\n[[B|teak:k27a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]]",
+      "ids": ["k27a8m9x2p3q4r5s6t7u8v9w0y1z2a3b"]
+    },
+    {
+      "name": "a three-backtick code span on one line, then a link",
+      "markdown": "```code```\n\n[[Plan|teak:k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]]",
+      "ids": ["k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b"]
+    },
+    {
+      "name": "a link inside a three-backtick code span",
+      "markdown": "```[[Plan|teak:k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]]``` then [[B|teak:k27a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]]",
+      "ids": ["k27a8m9x2p3q4r5s6t7u8v9w0y1z2a3b"]
+    },
+    {
       "name": "a fenced block with CRLF line endings",
       "markdown": "```\r\n[[Plan|teak:k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]]\r\n```\r\n[[B|teak:k27a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]]",
       "ids": ["k27a8m9x2p3q4r5s6t7u8v9w0y1z2a3b"]
@@ -163,6 +183,11 @@
       "name": "backticks in a title",
       "markdown": "See [[Use `foo`|teak:k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]].",
       "text": "See Use `foo`."
+    },
+    {
+      "name": "a link after a three-backtick code span on one line",
+      "markdown": "```code```\n\n[[Plan|teak:k17a8m9x2p3q4r5s6t7u8v9w0y1z2a3b]]",
+      "text": "```code```\n\nPlan"
     },
     {
       "name": "no links",

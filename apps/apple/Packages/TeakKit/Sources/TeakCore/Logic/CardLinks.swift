@@ -13,7 +13,9 @@ public enum CardLinks {
     private static let tokenRegex = regex(tokenPattern)
     private static let titleUnsafeRegex = regex(#"[|\]\r\n]+"#)
     private static let spacesRegex = regex(#"\s+"#)
-    private static let fenceRegex = regex(#"^ {0,3}(`{3,}|~{3,})"#)
+    /// A backtick fence has no backtick after it (CommonMark): "```code```"
+    /// on one line is a code span, and what follows it is still text.
+    private static let fenceRegex = regex(#"^ {0,3}(`{3,}(?![^`]*`)|~{3,})"#)
     private static let closingFenceRegex = regex(#"^ {0,3}(`{3,}|~{3,})[ \t\r]*$"#)
     private static let backtickRunRegex = regex("`+")
     private static let listItemRegex = regex(#"^( *)([-+*]|\d{1,9}[.)])( {1,4}|$)"#)

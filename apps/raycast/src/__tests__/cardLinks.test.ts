@@ -41,6 +41,12 @@ describe("card links in saved text", () => {
     expect(renderCardLinks(text)).toBe(text);
   });
 
+  test("links a token after a three-backtick code span on one line", () => {
+    expect(renderCardLinks(`\`\`\`code\`\`\`\n\n${token("Plan")}`)).toBe(
+      `\`\`\`code\`\`\`\n\n[Plan](https://app.teakvault.com/?card=${TARGET})`,
+    );
+  });
+
   test("leaves a token in an indented code block alone, as Teak does", () => {
     const text = `Intro\n\n    ${token("Plan")}`;
     expect(renderCardLinks(text)).toBe(text);

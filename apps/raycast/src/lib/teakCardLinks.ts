@@ -8,7 +8,11 @@ export const CARD_LINK_PATTERN =
 const TOKEN_REGEX = new RegExp(CARD_LINK_PATTERN.source, "g");
 const TITLE_UNSAFE_REGEX = /[|\]\r\n]+/g;
 const SPACES_REGEX = /\s+/g;
-const FENCE_REGEX = /^ {0,3}(`{3,}|~{3,})/;
+/**
+ * A backtick fence has no backtick after it (CommonMark): "```code```" on one
+ * line is a code span, and what follows it is still text.
+ */
+const FENCE_REGEX = /^ {0,3}(`{3,}(?![^`]*`)|~{3,})/;
 /** A closing fence has nothing after it: "```js" inside a block is code. */
 const CLOSING_FENCE_REGEX = /^ {0,3}(`{3,}|~{3,})[ \t\r]*$/;
 const BACKTICK_RUN_REGEX = /`+/g;
