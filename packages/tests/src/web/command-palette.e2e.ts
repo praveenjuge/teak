@@ -110,12 +110,14 @@ test("Export in the palette opens Settings at its Export section", async ({
     "Search commands, folders and cards"
   );
   // Settings is server-rendered, so its key listener can still be wiring up.
-  // The key toggles the palette, so each press waits for it to open before
-  // pressing again; a quicker press would close the one just opening.
+  // The key toggles the palette, so it is pressed only while no palette is on
+  // the page, opening or closing; a press then would close the one opening.
   await expect
     .poll(
       async () => {
-        await browser.keyboard.press("ControlOrMeta+k");
+        if ((await input.count()) === 0) {
+          await browser.keyboard.press("ControlOrMeta+k");
+        }
         return await expect(input)
           .toBeVisible({ timeout: 1000 })
           .then(
