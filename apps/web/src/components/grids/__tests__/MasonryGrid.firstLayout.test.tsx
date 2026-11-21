@@ -1,5 +1,6 @@
 import { afterEach, expect, mock, test } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
+import type { Doc } from "@teak/convex/_generated/dataModel";
 import type { Root } from "react-dom/client";
 
 GlobalRegistrator.register({ url: "http://localhost:3000" });
@@ -29,8 +30,10 @@ const { MasonryGrid } = await import("../MasonryGrid");
 
 let root: Root | undefined;
 
-afterEach(async () => {
-  await act(() => root?.unmount());
+afterEach(() => {
+  act(() => {
+    root?.unmount();
+  });
   root = undefined;
   document.body.innerHTML = "";
 });
@@ -44,13 +47,13 @@ const card = (id: string, content: string) =>
     type: "text",
     updatedAt: 1,
     userId: "user_123",
-  }) as any;
+  }) as unknown as Doc<"cards">;
 
-test("a grid made in the browser keeps its cards hidden until the masonry has placed them", async () => {
+test("a grid made in the browser keeps its cards hidden until the masonry has placed them", () => {
   const container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
-  await act(() =>
+  act(() => {
     root?.render(
       <MasonryGrid
         filteredCards={[card("card_a", "First"), card("card_b", "Second")]}
@@ -60,8 +63,8 @@ test("a grid made in the browser keeps its cards hidden until the masonry has pl
         onDeleteForever={mock(async () => ({ failedIds: [] }))}
         resetKey=""
       />
-    )
-  );
+    );
+  });
   const grid = container.querySelector<HTMLElement>('[data-slot="card-grid"]');
   const masonry = () =>
     container
@@ -73,7 +76,7 @@ test("a grid made in the browser keeps its cards hidden until the masonry has pl
   expect(masonry()?.style.opacity).toBe("0");
 
   for (let turn = 0; turn < 20 && frames.length > 0; turn++) {
-    await act(() => {
+    act(() => {
       for (const frame of frames.splice(0)) {
         frame(performance.now());
       }
