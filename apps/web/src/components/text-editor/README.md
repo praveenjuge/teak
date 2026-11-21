@@ -4,9 +4,9 @@ Web uses the published editorcn block editor and Tiptap's Markdown
 extension. The public component still accepts and emits Markdown strings. Mobile,
 extensions, storage, APIs, and previews keep their existing contracts.
 
-`@editorcn/block-editor` is pinned to **0.2.0**: the inspected 0.3.x npm tarballs
-declare `dist` exports but omit those files. Tiptap packages are pinned together
-to **3.31.4**. Keep the compatibility corpus and browser journeys green when
+`@editorcn/block-editor` is pinned to **0.2.0**: the inspected 0.3.x and 0.4.0 npm
+tarballs declare `dist` exports but omit those files. Tiptap packages are pinned
+together to **3.35.0**. Keep the compatibility corpus and browser journeys green when
 upgrading the beta Markdown extension. References:
 [editorcn documentation](https://www.rtecn.space/docs),
 [Tiptap Markdown documentation](https://tiptap.dev/docs/editor/markdown).

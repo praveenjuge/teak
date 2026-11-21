@@ -163,7 +163,7 @@ test("the development worker resolves to its own bucket, gates and telemetry", (
   expect(config.vars.API_UPSTREAM_ORIGIN).toBeUndefined();
   expect(config.vars.API_WORKOS_ISSUER).toBeUndefined();
   expect(config.kv_namespaces).toEqual([]);
-  expect(config.ratelimits ?? []).toEqual([]);
+  expect(config.ratelimits).toEqual([]);
 });
 
 test("dev:local sends nothing to PostHog", () => {

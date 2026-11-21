@@ -542,7 +542,7 @@ describe("configuration", () => {
     config: resolve(import.meta.dir, "../../wrangler.jsonc"),
   });
   const limiters = Object.fromEntries(
-    (config.ratelimits ?? []).map((binding) => [binding.name, binding])
+    config.ratelimits.map((binding) => [binding.name, binding])
   );
 
   test("the production limiters count what the code reports", () => {
