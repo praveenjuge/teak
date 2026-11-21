@@ -143,10 +143,10 @@ function ContextMenuSubContent({
 // Opens to the right of the pointer, top-aligned, as Radix's did.
 function ContextMenuContent({
   align = "start",
-  alignOffset = 4,
+  alignOffset = 0,
   className,
   side = "right",
-  sideOffset = 0,
+  sideOffset = 2,
   ...props
 }: React.ComponentProps<typeof ContextMenuPopup>) {
   return (
