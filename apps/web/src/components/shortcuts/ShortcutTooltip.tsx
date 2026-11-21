@@ -44,9 +44,9 @@ export function ShortcutTooltip({
   side = "bottom",
 }: ShortcutTooltipProps) {
   return (
-    <TooltipProvider delayDuration={300}>
+    <TooltipProvider delay={300}>
       <Tooltip>
-        <TooltipTrigger asChild>{children}</TooltipTrigger>
+        <TooltipTrigger render={children} />
         <TooltipContent
           className={cn("flex items-center", keys && "gap-2")}
           side={side}

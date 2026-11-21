@@ -26,7 +26,7 @@ const sidebar = (open: boolean) => (
   </SidebarProvider>
 );
 
-const tooltip = () => document.querySelector('[role="tooltip"]');
+const tooltip = () => document.querySelector('[data-slot="tooltip-content"]');
 
 test("a menu button shows its tooltip only while the sidebar is collapsed, without switching control modes", async () => {
   const warn = spyOn(console, "warn");

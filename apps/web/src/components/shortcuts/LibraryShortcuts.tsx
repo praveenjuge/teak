@@ -277,14 +277,14 @@ export function LibraryShortcuts({
   return (
     <>
       <CommandPalette
-        onCloseAutoFocus={palette.onCloseAutoFocus}
+        finalFocus={palette.finalFocus}
         onOpenChange={setPaletteOpen}
         onSelect={handlePaletteSelect}
         open={isPaletteOpen}
         pathname={pathname}
       />
       <KeyboardShortcutsDialog
-        onCloseAutoFocus={shortcutsDialog.onCloseAutoFocus}
+        finalFocus={shortcutsDialog.finalFocus}
         onOpenChange={setDialogOpen}
         open={isDialogOpen}
       />

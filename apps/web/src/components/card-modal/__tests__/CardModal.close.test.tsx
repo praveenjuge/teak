@@ -176,7 +176,7 @@ test("Escape over a menu on the card is left to the menu", async () => {
   tooltip.dataset.slot = "tooltip-content";
   const menu = document.createElement("div");
   menu.setAttribute("role", "menu");
-  menu.dataset.state = "open";
+  menu.setAttribute("data-open", "");
   document.body.append(tooltip, menu);
 
   const { escapeClosesOverTooltip } = await import("../cardModalKeys");

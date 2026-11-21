@@ -3,7 +3,7 @@ import type { CardType } from "@teak/convex/shared/constants";
 import { doneActionLabel } from "@teak/convex/shared/linkCategories";
 import { urlHostForDisplay } from "@teak/convex/shared/utils/urlHost";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
-import type { KeyboardEvent, ReactNode } from "react";
+import type { KeyboardEvent, ReactElement, ReactNode } from "react";
 import {
   Fragment,
   useEffect,
@@ -215,7 +215,7 @@ const READ_STAGE_CLASS = "px-5 py-8 md:px-10 md:py-12";
 
 /** Preview · Read: the chosen one is filled, so it reads at a glance. */
 export const STAGE_VIEW_ITEM_CLASS =
-  "px-3 data-[state=on]:bg-foreground data-[state=on]:text-background data-[state=on]:hover:bg-foreground/90 data-[state=on]:hover:text-background";
+  "px-3 data-pressed:bg-foreground data-pressed:text-background data-pressed:hover:bg-foreground/90 data-pressed:hover:text-background";
 
 type StageView = "preview" | "read";
 
@@ -669,8 +669,7 @@ export function CardModal({
   // Add to folder opens once the menu has closed. Opened at once, the
   // closing menu took focus back from it and then unmounted, leaving focus
   // on the page, so every card key went dead after the dialog closed.
-  const { onCloseAutoFocus: onMenuCloseAutoFocus, runAfterClose } =
-    useRunAfterClose();
+  const { finalFocus: menuFinalFocus, runAfterClose } = useRunAfterClose();
   const openFoldersFromMenu = () =>
     runAfterClose(() => {
       // The dialog gives focus back to what had it when it opened: the card.
@@ -992,14 +991,14 @@ export function CardModal({
     .map((group) => group.filter(Boolean))
     .filter((group) => group.length > 0);
 
-  const renderMenu = (trigger: ReactNode) =>
+  const renderMenu = (trigger: ReactElement) =>
     shownMenuGroups.length > 0 ? (
       <DropdownMenu modal={false}>
-        <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
+        <DropdownMenuTrigger render={trigger} />
         <DropdownMenuContent
           align="end"
           className="w-60"
-          onCloseAutoFocus={onMenuCloseAutoFocus}
+          finalFocus={menuFinalFocus}
           onKeyDown={runMenuItemShortcut}
         >
           {shownMenuGroups.map((group, index) => (
@@ -1021,19 +1020,21 @@ export function CardModal({
     ) : null;
 
   const closeButton = (
-    <DialogClose asChild>
-      <HeaderIconButton
-        className={cn(
-          !isMobile &&
-            "absolute size-9 bg-background/90 text-foreground shadow-md ring-1 ring-border/60 hover:bg-background"
-        )}
-        label={tc("close")}
-        shortcut={["Esc"]}
-        style={isMobile ? undefined : GUTTER_CLOSE_STYLE}
-      >
-        <X />
-      </HeaderIconButton>
-    </DialogClose>
+    <DialogClose
+      render={
+        <HeaderIconButton
+          className={cn(
+            !isMobile &&
+              "absolute size-9 bg-background/90 text-foreground shadow-md ring-1 ring-border/60 hover:bg-background"
+          )}
+          label={tc("close")}
+          shortcut={["Esc"]}
+          style={isMobile ? undefined : GUTTER_CLOSE_STYLE}
+        >
+          <X />
+        </HeaderIconButton>
+      }
+    />
   );
 
   const sidebarTitle =
@@ -1180,7 +1181,15 @@ export function CardModal({
   return (
     <>
       <Dialog
-        onOpenChange={(nextOpen) => {
+        onOpenChange={(nextOpen, details) => {
+          // Escape first leaves an open highlight note, not the card.
+          if (
+            details.reason === "escape-key" &&
+            readerControls.current?.dismiss()
+          ) {
+            details.cancel();
+            return;
+          }
           if (!nextOpen) {
             void handleClose();
           }
@@ -1192,23 +1201,12 @@ export function CardModal({
           className={cn(
             frameClass,
             openOrigin &&
-              "md:data-[state=open]:zoom-in-[0.7] md:data-[state=open]:duration-200 md:data-[state=open]:ease-out"
+              "md:data-open:zoom-in-[0.7] md:data-open:duration-200 md:data-open:ease-out"
           )}
-          onCloseAutoFocus={(event) => {
-            if (card && returnFocus?.(card._id)) {
-              event.preventDefault();
-            }
-          }}
-          onEscapeKeyDown={(event) => {
-            if (readerControls.current?.dismiss()) {
-              event.preventDefault();
-            }
-          }}
+          // Back to the card in the grid when it's there to take focus.
+          finalFocus={() => !(card && returnFocus?.(card._id))}
+          initialFocus={contentRef}
           onKeyDown={handleKeyDown}
-          onOpenAutoFocus={(event) => {
-            event.preventDefault();
-            contentRef.current?.focus();
-          }}
           overlayClassName={CARD_MODAL_OVERLAY_CLASS}
           ref={contentRef}
           showCloseButton={false}
@@ -1281,14 +1279,13 @@ export function CardModal({
                             <ToggleGroup
                               aria-keyshortcuts="R"
                               aria-label={t("reader.viewLabel")}
-                              onValueChange={(next) => {
+                              onValueChange={([next]) => {
                                 if (next === "preview" || next === "read") {
                                   stage.setView(next);
                                 }
                               }}
                               size="sm"
-                              type="single"
-                              value={stage.view}
+                              value={[stage.view]}
                               variant="outline"
                             >
                               <ToggleGroupItem

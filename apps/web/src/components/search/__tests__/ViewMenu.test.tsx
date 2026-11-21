@@ -57,11 +57,7 @@ async function openMenu(
     )
   );
   const trigger = document.querySelector("button");
-  await act(() => {
-    trigger?.dispatchEvent(
-      new KeyboardEvent("keydown", { bubbles: true, key: "Enter" })
-    );
-  });
+  await act(() => trigger?.click());
   return { onSortChange };
 }
 

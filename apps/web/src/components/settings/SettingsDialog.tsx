@@ -1,10 +1,10 @@
-import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { useTranslations } from "@teak/i18n/react";
-import type { ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import { type VadivamIcon, XIcon } from "vadivam-react";
 import { cn } from "../../lib/utils";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogTitle,
@@ -18,7 +18,7 @@ interface SettingsDialogProps {
   description?: ReactNode;
   footer?: ReactNode;
   icon: VadivamIcon;
-  onOpenAutoFocus?: (event: Event) => void;
+  initialFocus?: ComponentProps<typeof DialogContent>["initialFocus"];
   onOpenChange: (open: boolean) => void;
   open: boolean;
   title: string;
@@ -56,7 +56,7 @@ export function SettingsDialog({
   description,
   footer,
   icon,
-  onOpenAutoFocus,
+  initialFocus,
   onOpenChange,
   open,
   title,
@@ -70,7 +70,7 @@ export function SettingsDialog({
           "flex max-h-[min(88dvh,44rem)] flex-col gap-0 overflow-hidden p-0 shadow-2xl outline-none sm:max-w-md",
           className
         )}
-        onOpenAutoFocus={onOpenAutoFocus}
+        initialFocus={initialFocus}
         overlayClassName="bg-black/40 backdrop-blur-[2px] dark:bg-black/70"
         showCloseButton={false}
       >
@@ -93,10 +93,10 @@ export function SettingsDialog({
             {footer}
           </div>
         ) : null}
-        <DialogPrimitive.Close className="absolute top-4 right-4 inline-flex size-8 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50">
+        <DialogClose className="absolute top-4 right-4 inline-flex size-8 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50">
           <XIcon className="size-4" />
           <span className="sr-only">{tc("close")}</span>
-        </DialogPrimitive.Close>
+        </DialogClose>
       </DialogContent>
     </Dialog>
   );

@@ -382,191 +382,195 @@ export const Card = memo(function Card({
     (card.type === "palette" && Boolean(card.colors?.length));
 
   return (
-    <ContextMenu>
-      <ContextMenuTrigger asChild disabled={isOptimistic}>
-        <div
-          className="group/card relative"
-          data-card-shell=""
-          data-selected={isSelected || undefined}
-        >
-          <UICard
-            aria-disabled={isOptimistic || undefined}
-            aria-keyshortcuts={
-              isOptimistic
-                ? undefined
-                : cardAriaKeyShortcuts(card, actions, {
-                    apple,
-                    selecting: Boolean(isSelectionMode),
-                  })
-            }
-            aria-label={getCardAccessibleLabel(card, tLabel, tLinkTitle)}
-            aria-pressed={isSelectionMode ? Boolean(isSelected) : undefined}
-            className={cn(
-              // The focus and selection rings sit on the tile itself (see
-              // CARD_SURFACE), so a link's name line stays outside them.
-              "relative scroll-my-20 rounded-2xl border-0 bg-transparent p-0 outline-none contain-layout contain-style",
-              isOptimistic ? "cursor-default opacity-70" : "cursor-pointer",
-              card.isDeleted && "opacity-60"
-            )}
-            {...{
-              [CARD_ID_ATTRIBUTE]:
-                isOptimistic || isFirstPaintCopy ? undefined : card._id,
-            }}
-            draggable={canDrag}
-            onClick={handleClick}
-            onDragStart={canDrag ? handleDragStart : undefined}
-            onFocus={handlePrefetch}
-            onKeyDown={handleKeyDown}
-            onPointerDown={handlePrefetch}
-            onPointerEnter={handlePrefetch}
-            ref={cardRef}
-            role="button"
-            tabIndex={isOptimistic || !isTabStop ? -1 : 0}
+    <ContextMenu disabled={isOptimistic}>
+      <ContextMenuTrigger
+        render={
+          <div
+            className="group/card relative"
+            data-card-shell=""
+            data-selected={isSelected || undefined}
           >
-            {isOptimistic && (
-              <div className="absolute inset-0 z-10 flex items-center justify-center">
-                <LoaderCircle className="size-4 animate-spin text-muted-foreground" />
+            <UICard
+              aria-disabled={isOptimistic || undefined}
+              aria-keyshortcuts={
+                isOptimistic
+                  ? undefined
+                  : cardAriaKeyShortcuts(card, actions, {
+                      apple,
+                      selecting: Boolean(isSelectionMode),
+                    })
+              }
+              aria-label={getCardAccessibleLabel(card, tLabel, tLinkTitle)}
+              aria-pressed={isSelectionMode ? Boolean(isSelected) : undefined}
+              className={cn(
+                // The focus and selection rings sit on the tile itself (see
+                // CARD_SURFACE), so a link's name line stays outside them.
+                "relative scroll-my-20 rounded-2xl border-0 bg-transparent p-0 outline-none contain-layout contain-style",
+                isOptimistic ? "cursor-default opacity-70" : "cursor-pointer",
+                card.isDeleted && "opacity-60"
+              )}
+              {...{
+                [CARD_ID_ATTRIBUTE]:
+                  isOptimistic || isFirstPaintCopy ? undefined : card._id,
+              }}
+              draggable={canDrag}
+              onClick={handleClick}
+              onDragStart={canDrag ? handleDragStart : undefined}
+              onFocus={handlePrefetch}
+              onKeyDown={handleKeyDown}
+              onPointerDown={handlePrefetch}
+              onPointerEnter={handlePrefetch}
+              ref={cardRef}
+              role="button"
+              tabIndex={isOptimistic || !isTabStop ? -1 : 0}
+            >
+              {isOptimistic && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center">
+                  <LoaderCircle className="size-4 animate-spin text-muted-foreground" />
+                </div>
+              )}
+              <CardContent className="p-0">
+                <CardBody
+                  card={card}
+                  isPriority={isPriority}
+                  link={{
+                    image: linkImage,
+                    onImageError: handleLinkImageError,
+                    title: linkCardTitle,
+                  }}
+                  textInsets={textInsets}
+                />
+              </CardContent>
+              {isProcessing ? (
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-x-4 bottom-0 h-0.5 overflow-hidden rounded-full"
+                >
+                  <div className="h-full w-1/3 animate-progress-slide rounded-full bg-foreground/30 motion-reduce:animate-none" />
+                </div>
+              ) : null}
+            </UICard>
+
+            {isSelectionMode && !isOptimistic && (
+              <div className="pointer-events-none absolute -top-2 -left-2 z-10">
+                <Checkbox
+                  aria-hidden="true"
+                  checked={isSelected}
+                  className="size-6 rounded-full border-foreground/25 bg-background shadow-sm ring-2 ring-background"
+                  tabIndex={-1}
+                />
               </div>
             )}
-            <CardContent className="p-0">
-              <CardBody
-                card={card}
-                isPriority={isPriority}
-                link={{
-                  image: linkImage,
-                  onImageError: handleLinkImageError,
-                  title: linkCardTitle,
-                }}
-                textInsets={textInsets}
-              />
-            </CardContent>
-            {isProcessing ? (
-              <div
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-x-4 bottom-0 h-0.5 overflow-hidden rounded-full"
+
+            {showHoverSelect ? (
+              <ShortcutTooltip
+                keys={[cardActionKeyName("select") ?? ""]}
+                label={t("menu.select")}
+                side="top"
               >
-                <div className="h-full w-1/3 animate-progress-slide rounded-full bg-foreground/30 motion-reduce:animate-none" />
+                <button
+                  aria-keyshortcuts={cardActionShortcut("select", apple)?.keys}
+                  aria-label={t("menu.select")}
+                  className="absolute -top-2 -left-2 z-20 flex size-6 items-center justify-center rounded-full border border-foreground/25 bg-background text-muted-foreground opacity-0 shadow-sm ring-2 ring-background transition-opacity duration-150 hover:text-foreground focus-visible:opacity-100 group-hover/card:opacity-100 group-has-[[data-slot=card]:focus-visible]/card:opacity-100"
+                  onClick={() => runAction("select")}
+                  tabIndex={-1}
+                  type="button"
+                >
+                  <Check className="size-3.5" strokeWidth={2.5} />
+                </button>
+              </ShortcutTooltip>
+            ) : null}
+
+            {showFavoriteMark || showPinMark ? (
+              <div
+                className={cn(
+                  "pointer-events-none absolute top-2.5 right-2.5 z-10 flex items-center gap-1 transition-opacity duration-150",
+                  showQuickActions &&
+                    "pointer-coarse:right-11 group-hover/card:opacity-0 group-has-[[data-slot=card]:focus-visible]/card:opacity-0"
+                )}
+              >
+                {showPinMark ? (
+                  <span
+                    className={cn(
+                      "flex size-7 items-center justify-center rounded-full",
+                      isMediaCard &&
+                        "bg-background/85 shadow-sm ring-1 ring-black/5 backdrop-blur-md dark:ring-white/10"
+                    )}
+                    data-pin-mark=""
+                  >
+                    <Pin
+                      aria-label={t("pinnedMark")}
+                      className="size-3.5 fill-foreground text-foreground"
+                      role="img"
+                    />
+                  </span>
+                ) : null}
+                {showFavoriteMark ? (
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "flex size-7 items-center justify-center rounded-full",
+                      isMediaCard &&
+                        "bg-background/85 shadow-sm ring-1 ring-black/5 backdrop-blur-md dark:ring-white/10"
+                    )}
+                  >
+                    <Heart className="size-3.5 fill-destructive text-destructive" />
+                  </span>
+                ) : null}
               </div>
             ) : null}
-          </UICard>
 
-          {isSelectionMode && !isOptimistic && (
-            <div className="pointer-events-none absolute -top-2 -left-2 z-10">
-              <Checkbox
-                aria-hidden="true"
-                checked={isSelected}
-                className="size-6 rounded-full border-foreground/25 bg-background shadow-sm ring-2 ring-background"
-                tabIndex={-1}
-              />
-            </div>
-          )}
-
-          {showHoverSelect ? (
-            <ShortcutTooltip
-              keys={[cardActionKeyName("select") ?? ""]}
-              label={t("menu.select")}
-              side="top"
-            >
-              <button
-                aria-keyshortcuts={cardActionShortcut("select", apple)?.keys}
-                aria-label={t("menu.select")}
-                className="absolute -top-2 -left-2 z-20 flex size-6 items-center justify-center rounded-full border border-foreground/25 bg-background text-muted-foreground opacity-0 shadow-sm ring-2 ring-background transition-opacity duration-150 hover:text-foreground focus-visible:opacity-100 group-hover/card:opacity-100 group-has-[[data-slot=card]:focus-visible]/card:opacity-100"
-                onClick={() => runAction("select")}
-                tabIndex={-1}
-                type="button"
-              >
-                <Check className="size-3.5" strokeWidth={2.5} />
-              </button>
-            </ShortcutTooltip>
-          ) : null}
-
-          {showFavoriteMark || showPinMark ? (
-            <div
-              className={cn(
-                "pointer-events-none absolute top-2.5 right-2.5 z-10 flex items-center gap-1 transition-opacity duration-150",
-                showQuickActions &&
-                  "pointer-coarse:right-11 group-hover/card:opacity-0 group-has-[[data-slot=card]:focus-visible]/card:opacity-0"
-              )}
-            >
-              {showPinMark ? (
-                <span
-                  className={cn(
-                    "flex size-7 items-center justify-center rounded-full",
-                    isMediaCard &&
-                      "bg-background/85 shadow-sm ring-1 ring-black/5 backdrop-blur-md dark:ring-white/10"
-                  )}
-                  data-pin-mark=""
-                >
-                  <Pin
-                    aria-label={t("pinnedMark")}
-                    className="size-3.5 fill-foreground text-foreground"
-                    role="img"
-                  />
-                </span>
-              ) : null}
-              {showFavoriteMark ? (
-                <span
-                  aria-hidden="true"
-                  className={cn(
-                    "flex size-7 items-center justify-center rounded-full",
-                    isMediaCard &&
-                      "bg-background/85 shadow-sm ring-1 ring-black/5 backdrop-blur-md dark:ring-white/10"
-                  )}
-                >
-                  <Heart className="size-3.5 fill-destructive text-destructive" />
-                </span>
-              ) : null}
-            </div>
-          ) : null}
-
-          {showQuickActions && (
-            <div className="pointer-events-none pointer-coarse:pointer-events-auto absolute top-2.5 right-2.5 z-20 flex items-center gap-1 opacity-0 pointer-coarse:opacity-100 transition-opacity duration-150 group-hover/card:pointer-events-auto group-hover/card:opacity-100 has-[[data-state=open]]:pointer-events-auto has-[[data-state=open]]:opacity-100 group-has-[[data-slot=card]:focus-visible]/card:opacity-100">
-              {/* Without hover, only More shows: it holds every action. */}
-              {card.url && !card.isDeleted && (
-                <QuickActionButton
-                  className="pointer-coarse:hidden"
-                  label={t("menu.openLink")}
-                  onClick={openLink}
-                >
-                  <ArrowUpRight />
-                </QuickActionButton>
-              )}
-              {offers("favorite") && (
-                <QuickActionButton
-                  className="pointer-coarse:hidden"
-                  label={t(
-                    `menu.${cardActionLabel("favorite", card) ?? "favorite"}`
-                  )}
-                  onClick={() => runAction("favorite")}
-                  pressed={Boolean(card.isFavorited)}
-                  shortcut={[cardActionKeyName("favorite") ?? ""]}
-                >
-                  <CardActionIcon action="favorite" card={card} />
-                </QuickActionButton>
-              )}
-              <DropdownMenu modal={false}>
-                <DropdownMenuTrigger asChild>
-                  <QuickActionButton label={t("menu.moreActions")}>
-                    <Ellipsis />
+            {showQuickActions && (
+              <div className="pointer-events-none pointer-coarse:pointer-events-auto absolute top-2.5 right-2.5 z-20 flex items-center gap-1 opacity-0 pointer-coarse:opacity-100 transition-opacity duration-150 group-hover/card:pointer-events-auto group-hover/card:opacity-100 has-data-popup-open:pointer-events-auto has-data-popup-open:opacity-100 group-has-[[data-slot=card]:focus-visible]/card:opacity-100">
+                {/* Without hover, only More shows: it holds every action. */}
+                {card.url && !card.isDeleted && (
+                  <QuickActionButton
+                    className="pointer-coarse:hidden"
+                    label={t("menu.openLink")}
+                    onClick={openLink}
+                  >
+                    <ArrowUpRight />
                   </QuickActionButton>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="end"
-                  className="w-48"
-                  onKeyDown={runMenuItemShortcut}
-                >
-                  <CardMenuEntries
-                    entries={menuItems}
-                    Item={DropdownMenuItem}
-                    Separator={DropdownMenuSeparator}
-                    Shortcut={DropdownMenuShortcut}
+                )}
+                {offers("favorite") && (
+                  <QuickActionButton
+                    className="pointer-coarse:hidden"
+                    label={t(
+                      `menu.${cardActionLabel("favorite", card) ?? "favorite"}`
+                    )}
+                    onClick={() => runAction("favorite")}
+                    pressed={Boolean(card.isFavorited)}
+                    shortcut={[cardActionKeyName("favorite") ?? ""]}
+                  >
+                    <CardActionIcon action="favorite" card={card} />
+                  </QuickActionButton>
+                )}
+                <DropdownMenu modal={false}>
+                  <DropdownMenuTrigger
+                    render={
+                      <QuickActionButton label={t("menu.moreActions")}>
+                        <Ellipsis />
+                      </QuickActionButton>
+                    }
                   />
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          )}
-        </div>
-      </ContextMenuTrigger>
+                  <DropdownMenuContent
+                    align="end"
+                    className="w-48"
+                    onKeyDown={runMenuItemShortcut}
+                  >
+                    <CardMenuEntries
+                      entries={menuItems}
+                      Item={DropdownMenuItem}
+                      Separator={DropdownMenuSeparator}
+                      Shortcut={DropdownMenuShortcut}
+                    />
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            )}
+          </div>
+        }
+      />
 
       <ContextMenuContent className="w-48" onKeyDown={runMenuItemShortcut}>
         <CardMenuEntries

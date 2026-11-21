@@ -49,15 +49,15 @@ mock.module("@/components/ui/dropdown-menu", () => ({
   DropdownMenuItem: ({
     children,
     disabled,
-    onSelect,
+    onClick,
   }: {
     children: ReactNode;
     disabled?: boolean;
-    onSelect?: () => void;
+    onClick?: () => void;
   }) => (
     <button
       disabled={disabled}
-      onClick={() => onSelect?.()}
+      onClick={() => onClick?.()}
       role="menuitem"
       type="button"
     >
@@ -71,7 +71,7 @@ mock.module("@/components/ui/dropdown-menu", () => ({
     children: ReactNode;
     className?: string;
   }) => <kbd className={className}>{children}</kbd>,
-  DropdownMenuTrigger: ({ children }: { children: ReactNode }) => children,
+  DropdownMenuTrigger: ({ render }: { render: ReactNode }) => render,
 }));
 
 const { act } = await import("react");

@@ -233,10 +233,10 @@ export function isTypingTarget(target: EventTarget | null): boolean {
 
 /** Anything open over the page that takes keys: a dialog, a menu, a list. */
 export const OPEN_OVERLAYS = [
-  "[role='dialog'][data-state='open']",
-  "[role='alertdialog'][data-state='open']",
-  "[role='menu'][data-state='open']",
-  "[role='listbox'][data-state='open']",
+  "[role='dialog'][data-open]",
+  "[role='alertdialog'][data-open]",
+  "[role='menu'][data-open]",
+  "[role='listbox'][data-open]",
 ] as const;
 
 /** An open overlay, the shortcuts list aside: shortcuts work over that. */

@@ -103,9 +103,9 @@ function PaletteSwatch({ hex, onRemove }: PaletteSwatchProps) {
 
   return (
     <ContextMenu>
-      <ContextMenuTrigger asChild>{swatch}</ContextMenuTrigger>
+      <ContextMenuTrigger render={swatch} />
       <ContextMenuContent>
-        <ContextMenuItem onSelect={() => onRemove(hex)}>
+        <ContextMenuItem onClick={() => onRemove(hex)}>
           {t("removeColor")}
         </ContextMenuItem>
       </ContextMenuContent>

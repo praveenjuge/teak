@@ -37,7 +37,7 @@ export function ActionCell({
         aria-label={label}
         aria-pressed={pressed}
         className={cn(
-          "flex h-13 min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-35 data-[state=open]:bg-muted data-[state=open]:text-foreground [&_svg]:size-4 [&_svg]:shrink-0",
+          "flex h-13 min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-35 data-popup-open:bg-muted data-popup-open:text-foreground [&_svg]:size-4 [&_svg]:shrink-0",
           pressed && tone === "primary" && "text-primary hover:text-primary",
           className
         )}
@@ -152,9 +152,10 @@ export function SidebarTitle({
         {!showTitle && added ? (
           <>
             <span aria-hidden="true">·</span>
-            <DialogDescription asChild className="text-xs">
-              <span className="truncate">{added}</span>
-            </DialogDescription>
+            <DialogDescription
+              className="text-xs"
+              render={<span className="truncate">{added}</span>}
+            />
           </>
         ) : null}
         {/* Always in the page, so screen readers hear "Saving…", "Saved"

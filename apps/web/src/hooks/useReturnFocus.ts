@@ -10,6 +10,11 @@ function focusedElement(): HTMLElement | null {
     : null;
 }
 
+/**
+ * Remembers what had focus when an overlay opened. The returned function is
+ * an overlay's `finalFocus`: it gives back that element if it's still on the
+ * page, else `fallback`, else `true` for the overlay's own default.
+ */
 export function useReturnFocus(open: boolean) {
   const returnFocusRef = useRef<HTMLElement | null>(null);
   const wasOpenRef = useRef(false);
@@ -18,14 +23,11 @@ export function useReturnFocus(open: boolean) {
   }
   wasOpenRef.current = open;
 
-  return useCallback((event: Event, fallback?: HTMLElement | null) => {
+  return useCallback((fallback?: HTMLElement | null): HTMLElement | true => {
     const target = returnFocusRef.current?.isConnected
       ? returnFocusRef.current
       : fallback;
     returnFocusRef.current = null;
-    if (target) {
-      event.preventDefault();
-      target.focus({ preventScroll: true });
-    }
+    return target ?? true;
   }, []);
 }

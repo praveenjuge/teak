@@ -58,7 +58,7 @@ describe("context menu items ignore the release that opened the menu", () => {
         <ContextMenu>
           <ContextMenuTrigger>Card</ContextMenuTrigger>
           <ContextMenuContent>
-            <ContextMenuItem onSelect={onSelect}>Select</ContextMenuItem>
+            <ContextMenuItem onClick={onSelect}>Select</ContextMenuItem>
           </ContextMenuContent>
         </ContextMenu>
       )
@@ -81,10 +81,12 @@ describe("context menu items ignore the release that opened the menu", () => {
     return item as HTMLElement;
   }
 
+  // Away from where the menu opened: Base UI already ignores a release that
+  // never moved.
   const release = async (item: HTMLElement, button: number) => {
     await act(() => {
       item.dispatchEvent(
-        new PointerEvent("pointerup", { bubbles: true, button })
+        new MouseEvent("mouseup", { bubbles: true, button, clientX: 40 })
       );
     });
   };

@@ -224,7 +224,7 @@
   --teak-toaster-center: calc(50% + var(--teak-content-left) / 2);
 }
 
-:root:has([data-slot="dialog-content"][data-state="open"]) {
+:root:has([data-slot="dialog-content"][data-open]) {
   --teak-toaster-center: 50%;
 }
 

@@ -163,12 +163,16 @@ export function DocumentPreview({ card }: DocumentPreviewProps) {
           </p>
         </div>
         {fileUrl ? (
-          <Button asChild size="sm" variant="outline">
-            <a href={fileUrl} rel="noopener noreferrer" target="_blank">
-              <ExternalLink data-icon="inline-start" />
-              {t("openFile")}
-            </a>
-          </Button>
+          <Button
+            render={
+              <a href={fileUrl} rel="noopener noreferrer" target="_blank">
+                <ExternalLink data-icon="inline-start" />
+                {t("openFile")}
+              </a>
+            }
+            size="sm"
+            variant="outline"
+          />
         ) : null}
       </div>
 

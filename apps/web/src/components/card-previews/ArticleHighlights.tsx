@@ -20,11 +20,7 @@ import { toast } from "sonner";
 import { Highlighter, Trash } from "vadivam-react";
 import { ShortcutKeys } from "@/components/shortcuts/ShortcutTooltip";
 import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverAnchor,
-  PopoverContent,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent } from "@/components/ui/popover";
 import {
   Sheet,
   SheetContent,
@@ -198,13 +194,15 @@ function HighlightButton({
     return button;
   }
   return (
-    <TooltipProvider delayDuration={150}>
+    <TooltipProvider delay={150}>
       <Tooltip>
-        <TooltipTrigger asChild>
-          <span className="inline-flex" tabIndex={-1}>
-            {button}
-          </span>
-        </TooltipTrigger>
+        <TooltipTrigger
+          render={
+            <span className="inline-flex" tabIndex={-1}>
+              {button}
+            </span>
+          }
+        />
         <TooltipContent side="top">
           {t("limitReached", { max: MAX_HIGHLIGHTS_PER_CARD })}
         </TooltipContent>
@@ -451,12 +449,10 @@ export function ArticleHighlights({
     return () => window.clearTimeout(timer);
   }, [jump?.id, jump?.seq, indexed, rangeOf]);
 
-  const anchorRef = useMemo(
+  const anchor = useMemo(
     () => ({
-      current: {
-        getBoundingClientRect: () =>
-          rangeOf(openId)?.getBoundingClientRect() ?? new DOMRect(),
-      },
+      getBoundingClientRect: () =>
+        rangeOf(openId)?.getBoundingClientRect() ?? new DOMRect(),
     }),
     [openId, rangeOf]
   );
@@ -529,15 +525,12 @@ export function ArticleHighlights({
           }}
           open={Boolean(open)}
         >
-          <PopoverAnchor virtualRef={anchorRef} />
           <PopoverContent
+            anchor={anchor}
             aria-label={t("noteLabel")}
             className={cn("w-80 p-3")}
-            onOpenAutoFocus={(event) => {
-              if (open?.note) {
-                event.preventDefault();
-              }
-            }}
+            // Focus moves into the editor only for a new note.
+            initialFocus={!open?.note}
             side="bottom"
           >
             {editor}

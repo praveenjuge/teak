@@ -26,7 +26,7 @@ export function HeaderIconButton({
         aria-label={label}
         aria-pressed={pressed}
         className={cn(
-          "flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-35 data-[state=open]:bg-muted data-[state=open]:text-foreground [&_svg]:size-4",
+          "flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-35 data-popup-open:bg-muted data-popup-open:text-foreground [&_svg]:size-4",
           className
         )}
         ref={ref}

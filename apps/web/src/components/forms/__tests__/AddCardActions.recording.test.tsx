@@ -35,12 +35,23 @@ mock.module("@/components/ui/dialog", () => ({
     open,
   }: {
     children: ReactNode;
-    onOpenChange: (open: boolean) => void;
+    onOpenChange: (
+      open: boolean,
+      details: { cancel: () => void; reason: string }
+    ) => void;
     open: boolean;
   }) =>
     open ? (
       <div data-dialog="">
-        <button onClick={() => onOpenChange(false)} type="button">
+        <button
+          onClick={() =>
+            onOpenChange(false, {
+              cancel: () => undefined,
+              reason: "close-press",
+            })
+          }
+          type="button"
+        >
           Dismiss
         </button>
         {children}

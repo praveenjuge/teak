@@ -19,7 +19,7 @@ afterEach(async () => {
   root = undefined;
 });
 
-async function render(returnFocus?: (event: Event) => void) {
+async function render(returnFocus?: () => HTMLElement | boolean) {
   function Harness() {
     hook = useRunAfterClose(returnFocus);
     return null;
@@ -28,35 +28,29 @@ async function render(returnFocus?: (event: Event) => void) {
   await act(() => root?.render(<Harness />));
 }
 
-const closing = () => new Event("focusOutside", { cancelable: true });
-
 test("runs what was queued once the overlay closes, in place of its focus", async () => {
-  const returnFocus = mock();
+  const returnFocus = mock(() => true);
   await render(returnFocus);
   const action = mock();
   hook.runAfterClose(action);
-  const event = closing();
-  hook.onCloseAutoFocus(event);
+  expect(hook.finalFocus()).toBe(false);
   expect(action).toHaveBeenCalledTimes(1);
-  expect(event.defaultPrevented).toBe(true);
   expect(returnFocus).not.toHaveBeenCalled();
 });
 
 test("runs it once: the next close gives focus back as usual", async () => {
-  const returnFocus = mock();
+  const target = document.createElement("button");
+  const returnFocus = mock(() => target);
   await render(returnFocus);
   const action = mock();
   hook.runAfterClose(action);
-  hook.onCloseAutoFocus(closing());
-  const event = closing();
-  hook.onCloseAutoFocus(event);
+  hook.finalFocus();
+  expect(hook.finalFocus()).toBe(target);
   expect(action).toHaveBeenCalledTimes(1);
-  expect(returnFocus).toHaveBeenCalledWith(event);
+  expect(returnFocus).toHaveBeenCalledTimes(1);
 });
 
 test("with nothing queued and no return target, leaves the overlay's own focus alone", async () => {
   await render();
-  const event = closing();
-  hook.onCloseAutoFocus(event);
-  expect(event.defaultPrevented).toBe(false);
+  expect(hook.finalFocus()).toBe(true);
 });

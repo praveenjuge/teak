@@ -147,13 +147,15 @@ function ArchivedCopyChip({ checkedAt }: { checkedAt: number }) {
     year: "numeric",
   }).format(checkedAt);
   return (
-    <TooltipProvider delayDuration={300}>
+    <TooltipProvider delay={300}>
       <Tooltip>
-        <TooltipTrigger asChild>
-          <Badge className="shrink-0" variant="outline">
-            {t("archivedCopy")}
-          </Badge>
-        </TooltipTrigger>
+        <TooltipTrigger
+          render={
+            <Badge className="shrink-0" variant="outline">
+              {t("archivedCopy")}
+            </Badge>
+          }
+        />
         <TooltipContent>{t("archivedCopyTooltip", { date })}</TooltipContent>
       </Tooltip>
     </TooltipProvider>

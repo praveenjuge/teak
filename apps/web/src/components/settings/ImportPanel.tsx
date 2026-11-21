@@ -341,7 +341,7 @@ export function ImportSourceHint({ mode }: { mode: ImportMode }) {
       {mode === "csv" ? (
         <Collapsible>
           <CollapsibleTrigger className="group inline-flex items-center gap-1 rounded-sm text-muted-foreground text-xs leading-5 outline-none hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50">
-            <ChevronRight className="size-3.5 transition-transform duration-200 ease-out group-data-[state=open]:rotate-90" />
+            <ChevronRight className="size-3.5 transition-transform duration-200 ease-out group-data-panel-open:rotate-90" />
             {t("csvExample")}
           </CollapsibleTrigger>
           <CollapsibleContent>
@@ -606,7 +606,16 @@ export function ImportPanel({ onActiveChange }: ImportPanelProps) {
           <SettingsRow
             action={
               <Select
-                onValueChange={(value) => setSource(value as ImportMode)}
+                // Lets the trigger show the chosen source's name, not its id.
+                items={IMPORT_PICKER_MODES.map((mode) => ({
+                  label: t(`sources.${mode}.title`),
+                  value: mode,
+                }))}
+                onValueChange={(value) => {
+                  if (value) {
+                    setSource(value as ImportMode);
+                  }
+                }}
                 value={source}
               >
                 <SelectTrigger

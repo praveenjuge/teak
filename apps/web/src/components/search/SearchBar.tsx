@@ -675,24 +675,26 @@ export function SearchBar({
           )}
           {overflowChips.length > 0 && (
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  aria-label={t("bar.moreFilters", {
-                    count: overflowChips.length,
-                  })}
-                  className="inline-flex h-6 shrink-0 items-center rounded-md bg-background px-1.5 font-medium text-muted-foreground text-xs shadow-xs ring-1 ring-border/70 hover:text-foreground"
-                  onMouseDown={preventBlur}
-                  type="button"
-                >
-                  +{overflowChips.length}
-                </button>
-              </DropdownMenuTrigger>
+              <DropdownMenuTrigger
+                render={
+                  <button
+                    aria-label={t("bar.moreFilters", {
+                      count: overflowChips.length,
+                    })}
+                    className="inline-flex h-6 shrink-0 items-center rounded-md bg-background px-1.5 font-medium text-muted-foreground text-xs shadow-xs ring-1 ring-border/70 hover:text-foreground"
+                    onMouseDown={preventBlur}
+                    type="button"
+                  >
+                    +{overflowChips.length}
+                  </button>
+                }
+              />
               <DropdownMenuContent align="start" className="w-56">
                 {overflowChips.map((chip) => (
                   <DropdownMenuItem
                     aria-label={chip.ariaLabel}
                     key={chip.key}
-                    onSelect={chip.onRemove}
+                    onClick={chip.onRemove}
                   >
                     {chip.icon}
                     <span className="min-w-0 flex-1 truncate" dir="auto">

@@ -19,14 +19,14 @@ import {
 import { cn } from "../../lib/utils";
 
 interface KeyboardShortcutsDialogProps {
-  onCloseAutoFocus?: (event: Event) => void;
+  finalFocus?: () => HTMLElement | boolean;
   onOpenChange: (open: boolean) => void;
   open: boolean;
 }
 
 export function KeyboardShortcutsDialog({
   open,
-  onCloseAutoFocus,
+  finalFocus,
   onOpenChange,
 }: KeyboardShortcutsDialogProps) {
   const t = useTranslations("modals.shortcuts");
@@ -39,7 +39,7 @@ export function KeyboardShortcutsDialog({
     <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent
         className="flex max-h-[calc(100dvh-4rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-sm"
-        onCloseAutoFocus={onCloseAutoFocus}
+        finalFocus={finalFocus}
         {...{ [SHORTCUTS_DIALOG_ATTRIBUTE]: "" }}
       >
         <DialogHeader className="gap-1 border-b px-5 pt-5 pb-3 text-left">

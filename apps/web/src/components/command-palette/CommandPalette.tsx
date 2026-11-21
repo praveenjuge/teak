@@ -353,7 +353,7 @@ function usePaletteCards(query: string, pathname: string | null) {
 }
 
 interface CommandPaletteProps {
-  onCloseAutoFocus?: (event: Event) => void;
+  finalFocus?: () => HTMLElement | boolean;
   onOpenChange: (open: boolean) => void;
   onSelect: (command: CommandPaletteCommand) => void;
   open: boolean;
@@ -361,7 +361,7 @@ interface CommandPaletteProps {
 }
 
 export function CommandPalette({
-  onCloseAutoFocus,
+  finalFocus,
   onOpenChange,
   onSelect,
   open,
@@ -412,7 +412,7 @@ export function CommandPalette({
         vimBindings: false,
       }}
       description={t("description")}
-      onCloseAutoFocus={onCloseAutoFocus}
+      finalFocus={finalFocus}
       onOpenChange={onOpenChange}
       open={open}
       title={t("title")}

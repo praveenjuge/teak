@@ -466,11 +466,8 @@ export function RevisitDeck({
       <DialogContent
         className="fixed top-0 left-0 h-dvh w-dvw max-w-none translate-x-0! translate-y-0! transform-none overscroll-contain rounded-none! border-0 p-0 shadow-none outline-none [--revisit-card-height:min(50dvh,34rem)] sm:max-w-none"
         data-revisit-deck=""
+        initialFocus={contentRef}
         onKeyDown={handleKeyDown}
-        onOpenAutoFocus={(event) => {
-          event.preventDefault();
-          contentRef.current?.focus();
-        }}
         ref={contentRef}
         showCloseButton={false}
       >

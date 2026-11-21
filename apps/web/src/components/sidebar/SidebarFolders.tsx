@@ -277,12 +277,36 @@ export function SidebarFolders({
               }}
             >
               <SidebarMenuButton
-                asChild
                 className={cn(
                   isDropTarget &&
                     "bg-sidebar-accent text-sidebar-accent-foreground ring-1 ring-sidebar-ring"
                 )}
                 isActive={isActive}
+                render={
+                  <LinkComponent
+                    aria-current={isActive ? "page" : undefined}
+                    href={folderPath(folder._id)}
+                    onClick={navigate}
+                  >
+                    {/* Wrapped, so the folder's color wins over the menu's icon style. */}
+                    <span
+                      aria-hidden="true"
+                      className="flex size-3.5 shrink-0 items-center justify-center"
+                    >
+                      <FolderIcon
+                        className={cn(
+                          "size-3.5",
+                          folder.color
+                            ? FOLDER_ICON_CLASSES[folder.color]
+                            : "text-sidebar-foreground opacity-55"
+                        )}
+                      />
+                    </span>
+                    <span dir="auto" title={folder.name}>
+                      {folder.name}
+                    </span>
+                  </LinkComponent>
+                }
                 tooltip={
                   !isSmart && folder.activeCardCount > 0
                     ? {
@@ -300,33 +324,9 @@ export function SidebarFolders({
                       }
                     : folder.name
                 }
-              >
-                <LinkComponent
-                  aria-current={isActive ? "page" : undefined}
-                  href={folderPath(folder._id)}
-                  onClick={navigate}
-                >
-                  {/* Wrapped, so the folder's color wins over the menu's icon style. */}
-                  <span
-                    aria-hidden="true"
-                    className="flex size-3.5 shrink-0 items-center justify-center"
-                  >
-                    <FolderIcon
-                      className={cn(
-                        "size-3.5",
-                        folder.color
-                          ? FOLDER_ICON_CLASSES[folder.color]
-                          : "text-sidebar-foreground opacity-55"
-                      )}
-                    />
-                  </span>
-                  <span dir="auto" title={folder.name}>
-                    {folder.name}
-                  </span>
-                </LinkComponent>
-              </SidebarMenuButton>
+              />
               {!isSmart && folder.activeCardCount > 0 && (
-                <SidebarMenuBadge className="not-pointer-fine:right-8 transition-opacity group-has-data-[state=open]/menu-item:opacity-0 max-md:right-8 md:group-hover/menu-item:opacity-0 md:group-focus-within/menu-item:opacity-0">
+                <SidebarMenuBadge className="not-pointer-fine:right-8 transition-opacity group-has-data-popup-open/menu-item:opacity-0 max-md:right-8 md:group-hover/menu-item:opacity-0 md:group-focus-within/menu-item:opacity-0">
                   {folder.activeCardCount}
                 </SidebarMenuBadge>
               )}
@@ -336,26 +336,28 @@ export function SidebarFolders({
                 }
                 open={menuFolderId === folder._id}
               >
-                <DropdownMenuTrigger asChild>
-                  <SidebarMenuAction
-                    aria-label={t("moreFor", { name: folder.name })}
-                    showOnHover
-                  >
-                    <Ellipsis />
-                  </SidebarMenuAction>
-                </DropdownMenuTrigger>
+                <DropdownMenuTrigger
+                  render={
+                    <SidebarMenuAction
+                      aria-label={t("moreFor", { name: folder.name })}
+                      showOnHover
+                    >
+                      <Ellipsis />
+                    </SidebarMenuAction>
+                  }
+                />
                 <DropdownMenuContent
                   align={isMobile ? "end" : "start"}
                   className="w-48"
                   side={isMobile ? "bottom" : "right"}
                 >
-                  <DropdownMenuItem onSelect={() => setDialog({ folder })}>
+                  <DropdownMenuItem onClick={() => setDialog({ folder })}>
                     <Pencil />
                     {isSmart ? t("renameItem") : t("editItem")}
                   </DropdownMenuItem>
                   {isSmart && (
                     <DropdownMenuItem
-                      onSelect={() => setDialog({ folder, focusQuery: true })}
+                      onClick={() => setDialog({ folder, focusQuery: true })}
                     >
                       <FolderSearch />
                       {t("editSearch")}
@@ -391,7 +393,7 @@ export function SidebarFolders({
                   </DropdownMenuSub>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
-                    onSelect={() => {
+                    onClick={() => {
                       remove(folder).catch(() => undefined);
                     }}
                     variant="destructive"

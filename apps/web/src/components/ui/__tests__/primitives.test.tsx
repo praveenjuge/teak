@@ -78,9 +78,7 @@ test("a label respects caller cancellation and leaves nested controls alone", as
 
 test("a label can use its child without adding a wrapper", async () => {
   const container = await render(
-    <Label asChild className="custom">
-      <label htmlFor="field">Name</label>
-    </Label>
+    <Label className="custom" render={<label htmlFor="field">Name</label>} />
   );
   expect(container.querySelectorAll("label").length).toBe(1);
   expect(container.firstElementChild?.getAttribute("data-slot")).toBe("label");
@@ -116,9 +114,11 @@ test.each(["horizontal", "vertical"] as const)(
 
 test("separator child composition keeps one element and caller attributes", async () => {
   const container = await render(
-    <Separator aria-label="Section" asChild decorative={false}>
-      <div className="custom" />
-    </Separator>
+    <Separator
+      aria-label="Section"
+      decorative={false}
+      render={<div className="custom" />}
+    />
   );
   expect(container.querySelectorAll("div").length).toBe(1);
   expect(container.firstElementChild?.getAttribute("aria-label")).toBe(

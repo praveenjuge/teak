@@ -1,36 +1,37 @@
-import { Slot } from "@radix-ui/react-slot";
-import type * as React from "react";
+import { mergeProps } from "@base-ui/react/merge-props";
+import { useRender } from "@base-ui/react/use-render";
 
 import { cn } from "../../lib/utils";
 
 function Separator({
-  asChild = false,
   className,
   orientation = "horizontal",
   decorative = true,
+  render,
   ...props
-}: React.ComponentProps<"div"> & {
-  asChild?: boolean;
+}: useRender.ComponentProps<"div"> & {
   orientation?: "horizontal" | "vertical";
   decorative?: boolean;
 }) {
-  const Component = asChild ? Slot : "div";
   const direction = orientation === "vertical" ? "vertical" : "horizontal";
-  return (
-    <Component
-      aria-orientation={
-        !decorative && direction === "vertical" ? direction : undefined
-      }
-      className={cn(
-        "shrink-0 bg-border data-[orientation=horizontal]:h-px data-[orientation=vertical]:h-full data-[orientation=horizontal]:w-full data-[orientation=vertical]:w-px",
-        className
-      )}
-      data-orientation={direction}
-      data-slot="separator"
-      role={decorative ? "none" : "separator"}
-      {...props}
-    />
-  );
+  return useRender({
+    defaultTagName: "div",
+    render,
+    props: mergeProps<"div">(
+      {
+        "aria-orientation":
+          !decorative && direction === "vertical" ? direction : undefined,
+        className: cn(
+          "shrink-0 bg-border data-[orientation=horizontal]:h-px data-[orientation=vertical]:h-full data-[orientation=horizontal]:w-full data-[orientation=vertical]:w-px",
+          className
+        ),
+        "data-orientation": direction,
+        "data-slot": "separator",
+        role: decorative ? "none" : "separator",
+      } as useRender.ElementProps<"div">,
+      props
+    ),
+  });
 }
 
 export { Separator };

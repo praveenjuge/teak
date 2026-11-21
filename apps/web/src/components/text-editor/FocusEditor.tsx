@@ -125,7 +125,17 @@ export function FocusEditor({
 
   return (
     <Dialog
-      onOpenChange={(nextOpen) => {
+      onOpenChange={(nextOpen, details) => {
+        // An editor popup (link, slash menu) takes Escape before the dialog.
+        const dialog = contentRef.current;
+        if (
+          details.reason === "escape-key" &&
+          dialog &&
+          editorPopupOwnsEscape(dialog, document.activeElement)
+        ) {
+          details.cancel();
+          return;
+        }
         if (!nextOpen) {
           onRequestClose();
         }
@@ -135,15 +145,7 @@ export function FocusEditor({
       <DialogContent
         className="fixed top-0 left-0 h-dvh w-dvw max-w-none translate-x-0! translate-y-0! transform-none overscroll-contain rounded-none! border-0 p-0 shadow-none sm:max-w-none"
         data-focus-editor=""
-        onCloseAutoFocus={(event) =>
-          returnFocus(event, fallbackFocusRef?.current)
-        }
-        onEscapeKeyDown={(event) => {
-          const dialog = contentRef.current;
-          if (dialog && editorPopupOwnsEscape(dialog, document.activeElement)) {
-            event.preventDefault();
-          }
-        }}
+        finalFocus={() => returnFocus(fallbackFocusRef?.current)}
         onKeyDown={(event) => {
           if (!event.defaultPrevented && isFocusNoteKey(event.nativeEvent)) {
             event.preventDefault();

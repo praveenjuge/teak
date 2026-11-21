@@ -140,27 +140,29 @@ export function TableMenu({ editor }: { editor: Editor }) {
       }}
       open={open}
     >
-      <DropdownMenuTrigger asChild>
-        <Button
-          aria-label={t("table.options")}
-          className="absolute z-20 size-7 rounded-md bg-background/90 text-muted-foreground shadow-xs backdrop-blur-sm hover:text-foreground"
-          onBlur={() => setButtonFocused(false)}
-          onFocus={() => setButtonFocused(true)}
-          onPointerEnter={() => setOverButton(true)}
-          onPointerLeave={() => setOverButton(false)}
-          ref={button}
-          size="icon"
-          variant="outline"
-        >
-          <Ellipsis />
-        </Button>
-      </DropdownMenuTrigger>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            aria-label={t("table.options")}
+            className="absolute z-20 size-7 rounded-md bg-background/90 text-muted-foreground shadow-xs backdrop-blur-sm hover:text-foreground"
+            onBlur={() => setButtonFocused(false)}
+            onFocus={() => setButtonFocused(true)}
+            onPointerEnter={() => setOverButton(true)}
+            onPointerLeave={() => setOverButton(false)}
+            ref={button}
+            size="icon"
+            variant="outline"
+          >
+            <Ellipsis />
+          </Button>
+        }
+      />
       <DropdownMenuContent
         align="end"
         className="w-52"
-        onCloseAutoFocus={(event) => {
-          event.preventDefault();
+        finalFocus={() => {
           editor.commands.focus();
+          return false;
         }}
       >
         {actions.map((item) => (
@@ -188,7 +190,7 @@ function TableMenuItem({
       ) : null}
       <DropdownMenuItem
         disabled={Boolean(item.disabled)}
-        onSelect={() => onRun(item.action)}
+        onClick={() => onRun(item.action)}
         variant={destructive ? "destructive" : "default"}
       >
         <span className="flex flex-col">

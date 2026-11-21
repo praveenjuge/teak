@@ -75,7 +75,7 @@ export function TextPreview({
         isFocusOpenRef.current ||
         readOnlyRef.current ||
         !isFocusNoteKey(event) ||
-        document.querySelector("[role='menu'][data-state='open']") ||
+        document.querySelector("[role='menu'][data-open]") ||
         !isInOwnDialog(event.target)
       ) {
         return;

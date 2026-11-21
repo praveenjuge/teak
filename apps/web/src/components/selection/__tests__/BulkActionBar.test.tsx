@@ -60,11 +60,7 @@ function button(name: string) {
 
 async function openMoreMenu() {
   const trigger = button("More actions");
-  await act(() => {
-    trigger.dispatchEvent(
-      new KeyboardEvent("keydown", { bubbles: true, key: "Enter" })
-    );
-  });
+  await act(() => trigger.click());
 }
 
 function itemName(element: Element) {

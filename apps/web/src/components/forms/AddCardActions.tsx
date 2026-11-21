@@ -19,6 +19,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  type DialogOpenChangeDetails,
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
@@ -47,7 +48,7 @@ interface AddCardProviderProps {
   onSuccess?: () => void;
 }
 
-const NEW_MENU_TRIGGER_CLASS = "data-[state=open]:bg-sidebar-accent";
+const NEW_MENU_TRIGGER_CLASS = "data-popup-open:bg-sidebar-accent";
 
 export function NewMenuPlaceholder() {
   const t = useTranslations("forms.addCardActions");
@@ -65,16 +66,18 @@ function NewMenuTrigger() {
   const t = useTranslations("forms.addCardActions");
   return (
     <SidebarMenuItem>
-      <DropdownMenuTrigger asChild>
-        <SidebarMenuButton
-          className={NEW_MENU_TRIGGER_CLASS}
-          tooltip={t("new")}
-          type="button"
-        >
-          <Plus />
-          <span>{t("new")}</span>
-        </SidebarMenuButton>
-      </DropdownMenuTrigger>
+      <DropdownMenuTrigger
+        render={
+          <SidebarMenuButton
+            className={NEW_MENU_TRIGGER_CLASS}
+            tooltip={t("new")}
+            type="button"
+          >
+            <Plus />
+            <span>{t("new")}</span>
+          </SidebarMenuButton>
+        }
+      />
     </SidebarMenuItem>
   );
 }
@@ -356,7 +359,18 @@ export function AddCardProvider({
     setTimeout(() => URL.revokeObjectURL(url), 0);
   };
 
-  const handleDialogOpenChange = (open: boolean) => {
+  const handleDialogOpenChange = (
+    open: boolean,
+    details: DialogOpenChangeDetails
+  ) => {
+    // A press outside never drops a recording in progress or unsaved.
+    if (
+      details.reason === "outside-press" &&
+      (isRecording || isSubmitting || unsaved)
+    ) {
+      details.cancel();
+      return;
+    }
     if (open) {
       setIsRecordingDialogOpen(true);
       return;
@@ -462,15 +476,7 @@ export function AddCardProvider({
         onOpenChange={handleDialogOpenChange}
         open={isRecordingDialogOpen}
       >
-        <DialogContent
-          className="max-w-sm text-center"
-          onInteractOutside={(event) => {
-            if (isRecording || isSubmitting || unsaved) {
-              event.preventDefault();
-            }
-          }}
-          showCloseButton={false}
-        >
+        <DialogContent className="max-w-sm text-center" showCloseButton={false}>
           <DialogTitle>{t("recordingTitle")}</DialogTitle>
           <DialogDescription aria-live="polite">
             {recordingStatusDescription}
@@ -563,7 +569,7 @@ function NewMenuItems({
       {newNote ? (
         <DropdownMenuItem
           aria-keyshortcuts={NEW_NOTE_KEY}
-          onSelect={() => {
+          onClick={() => {
             // The composer takes focus once the menu has let go of it.
             runAfterClose(newNote);
           }}
@@ -576,7 +582,7 @@ function NewMenuItems({
       <DropdownMenuItem
         aria-keyshortcuts={UPLOAD_KEY}
         disabled={controls.isUploading}
-        onSelect={() => {
+        onClick={() => {
           keepFocus();
           // The file picker opens only straight from the person's press.
           controls.uploadFiles();
@@ -589,7 +595,7 @@ function NewMenuItems({
       <DropdownMenuItem
         aria-keyshortcuts={RECORD_KEY}
         disabled={!controls.canStartRecording}
-        onSelect={() => {
+        onClick={() => {
           keepFocus();
           controls.recordAudio();
         }}
@@ -611,14 +617,14 @@ function NewMenu({
   controls: AddCardControls;
   trigger: ReactNode;
 }) {
-  const { onCloseAutoFocus, runAfterClose } = useRunAfterClose();
+  const { finalFocus, runAfterClose } = useRunAfterClose();
   return (
     <DropdownMenu>
       {trigger}
       <DropdownMenuContent
         align={align}
         className="w-52"
-        onCloseAutoFocus={onCloseAutoFocus}
+        finalFocus={finalFocus}
         onKeyDown={runMenuItemShortcut}
         side="bottom"
       >
@@ -655,20 +661,22 @@ export function AddCardButton({ className }: { className?: string }) {
       align="end"
       controls={controls}
       trigger={
-        <DropdownMenuTrigger asChild>
-          <Button
-            aria-label={t("new")}
-            className={cn(
-              "size-9 shrink-0 text-muted-foreground md:hidden",
-              className
-            )}
-            size="icon"
-            type="button"
-            variant="ghost"
-          >
-            <Plus className="size-4" />
-          </Button>
-        </DropdownMenuTrigger>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              aria-label={t("new")}
+              className={cn(
+                "size-9 shrink-0 text-muted-foreground md:hidden",
+                className
+              )}
+              size="icon"
+              type="button"
+              variant="ghost"
+            >
+              <Plus className="size-4" />
+            </Button>
+          }
+        />
       }
     />
   );

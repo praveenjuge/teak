@@ -36,7 +36,7 @@ async function renderOpenDialog(onOpenChange: (open: boolean) => void) {
       </>
     )
   );
-  // Radix starts listening for outside presses on the next tick.
+  // Outside presses are heard from the next tick.
   await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
 }
 
@@ -61,11 +61,10 @@ test("pressing a toast's Undo leaves the dialog open", async () => {
 test("pressing the page behind it still closes the dialog", async () => {
   const onOpenChange = mock();
   await renderOpenDialog(onOpenChange);
-  const behind = Array.from(document.querySelectorAll("p")).find(
-    (p) => p.textContent === "Behind the dialog"
-  );
-  await press(behind as Element);
-  expect(onOpenChange).toHaveBeenCalledWith(false);
+  // The backdrop covers the page, so that's what a press behind lands on.
+  const backdrop = document.querySelector('[data-slot="dialog-overlay"]');
+  await press(backdrop as Element);
+  expect(onOpenChange.mock.calls[0]?.[0]).toBe(false);
 });
 
 function OpenedFromState() {
@@ -104,7 +103,7 @@ test("closing a dialog opened without a trigger returns focus to the opener", as
       new KeyboardEvent("keydown", { bubbles: true, key: "Escape" })
     );
   });
-  // Radix moves focus back on a zero-delay timer after it unmounts.
+  // Focus moves back once the dialog has unmounted.
   await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
   expect(document.querySelector("[role='dialog']")).toBeNull();
   expect(document.activeElement).toBe(manage);
