@@ -42,10 +42,12 @@ const authorizeUrl =
   (screen: "createSignIn" | "createSignUp") => async (options?: UrlOptions) => {
     const data = options?.data;
     const authkit = await sdk.getAuthkit();
-    const { url } = await authkit[screen](
-      undefined,
-      typeof data === "string" ? { returnPathname: data } : data
-    );
+    const urlOptions =
+      typeof data === "string" ? { returnPathname: data } : data;
+    const { url } =
+      screen === "createSignIn"
+        ? await authkit.createSignIn(undefined, urlOptions)
+        : await authkit.createSignUp(undefined, urlOptions);
     return url;
   };
 mock.module("@workos/authkit-tanstack-react-start", () => ({

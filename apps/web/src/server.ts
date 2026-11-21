@@ -17,8 +17,11 @@ function reportRequestError(error: unknown, request: Request) {
     lib: "teak-web-server",
     libVersion: packageJson.version,
     platform: "workers:javascript",
+    // Read from the environment, not a hard-coded token.
+    // nosemgrep: codacy.yaml.security.hard-coded-tokens
     token: resolvePostHogToken({
       analyticsEnabled: process.env.TEAK_ANALYTICS_ENABLED,
+      // nosemgrep: codacy.yaml.security.hard-coded-tokens
       token: process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN,
     }),
   });

@@ -20,6 +20,8 @@ export default defineConfig(({ mode }) => {
   const env = { ...loadEnv(mode, import.meta.dirname, ""), ...process.env };
   const posthogToken = resolvePostHogToken({
     analyticsEnabled: env.TEAK_ANALYTICS_ENABLED,
+    // Read from the environment, not a hard-coded token.
+    // nosemgrep: codacy.yaml.security.hard-coded-tokens
     token: env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN,
   });
   const uploadSourceMaps = Boolean(
@@ -53,6 +55,8 @@ export default defineConfig(({ mode }) => {
       alias: [
         { find: /^@\//, replacement: `${path.resolve("src")}/` },
         ...singletons.map((name) => ({
+          // Built from the fixed package names above, never from input.
+          // nosemgrep: javascript_dos_rule-non-literal-regexp
           find: new RegExp(`^${name}(/.*)?$`),
           replacement: `${path.join(workspaceRoot, "node_modules", name)}$1`,
         })),
