@@ -34,5 +34,7 @@ export function applyTheme(theme: ResolvedTheme) {
 }
 
 // The same as applyTheme(resolveTheme(...)), as a script that runs in the
-// document's head before the first paint.
-export const THEME_FROM_STORAGE = `(function(){try{var t=localStorage.getItem(${JSON.stringify(THEME_STORAGE_KEY)}),r=t==="light"||t==="dark"?t:matchMedia(${JSON.stringify(DARK_SCHEME_QUERY)}).matches?"dark":"light",e=document.documentElement;e.classList.remove(r==="dark"?"light":"dark");e.classList.add(r);e.style.colorScheme=r}catch(_){}})();`;
+// document's head before the first paint. It is a fixed string, with the
+// storage key and the media query written out; a test keeps them in step.
+export const THEME_FROM_STORAGE =
+  '(function(){try{var t=localStorage.getItem("theme"),r=t==="light"||t==="dark"?t:matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light",e=document.documentElement;e.classList.remove(r==="dark"?"light":"dark");e.classList.add(r);e.style.colorScheme=r}catch(_){}})();';
