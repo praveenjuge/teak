@@ -43,7 +43,9 @@ export function cardModalFrameClass(
   const stage = stageFor(card, shortNote);
   return cn(
     "flex flex-col gap-0 overflow-visible rounded-none border-0 bg-transparent p-0 shadow-none outline-none sm:max-w-none",
-    "data-closed:!animate-none data-open:duration-150",
+    // Closes at once. Base UI waits for running transitions before it
+    // unmounts, and the origin style changing on close would start one.
+    "data-closed:!animate-none data-closed:transition-none data-open:duration-150",
     "max-md:data-open:slide-in-from-bottom max-md:data-open:zoom-in-100 max-md:top-auto max-md:bottom-0 max-md:left-0 max-md:h-[94dvh] max-md:w-full max-md:max-w-full max-md:translate-x-0 max-md:translate-y-0",
     stage === "media" &&
       "md:h-[min(56rem,calc(100dvh-4rem))] md:w-[min(82rem,calc(100vw-8rem))]",

@@ -247,10 +247,11 @@ function Sidebar({
           data-sidebar="sidebar"
           data-slot="sidebar"
           finalFocus={mobileFinalFocus}
-          // Start on the current page's link.
+          // Start on the current page's item. The logo also links to the
+          // current page on Home, so match the item marked active instead.
           initialFocus={() =>
             document.querySelector<HTMLElement>(
-              '[data-mobile="true"] [aria-current="page"]'
+              '[data-mobile="true"] [data-sidebar="menu-button"][data-active="true"]'
             ) ?? true
           }
           side={side}

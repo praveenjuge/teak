@@ -99,6 +99,17 @@ const TagRow = memo(function TagRow({
 }: TagRowProps) {
   const t = useTranslations("screens.tags");
   const intlLocale = useIntlLocale();
+  // The menu mounts only while open, so closing it swaps in a new button and
+  // focus has nowhere to go back to. Refocus that button unless an item was
+  // picked: an item opens its own dialog, which takes focus.
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const refocusTriggerRef = useRef(false);
+  useEffect(() => {
+    if (!isMenuOpen && refocusTriggerRef.current) {
+      refocusTriggerRef.current = false;
+      triggerRef.current?.focus();
+    }
+  }, [isMenuOpen]);
   const trigger = (
     <Button
       aria-label={t("moreFor", { tag: tagDisplayName(item) })}
@@ -109,6 +120,7 @@ const TagRow = memo(function TagRow({
           "md:pointer-fine:opacity-0 md:group-hover/row:opacity-100 md:group-focus-within/row:opacity-100 md:focus-visible:opacity-100"
       )}
       onClick={isMenuOpen ? undefined : () => onMenuOpenChange(item.name)}
+      ref={triggerRef}
       size="icon"
       type="button"
       variant="ghost"
@@ -144,11 +156,16 @@ const TagRow = memo(function TagRow({
       </LinkComponent>
       {isMenuOpen ? (
         <DropdownMenu
-          onOpenChange={(open) => onMenuOpenChange(open ? item.name : null)}
+          onOpenChange={(open, details) => {
+            if (!open && details.reason !== "item-press") {
+              refocusTriggerRef.current = true;
+            }
+            onMenuOpenChange(open ? item.name : null);
+          }}
           open
         >
           <DropdownMenuTrigger render={trigger} />
-          <DropdownMenuContent align="end" className="w-44">
+          <DropdownMenuContent align="end" className="w-44" finalFocus={false}>
             <DropdownMenuItem onClick={() => onAction("rename", item)}>
               <Pencil />
               {t("rename")}

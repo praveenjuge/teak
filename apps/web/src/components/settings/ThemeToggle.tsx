@@ -33,7 +33,7 @@ export function ThemeToggle({ onThemeChange }: ThemeToggleProps) {
             className={cn(
               "inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[13px] outline-none transition-colors focus-visible:ring-[3px] focus-visible:ring-ring",
               selected
-                ? "bg-background font-medium text-foreground shadow-xs dark:bg-accent"
+                ? "bg-background font-medium text-foreground shadow-xs dark:bg-input"
                 : "text-muted-foreground hover:text-foreground"
             )}
             key={value}

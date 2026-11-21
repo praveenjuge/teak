@@ -30,7 +30,7 @@ function DialogOverlay({
   return (
     <DialogPrimitive.Backdrop
       className={cn(
-        "data-closed:fade-out-0 data-open:fade-in-0 fixed inset-0 z-50 bg-black/50 data-closed:animate-out data-open:animate-in dark:bg-black/80",
+        "data-closed:fade-out-0 data-open:fade-in-0 fixed inset-0 z-50 bg-black/50 data-closed:animate-out data-open:animate-in data-closed:fill-mode-forwards dark:bg-black/80",
         className
       )}
       data-slot="dialog-overlay"
@@ -57,7 +57,7 @@ function DialogContent({
       <DialogOverlay className={overlayClassName} />
       <DialogPrimitive.Popup
         className={cn(
-          "data-closed:fade-out-0 data-open:fade-in-0 data-closed:zoom-out-95 data-open:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-2xl border bg-background p-6 shadow-lg outline-none duration-200 data-closed:animate-out data-open:animate-in sm:max-w-lg",
+          "data-closed:fade-out-0 data-open:fade-in-0 data-closed:zoom-out-95 data-open:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-2xl border bg-background p-6 shadow-lg outline-none duration-200 data-closed:animate-out data-open:animate-in data-closed:fill-mode-forwards sm:max-w-lg",
           // The title leaves room for the Close button in the corner.
           showCloseButton && "[&_[data-slot=dialog-title]]:pr-8",
           className
