@@ -134,6 +134,11 @@ function RootDocument({ children }: { children: ReactNode }) {
 }
 
 function RootComponent() {
+  // Server-rendered buttons show before React wires them up; this marks the
+  // moment they work, which end-to-end tests wait for before clicking.
+  useEffect(() => {
+    document.documentElement.dataset.hydrated = "";
+  }, []);
   return <Outlet />;
 }
 

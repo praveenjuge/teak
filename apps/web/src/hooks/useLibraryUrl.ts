@@ -94,8 +94,12 @@ export function useLibraryUrl({ folderId }: { folderId?: string } = {}) {
         change.tagChanged ||
         change.filtersChanged;
       navigate({ href: nextUrl, replace: !step, resetScroll: false });
+      // A click on a link applies the typed search just before it navigates;
+      // written in the same tick, the router would fold this entry into the
+      // link's push and the page left behind would lose its search.
+      router.history.flush();
     },
-    [navigate]
+    [navigate, router]
   );
 
   const onNavigateView = useCallback(

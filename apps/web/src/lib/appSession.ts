@@ -1,18 +1,25 @@
 import { redirect } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
-import { getCookie, getRequestUrl } from "@tanstack/react-start/server";
+import {
+  getCookie,
+  getRequestHeaders,
+  getRequestUrl,
+} from "@tanstack/react-start/server";
 import {
   LOCALE_COOKIE,
   loadMessages,
   type PartialMessages,
   type UiLocale,
 } from "@teak/i18n";
-import { getAuth } from "@workos/authkit-tanstack-react-start";
+import { getAuth, getSignInUrl } from "@workos/authkit-tanstack-react-start";
 import type { AuthKitProviderProps } from "@workos/authkit-tanstack-react-start/client";
+import { configureWorkos } from "@/server/workos";
 import { signInPath } from "./authUrls";
+import { isDocumentRequest } from "./documentRequest";
 import type { QuerySeed } from "./firstLoadQueries";
 import { fetchFirstLoadSeeds } from "./firstLoadSeeds";
 import { localeFromCookie } from "./locale";
+import { getSafeNextPath } from "./safe-next-path";
 import {
   SIDEBAR_COOKIE_NAME,
   SIDEBAR_WIDTH_COOKIE_NAME,
@@ -48,6 +55,19 @@ export const loadAppSession = createServerFn({ method: "GET" })
       return { unavailable: true };
     }
     if (!auth.user) {
+      // A page load goes straight to hosted AuthKit, with its PKCE cookie;
+      // a client navigation can't follow that cross-origin hop, so it goes
+      // through /sign-in, which starts AuthKit as a page load.
+      if (isDocumentRequest(getRequestHeaders())) {
+        throw redirect({
+          href: await getSignInUrl({
+            data: {
+              returnPathname: getSafeNextPath(data.path) ?? "/",
+              redirectUri: configureWorkos().redirectUri,
+            },
+          }),
+        });
+      }
       throw redirect({ href: signInPath({ next: data.path }) });
     }
     const { accessToken, ...initialAuth } = auth;
