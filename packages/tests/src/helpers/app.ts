@@ -7,7 +7,7 @@ import {
   sessionTokenFor,
   waitForEmailedEvent,
 } from "./emulator";
-import { E2E_PASSWORD, env, uniqueEmail } from "./env";
+import { E2E_PASSWORD, env, FIXTURE_URLS, uniqueEmail } from "./env";
 import {
   type Browser,
   expect,
@@ -36,9 +36,13 @@ export const appPath = (path: string) => new URL(path, env.appUrl).toString();
 /**
  * Waits until the web app has hydrated, if the browser is on it: its pages
  * are server-rendered, so buttons show before clicks on them do anything.
- * A page on another origin (hosted sign-in) has nothing to wait for.
+ * A page on another origin (hosted sign-in), or the hermetic suite's static
+ * fixture app, has nothing to wait for.
  */
 export const expectHydrated = async (browser: Browser) => {
+  if (env.appUrl === FIXTURE_URLS.appOrigin) {
+    return;
+  }
   const appOrigin = new URL(env.appUrl).origin;
   await expect
     .poll(
