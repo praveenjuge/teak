@@ -166,6 +166,8 @@ Teak's `bun run setup`, `bun run dev` and `bun run doctor` work only against Tea
     bunx wrangler secret put VITE_PUBLIC_WORKOS_REDIRECT_URI
     ```
 
+    Upgrading a deployment from before these names: the web app used to read `NEXT_PUBLIC_*`. Before you deploy this version, rename your build values to `VITE_PUBLIC_*` and put the `VITE_PUBLIC_WORKOS_REDIRECT_URI` secret as above, or sign-in answers "Sign-in is temporarily unavailable". Once the new deploy signs in, delete the old secret with `bunx wrangler secret delete NEXT_PUBLIC_WORKOS_REDIRECT_URI`.
+
     The config has no routes and no `workers.dev` address, so attach your domain in the Cloudflare dashboard: open the `teak-app` Worker, then **Settings → Domains & Routes → Add → Custom Domain**, and enter `app.yourdomain.com` (its zone must be on Cloudflare). Later deploys keep it. There is no Node server to run: `bun run --cwd apps/web preview` previews a build locally only.
   </Step>
   <Step title="Turn billing off, or add it">

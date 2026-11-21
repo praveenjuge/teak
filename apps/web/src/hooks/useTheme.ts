@@ -49,13 +49,7 @@ const syncDocument = () =>
     applyTheme(resolveTheme(readPreference(), systemPrefersDark()))
   );
 
-// One set of listeners for every component that reads the theme: the
-// system's color scheme, and a choice made in another tab.
-function subscribe(listener: () => void) {
-  listeners.add(listener);
-  if (listeners.size > 1) {
-    return () => listeners.delete(listener);
-  }
+function listen(): () => void {
   const media = window.matchMedia(DARK_SCHEME_QUERY);
   const onSystemChange = () => {
     syncDocument();
@@ -70,10 +64,24 @@ function subscribe(listener: () => void) {
   media.addEventListener("change", onSystemChange);
   window.addEventListener("storage", onStorage);
   return () => {
+    media.removeEventListener("change", onSystemChange);
+    window.removeEventListener("storage", onStorage);
+  };
+}
+
+// One set of listeners for every component that reads the theme: the
+// system's color scheme, and a choice made in another tab. They come off
+// when the last reader goes, whichever one it is.
+let stopListening: (() => void) | undefined;
+
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  stopListening ??= listen();
+  return () => {
     listeners.delete(listener);
     if (listeners.size === 0) {
-      media.removeEventListener("change", onSystemChange);
-      window.removeEventListener("storage", onStorage);
+      stopListening?.();
+      stopListening = undefined;
     }
   };
 }

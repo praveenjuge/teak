@@ -148,6 +148,35 @@ describe("web environment writer", () => {
     expect(content).toContain(`VITE_PUBLIC_CONVEX_URL=${DEV.convexUrl}`);
   });
 
+  test("moves values under the old Next.js names to the Vite names", () => {
+    const dir = mkdtempSync(join(tmpdir(), "teak-authkit-"));
+    const path = join(dir, ".env.local");
+    writeFileSync(
+      path,
+      "NEXT_PUBLIC_WORKOS_REDIRECT_URI=https://teak.example.test/callback\nNEXT_PUBLIC_CONVEX_URL=http://127.0.0.1:3210\nNEXT_PUBLIC_CONVEX_SITE_URL=https://old.convex.site\nVITE_PUBLIC_CONVEX_SITE_URL=https://kept.convex.site\n"
+    );
+    expect(
+      ensureWebEnv(path, {
+        ...DEV,
+        siteUrl: "http://localhost:4300",
+        workos: {},
+      })
+    ).toBe("repaired");
+    const content = readFileSync(path, "utf-8");
+    expect(content).not.toContain("NEXT_PUBLIC_");
+    // A value a person set keeps its value under the new name.
+    expect(content).toContain(
+      "VITE_PUBLIC_WORKOS_REDIRECT_URI=https://teak.example.test/callback"
+    );
+    // A loopback value setup wrote is refreshed, as before.
+    expect(content).toContain(`VITE_PUBLIC_CONVEX_URL=${DEV.convexUrl}`);
+    // Where both names are set, the new one wins.
+    expect(content).toContain(
+      "VITE_PUBLIC_CONVEX_SITE_URL=https://kept.convex.site"
+    );
+    expect(content.match(/VITE_PUBLIC_CONVEX_SITE_URL=/g)).toHaveLength(1);
+  });
+
   test("treats loopback URLs and the emulator port as machine-local", () => {
     expect(isMachineLocalValue("SITE_URL", "http://localhost:4000")).toBe(true);
     expect(isMachineLocalValue("X", "http://127.0.0.1:4010")).toBe(true);

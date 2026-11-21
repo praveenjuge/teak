@@ -42,3 +42,46 @@ test("a theme picked while storage refuses writes is still the one in use", asyn
     refuse.mockRestore();
   }
 });
+
+test("a choice made in another tab applies here", async () => {
+  const container = document.createElement("div");
+  document.body.append(container);
+  root = createRoot(container);
+  await act(() => root?.render(<ThemeProbe />));
+
+  await act(() => {
+    window.dispatchEvent(
+      new StorageEvent("storage", { key: "theme", newValue: "light" })
+    );
+  });
+
+  expect(container.textContent).toBe("light light");
+  expect(document.documentElement.classList.contains("light")).toBe(true);
+});
+
+test("the window listeners come off when the last reader goes, whichever it is", async () => {
+  const added = spyOn(window, "addEventListener");
+  const removed = spyOn(window, "removeEventListener");
+  const storageCalls = (spy: typeof added) =>
+    spy.mock.calls.filter(([type]) => type === "storage").length;
+  try {
+    const first = createRoot(document.createElement("div"));
+    const second = createRoot(document.createElement("div"));
+    await act(() => first.render(<ThemeProbe />));
+    await act(() => second.render(<ThemeProbe />));
+    // The first reader leaves before the second.
+    await act(() => first.unmount());
+    expect(storageCalls(removed)).toBe(0);
+    await act(() => second.unmount());
+    expect(storageCalls(removed)).toBe(1);
+
+    const again = createRoot(document.createElement("div"));
+    await act(() => again.render(<ThemeProbe />));
+    await act(() => again.unmount());
+    expect(storageCalls(added)).toBe(2);
+    expect(storageCalls(removed)).toBe(2);
+  } finally {
+    added.mockRestore();
+    removed.mockRestore();
+  }
+});

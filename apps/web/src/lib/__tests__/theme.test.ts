@@ -1,4 +1,6 @@
 import { expect, test } from "bun:test";
+import { GlobalRegistrator } from "@happy-dom/global-registrator";
+
 import {
   DARK_SCHEME_QUERY,
   parseThemePreference,
@@ -6,6 +8,10 @@ import {
   THEME_FROM_STORAGE,
   THEME_STORAGE_KEY,
 } from "../theme";
+
+if (!GlobalRegistrator.isRegistered) {
+  GlobalRegistrator.register({ url: "http://localhost:3000" });
+}
 
 test("the head script reads the same key and query as the app", () => {
   expect(THEME_FROM_STORAGE).toContain(
@@ -25,3 +31,38 @@ test("an unknown stored value follows the system", () => {
   expect(resolveTheme("system", false)).toBe("light");
   expect(resolveTheme("light", true)).toBe("light");
 });
+
+// Runs the head script as the page does, with a saved value and the system's
+// scheme, and reports what it left on the document.
+const runHeadScript = (saved: string | null, systemDark: boolean) => {
+  localStorage.clear();
+  if (saved !== null) {
+    localStorage.setItem("theme", saved);
+  }
+  const root = document.documentElement;
+  root.className = "";
+  root.style.colorScheme = "";
+  const realMatchMedia = window.matchMedia;
+  window.matchMedia = ((query: string) => ({
+    matches: query === DARK_SCHEME_QUERY && systemDark,
+  })) as typeof window.matchMedia;
+  try {
+    new Function(THEME_FROM_STORAGE)();
+  } finally {
+    window.matchMedia = realMatchMedia;
+  }
+  return `${root.className} ${root.style.colorScheme}`;
+};
+
+test.each([
+  ["dark", false, "dark dark"],
+  ["light", true, "light light"],
+  ["system", true, "dark dark"],
+  [null, false, "light light"],
+  ["blue", true, "dark dark"],
+] as const)(
+  "the head script turns a saved %p (system dark: %p) into %p",
+  (saved, systemDark, expected) => {
+    expect(runHeadScript(saved, systemDark)).toBe(expected);
+  }
+);

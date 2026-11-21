@@ -75,6 +75,8 @@ export const isMachineLocalValue = (key: string, value: string): boolean => {
 
 export interface DerivedEnvOptions {
   remove?: readonly string[];
+  /** Old key to new key: the line keeps its value under the new name. */
+  rename?: Readonly<Record<string, string>>;
   synced?: readonly string[];
 }
 
@@ -94,19 +96,32 @@ export const ensureDerivedEnv = (
     return "created";
   }
   const lines = readFileSync(path, "utf-8").replace(/\s+$/, "").split("\n");
+  const keyOf = (line: string) => line.split("=", 1)[0]?.trim() ?? "";
+  const inFile = new Set(lines.filter((line) => line.includes("=")).map(keyOf));
   const present = new Set<string>();
   let changed = false;
-  const updated = lines.flatMap((line) => {
-    if (!line.includes("=") || line.startsWith("#")) {
-      return [line];
+  const updated = lines.flatMap((raw) => {
+    if (!raw.includes("=") || raw.startsWith("#")) {
+      return [raw];
     }
-    const key = line.split("=", 1)[0]?.trim() ?? "";
+    const value = raw.slice(raw.indexOf("=") + 1).trim();
+    let key = keyOf(raw);
+    let line = raw;
+    const renamed = options.rename?.[key];
+    if (renamed) {
+      // A file with both keeps the new one; otherwise the old value moves.
+      changed = true;
+      if (inFile.has(renamed) || present.has(renamed)) {
+        return [];
+      }
+      key = renamed;
+      line = `${key}=${value}`;
+    }
     if (options.remove?.includes(key)) {
       changed = true;
       return [];
     }
     present.add(key);
-    const value = line.slice(line.indexOf("=") + 1).trim();
     const wanted = entries[key];
     if (
       wanted === undefined ||
@@ -134,11 +149,14 @@ const REMOVED_WEB_KEYS = [
   "WORKOS_API_PORT",
   "WORKOS_API_HTTPS",
   "WORKOS_API_KEY",
-  // Renamed to VITE_PUBLIC_* when the web app moved to Vite.
-  "NEXT_PUBLIC_CONVEX_URL",
-  "NEXT_PUBLIC_CONVEX_SITE_URL",
-  "NEXT_PUBLIC_WORKOS_REDIRECT_URI",
 ] as const;
+
+// The web app's names from before it moved to Vite.
+const RENAMED_WEB_KEYS = {
+  NEXT_PUBLIC_CONVEX_URL: "VITE_PUBLIC_CONVEX_URL",
+  NEXT_PUBLIC_CONVEX_SITE_URL: "VITE_PUBLIC_CONVEX_SITE_URL",
+  NEXT_PUBLIC_WORKOS_REDIRECT_URI: "VITE_PUBLIC_WORKOS_REDIRECT_URI",
+} as const;
 
 export const ensureWebEnv = (
   path: string,
@@ -167,6 +185,7 @@ export const ensureWebEnv = (
     {
       synced: Object.keys(values.workos),
       remove: REMOVED_WEB_KEYS,
+      rename: RENAMED_WEB_KEYS,
     }
   );
   chmodSync(path, 0o600);

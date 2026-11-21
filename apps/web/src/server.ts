@@ -49,11 +49,12 @@ function reportRequestError(error: unknown, request: Request) {
 export default createServerEntry({
   fetch: async (request) => {
     try {
-      // The PostHog proxy answers before the app runs: it never sits behind
-      // sign-in, and its replies keep PostHog's own headers.
+      // The PostHog proxy answers before the app runs, so it never sits
+      // behind sign-in. Its replies keep PostHog's caching and gain only the
+      // security headers they lack.
       const analytics = await proxyAnalytics(request);
       if (analytics) {
-        return analytics;
+        return withSecurityHeaders(analytics);
       }
       const nonce = createNonce();
       const response = await handle(request, {
