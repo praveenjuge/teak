@@ -189,6 +189,11 @@ targets:
 schemes:
   Teak:
     build:
+      # XcodeGen 2.47 changed its default to matchRunDestination, which adds a
+      # line to the scheme. Naming the value keeps the generated project the
+      # same on every XcodeGen version, so CI's project check doesn't depend on
+      # which one a runner has.
+      buildArchitectures: useTargetSettings
       targets:
         Teak: all
         TeakUITests: [test]
