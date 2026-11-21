@@ -1,5 +1,3 @@
-"use client";
-
 import {
   CARD_ERROR_CODES,
   MAX_FILES_PER_UPLOAD,

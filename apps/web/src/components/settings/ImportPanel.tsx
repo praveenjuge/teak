@@ -1,5 +1,3 @@
-"use client";
-
 import { api } from "@teak/convex";
 import { captureEvent, resolveSizeBucket } from "@teak/convex/shared/analytics";
 import { captureClientException } from "@teak/convex/shared/clientTelemetry";

@@ -1,5 +1,3 @@
-"use client";
-
 import { api } from "@teak/convex";
 import type { Id } from "@teak/convex/_generated/dataModel";
 import { captureEvent } from "@teak/convex/shared/analytics";

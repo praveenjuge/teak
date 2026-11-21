@@ -14,6 +14,7 @@ import { JsonLd } from "@/components/JsonLd";
 import { CookieLocaleProvider } from "@/components/providers/CookieLocaleProvider";
 import { ShareWorkerRegistration } from "@/components/providers/ShareWorkerRegistration";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
+import { RouteAnnouncer } from "@/components/RouteAnnouncer";
 import { StatusScreen } from "@/components/StatusScreen";
 import { Toaster } from "@/components/ui/sonner";
 import { APP_BACKGROUND_COLOR } from "@/lib/appTheme";
@@ -127,6 +128,7 @@ function RootDocument({ children }: { children: ReactNode }) {
           {children}
           <Toaster position="bottom-center" />
           <ShareWorkerRegistration />
+          <RouteAnnouncer />
         </ThemeProvider>
         <Scripts />
       </body>

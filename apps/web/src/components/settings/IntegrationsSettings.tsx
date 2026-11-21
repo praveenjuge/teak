@@ -1,5 +1,3 @@
-"use client";
-
 import { useTranslations } from "@teak/i18n/react";
 import type { ComponentProps } from "react";
 import { ArrowUpRight } from "vadivam-react";

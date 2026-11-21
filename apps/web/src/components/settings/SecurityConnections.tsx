@@ -1,5 +1,3 @@
-"use client";
-
 import { api } from "@teak/convex";
 import type { TeakTranslator } from "@teak/i18n";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";

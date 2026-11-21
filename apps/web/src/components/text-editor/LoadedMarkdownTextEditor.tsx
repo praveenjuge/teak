@@ -1,5 +1,3 @@
-"use client";
-
 import "@editorcn/block-editor/style.css";
 import "./editor.css";
 

@@ -1,5 +1,3 @@
-"use client";
-
 import { MAX_TAG_NAME_LENGTH, tagKey } from "@teak/convex/shared/tags";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import { useEffect, useId, useMemo, useState } from "react";

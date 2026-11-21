@@ -1,5 +1,3 @@
-"use client";
-
 import { useTranslations } from "@teak/i18n/react";
 import type { ThemeValue } from "@/constants/settings";
 import type { LanguageSetting } from "@/hooks/useLanguageSetting";

@@ -1,5 +1,3 @@
-"use client";
-
 import type { Id } from "@teak/convex/_generated/dataModel";
 import { useTranslations } from "@teak/i18n/react";
 import { ExportPanel, type ExportState } from "./ExportPanel";

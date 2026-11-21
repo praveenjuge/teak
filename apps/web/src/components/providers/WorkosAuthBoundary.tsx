@@ -1,5 +1,3 @@
-"use client";
-
 import { api } from "@teak/convex";
 import { useTranslations } from "@teak/i18n/react";
 import {

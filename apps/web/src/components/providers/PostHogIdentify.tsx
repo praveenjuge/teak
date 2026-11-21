@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect } from "react";
 import { identifyPostHogUser } from "@/lib/posthog-client";
 

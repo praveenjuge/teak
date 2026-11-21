@@ -1,5 +1,3 @@
-"use client";
-
 import { useTranslations } from "@teak/i18n/react";
 import { useId, useState } from "react";
 import { SidebarMenuItem } from "@/components/ui/sidebar";

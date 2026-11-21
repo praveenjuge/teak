@@ -1,5 +1,3 @@
-"use client";
-
 import { Suspense, useRef, useState } from "react";
 import { lazyWithPreload } from "../../lib/lazyWithPreload";
 import { EditorFieldset, MarkdownStandIn } from "./MarkdownStandIn";

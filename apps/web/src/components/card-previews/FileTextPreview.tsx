@@ -1,5 +1,3 @@
-"use client";
-
 import type { FileFormat } from "@teak/convex/shared/fileFormats";
 import { useTranslations } from "@teak/i18n/react";
 import { common, createLowlight } from "lowlight";

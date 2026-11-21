@@ -1,5 +1,3 @@
-"use client";
-
 import { anchorContext } from "@teak/convex/shared/highlights/anchor";
 import {
   HIGHLIGHT_NOTE_COUNTER_FROM,

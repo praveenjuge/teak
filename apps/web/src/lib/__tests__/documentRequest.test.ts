@@ -12,8 +12,8 @@ test("a browser page load is a document request", () => {
   ).toBe(true);
 });
 
-test("a router fetch for server components is not", () => {
-  expect(isDocumentRequest(new Headers({ accept: "*/*", rsc: "1" }))).toBe(
+test("a router fetch for a server function is not", () => {
+  expect(isDocumentRequest(new Headers({ accept: "application/json" }))).toBe(
     false
   );
   expect(isDocumentRequest(new Headers())).toBe(false);

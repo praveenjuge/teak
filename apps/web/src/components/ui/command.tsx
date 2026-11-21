@@ -1,5 +1,3 @@
-"use client";
-
 import { useTranslations } from "@teak/i18n/react";
 import { Command as CommandPrimitive } from "cmdk";
 import type * as React from "react";

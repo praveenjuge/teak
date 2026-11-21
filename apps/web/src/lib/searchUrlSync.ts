@@ -119,8 +119,8 @@ export function createSearchUrlSync(initial?: SearchUrlState) {
       return fromUrl(previous, state);
     },
     /**
-     * Only a search the page has not reported yet is a change. A page Next.js
-     * kept hidden reports the search it showed before, again, when it is
+     * Only a search the page has not reported yet is a change. A page kept
+     * hidden in <Activity> reports the search it showed before, again, when it is
      * revealed on a new URL: that is the URL's search still to apply, not
      * the person's.
      */

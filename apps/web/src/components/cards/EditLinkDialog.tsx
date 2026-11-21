@@ -1,5 +1,3 @@
-"use client";
-
 import type { Id } from "@teak/convex/_generated/dataModel";
 import { isSafeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
 import { useTranslations } from "@teak/i18n/react";

@@ -1,5 +1,3 @@
-"use client";
-
 import { captureClientException } from "@teak/convex/shared/clientTelemetry";
 import { useTranslations } from "@teak/i18n/react";
 import { useEffect } from "react";

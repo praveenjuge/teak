@@ -1,5 +1,3 @@
-"use client";
-
 import { captureEvent } from "@teak/convex/shared/analytics";
 import { articleWordsBucket } from "@teak/convex/shared/article";
 import { ARTICLE_SANITIZE_SCHEMA } from "@teak/convex/shared/highlights/articleTree";

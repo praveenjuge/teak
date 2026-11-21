@@ -49,17 +49,19 @@ describe("worktree-env", () => {
     );
   });
 
-  test("slots that reuse main or macOS AirPlay ports are never usable", () => {
+  test("slots that reuse main, macOS AirPlay or fetch-blocked ports are never usable", () => {
     const main = new Set(stackPorts(mainWorktreePorts()));
     for (let slot = 0; slot < 40; slot++) {
       const ports = stackPorts(slotPorts(slot));
       const clashes = ports.some(
-        (port) => main.has(port) || port === 5000 || port === 7000
+        (port) =>
+          main.has(port) || port === 5000 || port === 6000 || port === 7000
       );
       expect(isUsableSlot(slot)).toBe(!clashes);
     }
     expect(isUsableSlot(1)).toBe(false);
     expect(isUsableSlot(10)).toBe(false);
+    expect(isUsableSlot(20)).toBe(false);
     expect(isUsableSlot(30)).toBe(false);
     expect(isUsableSlot(40)).toBe(false);
   });

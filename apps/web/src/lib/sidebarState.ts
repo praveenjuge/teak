@@ -1,6 +1,5 @@
-// Shared by the sidebar (client) and the app layout (server), so it lives
-// outside the "use client" sidebar module: a server component importing a
-// value from a client module gets a client reference, not the string.
+// Shared by the sidebar, the session loader on the server and the pre-paint
+// script in the root route, so none of them pulls in the sidebar's UI.
 export const SIDEBAR_COOKIE_NAME = "sidebar_state";
 export const SIDEBAR_WIDTH_COOKIE_NAME = "sidebar_width";
 

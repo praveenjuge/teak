@@ -1,5 +1,3 @@
-"use client";
-
 import { api } from "@teak/convex";
 import { useConvex } from "convex/react";
 import { useEffect } from "react";

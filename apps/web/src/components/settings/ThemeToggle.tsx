@@ -1,7 +1,7 @@
+import { useHydrated } from "@tanstack/react-router";
 import { useTranslations } from "@teak/i18n/react";
 import { useTheme } from "next-themes";
 import { THEME_OPTIONS, type ThemeValue } from "../../constants/settings";
-import { useHydrated } from "../../hooks/useHydrated";
 import { cn } from "../../lib/utils";
 
 const THEME_LABEL_KEYS = {

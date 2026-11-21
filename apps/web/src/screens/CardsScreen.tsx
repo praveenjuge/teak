@@ -1,5 +1,3 @@
-"use client";
-
 import { api } from "@teak/convex";
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
 import {

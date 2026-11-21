@@ -1,5 +1,3 @@
-"use client";
-
 import { useCallback, useEffect, useRef } from "react";
 import { useComposerRequests } from "@/components/forms";
 import { SidebarToggle } from "@/components/sidebar";

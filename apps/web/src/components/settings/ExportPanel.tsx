@@ -1,5 +1,3 @@
-"use client";
-
 import type { api } from "@teak/convex";
 import type { Id } from "@teak/convex/_generated/dataModel";
 import { formatBytes } from "@teak/convex/shared/utils/formatBytes";

@@ -1,5 +1,3 @@
-"use client";
-
 import { Search } from "vadivam-react";
 import { CardsGridSkeleton } from "../feedback/CardSkeleton";
 import { searchFieldClassName } from "../search";

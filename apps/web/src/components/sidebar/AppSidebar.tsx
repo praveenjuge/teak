@@ -1,5 +1,3 @@
-"use client";
-
 import { useTranslations } from "@teak/i18n/react";
 import type { ComponentType, MouseEvent, ReactNode } from "react";
 import { PanelLeft } from "vadivam-react";

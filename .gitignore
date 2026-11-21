@@ -6,7 +6,6 @@ test-results/
 test-results-mutation/
 blob-report/
 
-.next
 out
 
 /build
@@ -39,7 +38,6 @@ apps/web/dist/
 .tmp/
 
 *.tsbuildinfo
-next-env.d.ts
 
 
 .code

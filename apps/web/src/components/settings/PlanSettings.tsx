@@ -1,5 +1,3 @@
-"use client";
-
 import { FREE_TIER_LIMIT } from "@teak/convex/shared/constants";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import type { ReactNode } from "react";

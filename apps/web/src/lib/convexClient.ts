@@ -1,5 +1,3 @@
-"use client";
-
 import { api } from "@teak/convex";
 import { ConvexReactClient } from "convex/react";
 import { firstLoadQueries } from "./firstLoadQueries";

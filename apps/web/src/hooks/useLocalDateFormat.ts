@@ -1,6 +1,6 @@
+import { useHydrated } from "@tanstack/react-router";
 import { useIntlLocale } from "@teak/i18n/react";
 import { useMemo } from "react";
-import { useHydrated } from "./useHydrated";
 
 /**
  * Formats dates in the browser's time zone once the page has hydrated. The

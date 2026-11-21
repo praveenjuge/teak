@@ -1,5 +1,3 @@
-"use client";
-
 import { parseSearchQuery } from "@teak/convex/shared";
 import {
   explainInvalidSmartFolderQuery,

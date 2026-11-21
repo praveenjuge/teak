@@ -1,5 +1,3 @@
-"use client";
-
 import type { englishMessages, TeakTranslator } from "@teak/i18n";
 import { useTranslations } from "@teak/i18n/react";
 import { Fragment, useMemo } from "react";

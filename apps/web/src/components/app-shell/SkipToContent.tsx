@@ -1,5 +1,3 @@
-"use client";
-
 import { useTranslations } from "@teak/i18n/react";
 
 export const MAIN_CONTENT_ID = "main-content";

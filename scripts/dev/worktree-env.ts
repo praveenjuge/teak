@@ -51,8 +51,9 @@ export const stackPorts = (ports: WorktreePorts): number[] => [
   ports.coreWorkerInspector,
 ];
 
-// Slots that would reuse a main checkout port, or a port macOS keeps open for
-// the AirPlay Receiver (5000 and 7000), are never leased.
+// Slots that would reuse a main checkout port, a port macOS keeps open for
+// the AirPlay Receiver (5000 and 7000), or one fetch refuses to connect to
+// (6000, X11) are never leased.
 const RESERVED_PORTS = new Set([
   ...stackPorts({
     ...MAIN_PORTS,
@@ -61,6 +62,7 @@ const RESERVED_PORTS = new Set([
     siteUrl: MAIN_SITE_URL,
   }),
   5000,
+  6000,
   7000,
 ]);
 

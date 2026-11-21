@@ -1,5 +1,3 @@
-"use client";
-
 import type { Id } from "@teak/convex/_generated/dataModel";
 import { MAX_FOLDERS_PER_CARD } from "@teak/convex/shared/folders";
 import { useTranslations } from "@teak/i18n/react";

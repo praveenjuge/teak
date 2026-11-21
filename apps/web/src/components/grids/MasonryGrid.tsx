@@ -1,3 +1,4 @@
+import { useHydrated } from "@tanstack/react-router";
 import type { Doc } from "@teak/convex/_generated/dataModel";
 import { SEARCH_DEFAULT_CARD_LIMIT } from "@teak/convex/shared";
 import type { BulkCardAction } from "@teak/convex/shared/bulkCardActions";
@@ -23,7 +24,6 @@ import type {
   GridCardAction,
   RunBulkCardAction,
 } from "../../hooks/useCardActions";
-import { useHydrated } from "../../hooks/useHydrated";
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 import {
   allFavorited,
@@ -89,7 +89,7 @@ const LOAD_MORE_ROOT_MARGIN = "200px 0px";
 const PRIORITY_CARD_COUNT = 10;
 
 // antd animates items in and out. Its motion forgets it has mounted while
-// Next.js hides the page in <Activity>, so any re-render there (a card
+// React hides the page in <Activity>, so any re-render there (a card
 // changing while Settings is open) unmounts every item, the composer
 // included. Without motion the items stay mounted.
 const STILL_MASONRY_THEME: ThemeConfig = { token: { motion: false } };

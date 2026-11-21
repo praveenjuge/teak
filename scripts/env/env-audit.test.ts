@@ -363,7 +363,7 @@ describe("env-audit file walk", () => {
       "apps/android/scripts/e2e-session.ts",
       "apps/web/src/a.ts",
       "apps/android/app/build/generated.json",
-      "apps/web/.next/server.js",
+      "apps/web/dist/server/index.js",
       ".claude/worktrees/other/apps/web/src/a.ts",
       "node_modules/x/index.js",
       ".agents/.state/stack.json",

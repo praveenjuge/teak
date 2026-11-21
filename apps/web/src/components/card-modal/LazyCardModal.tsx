@@ -1,5 +1,3 @@
-"use client";
-
 import { useTranslations } from "@teak/i18n/react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { onDemand } from "../../lib/lazyWithPreload";

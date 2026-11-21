@@ -1,5 +1,3 @@
-"use client";
-
 import * as SheetPrimitive from "@radix-ui/react-dialog";
 import { useTranslations } from "@teak/i18n/react";
 import type * as React from "react";

@@ -1,6 +1,7 @@
 /**
- * A pathname as a route matches it. With the default `trailingSlash: false`,
- * Next.js redirects `/settings/` (and `/settings//`) to `/settings`; `/` stays.
+ * A pathname as a route matches it: the router treats `/settings/` (and
+ * `/settings//`) as `/settings`, so checks on a raw path drop trailing
+ * slashes the same way; `/` stays.
  */
 export function trimTrailingSlashes(path: string): string {
   let end = path.length;

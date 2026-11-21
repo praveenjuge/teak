@@ -34,7 +34,7 @@ afterAll(async () => {
   await GlobalRegistrator.unregister();
 });
 
-// Next.js keeps a page it left mounted in a hidden <Activity>. Opening a tag
+// A page can stay mounted in a hidden <Activity>. Opening a tag
 // from Tags reveals the library again with the tag's URL; the library must
 // show that URL, not write back the search it showed before it was hidden.
 test("a library revealed on a new URL never writes its old search back", async () => {

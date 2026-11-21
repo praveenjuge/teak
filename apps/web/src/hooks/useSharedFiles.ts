@@ -1,5 +1,3 @@
-"use client";
-
 import { useTranslations } from "@teak/i18n/react";
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";

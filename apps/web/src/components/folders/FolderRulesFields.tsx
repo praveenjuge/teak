@@ -1,5 +1,3 @@
-"use client";
-
 import { api } from "@teak/convex";
 import { parseSearchQuery } from "@teak/convex/shared";
 import {

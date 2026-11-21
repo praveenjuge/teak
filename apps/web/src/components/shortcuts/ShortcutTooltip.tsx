@@ -1,5 +1,3 @@
-"use client";
-
 import type { ComponentProps, ReactElement } from "react";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import {

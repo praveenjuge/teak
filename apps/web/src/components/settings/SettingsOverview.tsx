@@ -1,3 +1,4 @@
+import { useHydrated } from "@tanstack/react-router";
 import { captureEvent } from "@teak/convex/shared/analytics";
 import { FREE_TIER_LIMIT } from "@teak/convex/shared/constants";
 import { SETTINGS_PATHS } from "@teak/convex/shared/webRoutes";
@@ -8,7 +9,6 @@ import type { ReactNode } from "react";
 import { LogOut } from "vadivam-react";
 import { AppLink } from "@/components/AppLink";
 import { useRunLibraryCommand } from "@/components/providers/LibraryCommandsProvider";
-import { useHydrated } from "@/hooks/useHydrated";
 import { useLocalDateFormat } from "@/hooks/useLocalDateFormat";
 import {
   SETTINGS_SECTIONS,

@@ -1,5 +1,3 @@
-"use client";
-
 import { useTranslations } from "@teak/i18n/react";
 import { useEffect, useId, useMemo, useState } from "react";
 import { Plus, Search } from "vadivam-react";

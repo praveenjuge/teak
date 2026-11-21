@@ -1,5 +1,3 @@
-"use client";
-
 import { api } from "@teak/convex";
 import { tagKey } from "@teak/convex/shared/tags";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";

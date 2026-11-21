@@ -1,5 +1,3 @@
-"use client";
-
 import type { api } from "@teak/convex";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
 import type { FunctionReturnType } from "convex/server";

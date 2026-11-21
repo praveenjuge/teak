@@ -1,5 +1,3 @@
-"use client";
-
 import type { Id } from "@teak/convex/_generated/dataModel";
 import { FOLDER_COLORS, type FolderColor } from "@teak/convex/shared/folders";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";

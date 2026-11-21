@@ -1,5 +1,3 @@
-"use client";
-
 import {
   MARKDOWN_CONTENT_MAX_BYTES,
   markdownContentByteLength,
