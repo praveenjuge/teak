@@ -10,7 +10,8 @@ object CardLinks {
     val PATTERN = Regex(CARD_LINK_TOKEN_PATTERN)
     private val TITLE_UNSAFE = Regex("[|\\]\\r\\n]+")
     private val SPACES = Regex("\\s+")
-    private val FENCE = Regex("^ {0,3}(`{3,}|~{3,})")
+    /** A backtick fence has no backtick after it (CommonMark): "```code```" on one line is a code span, and what follows it is still text. */
+    private val FENCE = Regex("^ {0,3}(`{3,}(?![^`]*`)|~{3,})")
     private val CLOSING_FENCE = Regex("^ {0,3}(`{3,}|~{3,})[ \\t\\r]*$")
     private val BACKTICK_RUN = Regex("`+")
     private val LEADING_SPACE = Regex("^[ \\t]+")
