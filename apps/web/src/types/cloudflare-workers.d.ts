@@ -1,13 +1,15 @@
-// The Workers runtime APIs the server entry uses. Full runtime types would
-// clash with the DOM types the rest of this client-and-server app relies on.
+// The bindings come from wrangler.jsonc through the generated
+// worker-configuration.d.ts (`bun run cf-typegen`). It is generated without
+// the runtime types, which would clash with the DOM types this
+// client-and-server app relies on, so the few runtime APIs the server entry
+// uses are declared here.
 declare module "cloudflare:workers" {
-  export const env: {
-    // wrangler.jsonc `version_metadata`; optional, so a report never fails on it.
-    readonly CF_VERSION_METADATA?: {
-      id: string;
-      tag: string;
-      timestamp: string;
-    };
-  };
+  export const env: Cloudflare.Env;
   export function waitUntil(promise: Promise<unknown>): void;
+}
+
+interface WorkerVersionMetadata {
+  readonly id: string;
+  readonly tag: string;
+  readonly timestamp: string;
 }

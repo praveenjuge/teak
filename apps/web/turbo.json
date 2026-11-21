@@ -5,11 +5,11 @@
       "env": [
         "GITHUB_SHA",
         "GIT_SHA",
-        "NEXT_PUBLIC_CONVEX_SITE_URL",
-        "NEXT_PUBLIC_CONVEX_URL",
-        "NEXT_PUBLIC_FILES_BASE",
-        "NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN",
-        "NEXT_PUBLIC_WORKOS_REDIRECT_URI",
+        "VITE_PUBLIC_CONVEX_SITE_URL",
+        "VITE_PUBLIC_CONVEX_URL",
+        "VITE_PUBLIC_FILES_BASE",
+        "VITE_PUBLIC_POSTHOG_PROJECT_TOKEN",
+        "VITE_PUBLIC_WORKOS_REDIRECT_URI",
         "TEAK_ANALYTICS_ENABLED",
         "WORKERS_CI_COMMIT_SHA"
       ],
@@ -17,7 +17,7 @@
       "passThroughEnv": ["POSTHOG_CLI_API_KEY", "POSTHOG_CLI_PROJECT_ID"],
       "outputs": ["dist/**"]
     },
-    "start": {
+    "preview": {
       "passThroughEnv": ["PORT", "TEAK_ANALYTICS_ENABLED"]
     },
     "typecheck": {},

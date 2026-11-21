@@ -30,7 +30,9 @@ jobs:
       - name: Audit env contract
         run: bun run audit:env
       - name: Check generated Worker types
-        run: bun run --cwd apps/core-worker cf-typegen:check
+        run: |
+          bun run --cwd apps/core-worker cf-typegen:check
+          bun run --cwd apps/web cf-typegen:check
       - name: Run unit tests
         run: bun run test
 

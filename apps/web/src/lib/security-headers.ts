@@ -14,8 +14,14 @@ const R2_FRAME_SOURCES = [
   "https://*.r2.dev",
 ] as const;
 
+/**
+ * The page's policy. Inline scripts run only with the request's `nonce`:
+ * TanStack Start stamps it on its hydration data, its boot script and the
+ * document's own small scripts. A response without one runs no inline script.
+ */
 export const buildContentSecurityPolicy = (
-  environment: PublicEnvironment | undefined = process.env.NODE_ENV
+  environment: PublicEnvironment | undefined = process.env.NODE_ENV,
+  nonce?: string
 ) => {
   const convexOrigin = configuredOrigin(readConvexUrl(), environment);
   const filesHosts = filesOrigins(environment);
@@ -41,10 +47,8 @@ export const buildContentSecurityPolicy = (
     [
       "script-src 'self'",
       "blob:",
-      // TanStack Start inlines its hydration data and boot script, and the
-      // document runs two small fixed scripts before paint. Eval stays
-      // limited to development tooling.
-      "'unsafe-inline'",
+      ...(nonce ? [`'nonce-${nonce}'`] : []),
+      // Eval stays limited to development tooling.
       ...(environment === "development" ? ["'unsafe-eval'"] : []),
     ].join(" "),
     [
@@ -81,11 +85,8 @@ export const buildContentSecurityPolicy = (
   ].join("; ");
 };
 
+/** Every header but the CSP, which carries each request's nonce. */
 export const staticSecurityHeaders: { key: string; value: string }[] = [
-  {
-    key: "Content-Security-Policy",
-    value: buildContentSecurityPolicy(),
-  },
   {
     key: "Permissions-Policy",
     // No `tools=(self)` for WebMCP: the feature's default allowlist is

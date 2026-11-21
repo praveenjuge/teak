@@ -7,7 +7,8 @@ import {
 import { createPostHogBatch } from "@teak/convex/shared/posthog";
 import packageJson from "../package.json" with { type: "json" };
 import { releaseProperties, resolvePostHogToken } from "./lib/posthog-config";
-import { withSecurityHeaders } from "./server/securityHeaders";
+import { proxyAnalytics } from "./server/analyticsProxy";
+import { createNonce, withSecurityHeaders } from "./server/securityHeaders";
 
 const handle = createStartHandler(defaultStreamHandler);
 
@@ -22,7 +23,7 @@ function reportRequestError(error: unknown, request: Request) {
     token: resolvePostHogToken({
       analyticsEnabled: process.env.TEAK_ANALYTICS_ENABLED,
       // nosemgrep: codacy.yaml.security.hard-coded-tokens
-      token: process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN,
+      token: import.meta.env.VITE_PUBLIC_POSTHOG_PROJECT_TOKEN,
     }),
   });
   if (!batch.enabled) {
@@ -32,7 +33,7 @@ function reportRequestError(error: unknown, request: Request) {
     handled: false,
     properties: {
       ...releaseProperties({
-        commitSha: process.env.NEXT_PUBLIC_COMMIT_SHA,
+        commitSha: import.meta.env.VITE_PUBLIC_COMMIT_SHA,
         version: packageJson.version,
       }),
       method: request.method,
@@ -48,7 +49,25 @@ function reportRequestError(error: unknown, request: Request) {
 export default createServerEntry({
   fetch: async (request) => {
     try {
-      return withSecurityHeaders(await handle(request));
+      // The PostHog proxy answers before the app runs, so it never sits
+      // behind sign-in. Its replies keep PostHog's caching and gain only the
+      // security headers they lack.
+      const analytics = await proxyAnalytics(request);
+      if (analytics) {
+        return withSecurityHeaders(analytics);
+      }
+      const nonce = createNonce();
+      const response = await handle(request, {
+        context: { nonce },
+        // Cloudflare turns a page's preload and preconnect `Link` headers
+        // into 103 Early Hints for the next visit, so the stylesheet, font
+        // and files host start loading before the page is rendered.
+        responseLinkHeader: {
+          filter: ({ hint }) =>
+            hint.rel === "preload" || hint.rel === "preconnect",
+        },
+      });
+      return withSecurityHeaders(response, nonce);
     } catch (error) {
       reportRequestError(error, request);
       throw error;

@@ -265,7 +265,7 @@ describe("env-audit auditFiles", () => {
       new Map([
         [
           "apps/web/src/a.ts",
-          "const url = process.env.NEXT_PUBLIC_CONVEX_URL;\n",
+          "const url = process.env.VITE_PUBLIC_CONVEX_URL;\n",
         ],
       ])
     );
@@ -273,7 +273,7 @@ describe("env-audit auditFiles", () => {
       findings.some(
         (finding) =>
           finding.kind === "direct-alias-read" &&
-          finding.name === "NEXT_PUBLIC_CONVEX_URL"
+          finding.name === "VITE_PUBLIC_CONVEX_URL"
       )
     ).toBe(true);
   });
@@ -283,7 +283,7 @@ describe("env-audit auditFiles", () => {
       new Map([
         [
           "apps/web/src/lib/public-env.ts",
-          "const url = process.env.NEXT_PUBLIC_CONVEX_URL;\n",
+          "const url = process.env.VITE_PUBLIC_CONVEX_URL;\n",
         ],
         [
           "apps/extension/lib/env.ts",
@@ -291,11 +291,11 @@ describe("env-audit auditFiles", () => {
         ],
         [
           "apps/web/src/tests/setup.ts",
-          "const url = process.env.NEXT_PUBLIC_CONVEX_URL;\n",
+          "const url = process.env.VITE_PUBLIC_CONVEX_URL;\n",
         ],
         [
           "packages/tests/src/harness.ts",
-          "const url = process.env.NEXT_PUBLIC_CONVEX_URL;\n",
+          "const url = process.env.VITE_PUBLIC_CONVEX_URL;\n",
         ],
       ])
     );

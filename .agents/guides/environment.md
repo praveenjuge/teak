@@ -18,7 +18,7 @@ is specific to Teak's own production and development deployments.
 | Owner | Values | Examples |
 | --- | --- | --- |
 | Convex dashboard | Backend runtime values | `SITE_URL`, `FILES_BASE` |
-| Workers Builds (`teak-app`, `teak-site`) | Build values for the web app and docs site | `NEXT_PUBLIC_CONVEX_URL` |
+| Workers Builds (`teak-app`, `teak-site`) | Build values for the web app and docs site | `VITE_PUBLIC_CONVEX_URL` |
 | Wrangler / Cloudflare | Worker vars, secrets, bindings | `FILES_SIGNING_SECRET`, `BUCKET`, `WORKOS_COOKIE_PASSWORD` |
 | GitHub variables | Non-secret CI values | release SHAs, origins |
 | GitHub environment secrets | CI credentials | `CONVEX_DEPLOY_KEY` |
@@ -43,11 +43,11 @@ README, "Background work").
 The web app is the `teak-app` Worker (`apps/web/wrangler.jsonc`), which
 Workers Builds builds from `main` with `bun run build` and deploys with
 `bun run deploy`; app.teakvault.com is its Custom Domain. Its build variables
-are the public `NEXT_PUBLIC_*` values, `TEAK_ANALYTICS_ENABLED=true` and the
+are the public `VITE_PUBLIC_*` values, `TEAK_ANALYTICS_ENABLED=true` and the
 `POSTHOG_CLI_*` source map upload pair; `vite.config.ts` inlines the public
 values. At runtime it holds `WORKOS_CLIENT_ID` and `WORKOS_COOKIE_PASSWORD`
 as secrets (`bunx wrangler secret put <NAME>` from `apps/web`), and reads
-`NEXT_PUBLIC_WORKOS_REDIRECT_URI` and `TEAK_ANALYTICS_ENABLED` from its
+`VITE_PUBLIC_WORKOS_REDIRECT_URI` and `TEAK_ANALYTICS_ENABLED` from its
 environment too. Its config has no `vars` and no `keep_vars`, and
 `wrangler deploy` deletes plain variables set in the dashboard, so keep
 runtime values as secrets. The Vercel `teak` project stays for a week as a
@@ -140,7 +140,7 @@ permission scope.
 only reach the development bucket, vector index, namespaces and workers.dev.
 Web and shared media recovery trust exactly
 `https://core-worker-dev.praveenjuge.workers.dev` when built for the
-dev deployment, so no `NEXT_PUBLIC_FILES_BASE` is needed.
+dev deployment, so no `VITE_PUBLIC_FILES_BASE` is needed.
 `bun run sync:cloudflare-dev --isolated` writes the ignored
 `apps/core-worker/development/.dev.vars`, and
 `bun run dev core` runs that Worker locally.

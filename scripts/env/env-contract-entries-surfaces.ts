@@ -119,7 +119,7 @@ export const SURFACE_ENTRIES: EnvVarSpec[] = [
     implicit: true,
     note: "Optional. Read by AuthKit (@workos/authkit-session), which then accepts only access tokens from this issuer (https://api.workos.com/user_management/{WORKOS_CLIENT_ID}).",
   }),
-  spec("NEXT_PUBLIC_WORKOS_REDIRECT_URI", {
+  spec("VITE_PUBLIC_WORKOS_REDIRECT_URI", {
     derivedFrom: "SITE_URL",
     owners: ["@teak/web"],
     targets: ["web"],
@@ -132,29 +132,7 @@ export const SURFACE_ENTRIES: EnvVarSpec[] = [
     implicit: true,
     note: "Generated app origin + /callback; must be registered as a redirect URI in that deployment's WorkOS environment.",
   }),
-  spec("NEXT_PUBLIC_CONVEX_URL", {
-    derivedFrom: "CONVEX_URL",
-    owners: ["@teak/web"],
-    targets: ["web"],
-    profiles: ["local", "preview", "production"],
-    secret: false,
-    validation: "url",
-    providers: ["dotenv-local", "cloudflare"],
-    required: true,
-    requiredIn: ["local", "preview", "production"],
-  }),
-  spec("NEXT_PUBLIC_CONVEX_SITE_URL", {
-    derivedFrom: "CONVEX_SITE_URL",
-    owners: ["@teak/web"],
-    targets: ["web"],
-    profiles: ["local", "preview", "production"],
-    secret: false,
-    validation: "url",
-    providers: ["dotenv-local", "cloudflare"],
-    required: true,
-    requiredIn: ["local", "preview", "production"],
-  }),
-  spec("NEXT_PUBLIC_FILES_BASE", {
+  spec("VITE_PUBLIC_FILES_BASE", {
     owners: ["@teak/web"],
     targets: ["web"],
     profiles: ["local", "preview", "production"],
@@ -165,7 +143,7 @@ export const SURFACE_ENTRIES: EnvVarSpec[] = [
     note: "Build-time mirror of the backend FILES_BASE for the web CSP. Optional; static Teak origins always apply.",
   }),
 
-  spec("NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN", {
+  spec("VITE_PUBLIC_POSTHOG_PROJECT_TOKEN", {
     classification: "public-config",
     owners: ["@teak/web"],
     targets: ["web"],
@@ -184,9 +162,9 @@ export const SURFACE_ENTRIES: EnvVarSpec[] = [
     validation: "string",
     providers: ["cloudflare", "wrangler-var", "shell"],
     required: false,
-    note: "Set to true, at build time and at runtime, to let a web build report to NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN's project. Teak's production Worker sets it; every other build sends nothing unless its owner opts in.",
+    note: "Set to true, at build time and at runtime, to let a web build report to VITE_PUBLIC_POSTHOG_PROJECT_TOKEN's project. Teak's production Worker sets it; every other build sends nothing unless its owner opts in.",
   }),
-  spec("NEXT_PUBLIC_APP_VERSION", {
+  spec("VITE_PUBLIC_APP_VERSION", {
     derivedFrom: "package.json version",
     owners: ["@teak/web"],
     targets: ["web"],
@@ -197,7 +175,7 @@ export const SURFACE_ENTRIES: EnvVarSpec[] = [
     required: false,
     note: "Inlined by vite.config.ts from package.json for release derivation.",
   }),
-  spec("NEXT_PUBLIC_COMMIT_SHA", {
+  spec("VITE_PUBLIC_COMMIT_SHA", {
     derivedFrom: "provider commit metadata",
     owners: ["@teak/web"],
     targets: ["web"],
@@ -220,23 +198,23 @@ export const SURFACE_ENTRIES: EnvVarSpec[] = [
   }),
   spec("VITE_PUBLIC_CONVEX_URL", {
     derivedFrom: "CONVEX_URL",
-    owners: ["@teak/extension"],
-    targets: ["extension"],
+    owners: ["@teak/web", "@teak/extension"],
+    targets: ["web", "extension"],
     profiles: ["local", "preview", "production"],
     secret: false,
     validation: "url",
-    providers: ["dotenv-local", "workflow"],
+    providers: ["dotenv-local", "cloudflare", "workflow"],
     required: true,
     requiredIn: ["local", "preview", "production"],
   }),
   spec("VITE_PUBLIC_CONVEX_SITE_URL", {
     derivedFrom: "CONVEX_SITE_URL",
-    owners: ["@teak/extension"],
-    targets: ["extension"],
+    owners: ["@teak/web", "@teak/extension"],
+    targets: ["web", "extension"],
     profiles: ["local", "preview", "production"],
     secret: false,
     validation: "url",
-    providers: ["dotenv-local", "workflow"],
+    providers: ["dotenv-local", "cloudflare", "workflow"],
     required: true,
     requiredIn: ["local", "preview", "production"],
   }),

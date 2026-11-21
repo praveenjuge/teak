@@ -21,6 +21,7 @@
     "src/**/*.ts",
     "src/**/*.tsx",
     "vite.config.ts",
+    "worker-configuration.d.ts",
     "scripts/**/*.ts"
   ],
   "exclude": ["node_modules", "src/**/__tests__"]

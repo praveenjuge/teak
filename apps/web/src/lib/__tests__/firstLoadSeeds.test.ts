@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, expect, test } from "bun:test";
 
-process.env.NEXT_PUBLIC_CONVEX_URL ??= "https://fixture.convex.cloud";
-const queryUrl = new URL("/api/query", process.env.NEXT_PUBLIC_CONVEX_URL).href;
+process.env.VITE_PUBLIC_CONVEX_URL ??= "https://fixture.convex.cloud";
+const queryUrl = new URL("/api/query", process.env.VITE_PUBLIC_CONVEX_URL).href;
 
 type Answer = (args: Record<string, unknown>) => Promise<unknown>;
 const answers = new Map<string, Answer>();

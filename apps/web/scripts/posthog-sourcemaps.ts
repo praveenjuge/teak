@@ -41,7 +41,7 @@ const main = async () => {
     analyticsEnabled: env.TEAK_ANALYTICS_ENABLED,
     // Read from the environment, not a hard-coded token.
     // nosemgrep: codacy.yaml.security.hard-coded-tokens
-    token: env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN,
+    token: env.VITE_PUBLIC_POSTHOG_PROJECT_TOKEN,
   });
   if (
     !(

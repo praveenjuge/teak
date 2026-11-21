@@ -1,9 +1,9 @@
-import { useTheme } from "next-themes";
 import type { CSSProperties } from "react";
 import { Toaster as Sonner, type ToasterProps } from "sonner";
+import { useTheme } from "@/hooks/useTheme";
 
 const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme();
+  const { theme } = useTheme();
 
   return (
     <Sonner
@@ -19,7 +19,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
           "--width": "min(28rem, calc(100vw - 2rem))",
         } as CSSProperties
       }
-      theme={theme as ToasterProps["theme"]}
+      theme={theme}
       toastOptions={{
         classNames: {
           toast:

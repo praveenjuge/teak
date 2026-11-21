@@ -9,12 +9,9 @@ export const CANONICAL_FACTS = [
 ] as const;
 
 export const ALIAS_DERIVATIONS: Record<string, readonly string[]> = {
-  [CANONICAL_CONVEX_URL]: ["NEXT_PUBLIC_CONVEX_URL", "VITE_PUBLIC_CONVEX_URL"],
-  [CANONICAL_CONVEX_SITE_URL]: [
-    "NEXT_PUBLIC_CONVEX_SITE_URL",
-    "VITE_PUBLIC_CONVEX_SITE_URL",
-  ],
-  [CANONICAL_SITE_URL]: ["NEXT_PUBLIC_WORKOS_REDIRECT_URI"],
+  [CANONICAL_CONVEX_URL]: ["VITE_PUBLIC_CONVEX_URL"],
+  [CANONICAL_CONVEX_SITE_URL]: ["VITE_PUBLIC_CONVEX_SITE_URL"],
+  [CANONICAL_SITE_URL]: ["VITE_PUBLIC_WORKOS_REDIRECT_URI"],
 };
 
 const ALIAS_TO_CANONICAL = new Map<string, string>(
@@ -50,7 +47,7 @@ export const generateAliasValues = (
   if (canonical.siteUrl) {
     for (const alias of ALIAS_DERIVATIONS[CANONICAL_SITE_URL] ?? []) {
       values[alias] =
-        alias === "NEXT_PUBLIC_WORKOS_REDIRECT_URI"
+        alias === "VITE_PUBLIC_WORKOS_REDIRECT_URI"
           ? new URL("/callback", canonical.siteUrl).toString()
           : canonical.siteUrl;
     }

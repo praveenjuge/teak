@@ -12,11 +12,11 @@ import { sessionEncryption } from "@workos/authkit-session";
 
 const originalFetch = globalThis.fetch;
 const keys = [
-  "NEXT_PUBLIC_CONVEX_URL",
+  "VITE_PUBLIC_CONVEX_URL",
   "WORKOS_CLIENT_ID",
   "WORKOS_API_KEY",
   "WORKOS_COOKIE_PASSWORD",
-  "NEXT_PUBLIC_WORKOS_REDIRECT_URI",
+  "VITE_PUBLIC_WORKOS_REDIRECT_URI",
   "NODE_ENV",
 ];
 const originalEnvironment = Object.fromEntries(
@@ -27,9 +27,9 @@ process.env.WORKOS_CLIENT_ID = "client_web123";
 // The web app signs in as a public client, without an API key.
 Reflect.deleteProperty(process.env, "WORKOS_API_KEY");
 process.env.WORKOS_COOKIE_PASSWORD = cookiePassword;
-process.env.NEXT_PUBLIC_WORKOS_REDIRECT_URI = "http://localhost:3142/callback";
+process.env.VITE_PUBLIC_WORKOS_REDIRECT_URI = "http://localhost:3142/callback";
 process.env.NODE_ENV = "development";
-process.env.NEXT_PUBLIC_CONVEX_URL = "https://sign-up-tests.convex.cloud";
+process.env.VITE_PUBLIC_CONVEX_URL = "https://sign-up-tests.convex.cloud";
 
 // AuthKit's server functions read the session and hand the PKCE cookie to
 // the response through Start's request context, which only a running app

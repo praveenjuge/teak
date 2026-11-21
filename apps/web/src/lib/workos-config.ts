@@ -4,7 +4,7 @@ export function readWorkosWebConfig(
   environment: NodeJS.ProcessEnv = process.env
 ) {
   const clientId = environment.WORKOS_CLIENT_ID;
-  const rawRedirect = environment.NEXT_PUBLIC_WORKOS_REDIRECT_URI;
+  const rawRedirect = environment.VITE_PUBLIC_WORKOS_REDIRECT_URI;
   const cookiePassword = environment.WORKOS_COOKIE_PASSWORD;
   if (
     !(clientId && /^client_[A-Za-z0-9]+$/.test(clientId) && cookiePassword) ||

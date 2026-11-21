@@ -6,7 +6,7 @@ const keys = [
   "WORKOS_CLIENT_ID",
   "WORKOS_COOKIE_PASSWORD",
   "WORKOS_REDIRECT_URI",
-  "NEXT_PUBLIC_WORKOS_REDIRECT_URI",
+  "VITE_PUBLIC_WORKOS_REDIRECT_URI",
 ];
 const originalEnvironment = Object.fromEntries(
   keys.map((key) => [key, process.env[key]])
@@ -14,7 +14,7 @@ const originalEnvironment = Object.fromEntries(
 process.env.WORKOS_CLIENT_ID = "client_web123";
 process.env.WORKOS_COOKIE_PASSWORD = "test-session-password-for-fixtures-only";
 Reflect.deleteProperty(process.env, "WORKOS_REDIRECT_URI");
-process.env.NEXT_PUBLIC_WORKOS_REDIRECT_URI = "http://localhost:3142/callback";
+process.env.VITE_PUBLIC_WORKOS_REDIRECT_URI = "http://localhost:3142/callback";
 const { signInGuard } = await import("../server/session");
 const { validateConfig } = await import("@workos/authkit-session");
 

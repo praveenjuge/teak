@@ -40,7 +40,7 @@ describe("dotenv-audit", () => {
   test("clean tree reports no findings", () => {
     const root = makeRoot({
       "apps/web/.env.local":
-        "NEXT_PUBLIC_CONVEX_URL=http://127.0.0.1:3210\nNEXT_PUBLIC_CONVEX_SITE_URL=http://127.0.0.1:3211\n",
+        "VITE_PUBLIC_CONVEX_URL=http://127.0.0.1:3210\nVITE_PUBLIC_CONVEX_SITE_URL=http://127.0.0.1:3211\n",
     });
     expect(auditDotenv(root)).toEqual([]);
   });

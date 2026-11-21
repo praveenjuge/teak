@@ -6,10 +6,10 @@ import { startPostHog, withPostHog } from "./posthog-client";
 import { releaseProperties } from "./posthog-config";
 
 startPostHog(
-  process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN,
+  import.meta.env.VITE_PUBLIC_POSTHOG_PROJECT_TOKEN,
   releaseProperties({
-    commitSha: process.env.NEXT_PUBLIC_COMMIT_SHA,
-    version: process.env.NEXT_PUBLIC_APP_VERSION,
+    commitSha: import.meta.env.VITE_PUBLIC_COMMIT_SHA,
+    version: import.meta.env.VITE_PUBLIC_APP_VERSION,
   })
 );
 

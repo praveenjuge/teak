@@ -20,23 +20,20 @@ export default defineConfig(({ mode }) => {
     analyticsEnabled: env.TEAK_ANALYTICS_ENABLED,
     // Read from the environment, not a hard-coded token.
     // nosemgrep: codacy.yaml.security.hard-coded-tokens
-    token: env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN,
+    token: env.VITE_PUBLIC_POSTHOG_PROJECT_TOKEN,
   });
   const uploadSourceMaps = Boolean(
     posthogToken &&
       env.POSTHOG_CLI_API_KEY?.trim() &&
       env.POSTHOG_CLI_PROJECT_ID?.trim()
   );
-  // Values the browser and the Worker read at build time, under the names
-  // the env contract (scripts/env) gives them.
-  const publicValues: Record<string, string | undefined> = {
-    NEXT_PUBLIC_APP_VERSION: packageJson.version,
-    NEXT_PUBLIC_COMMIT_SHA: resolveCommitSha(env),
-    NEXT_PUBLIC_CONVEX_SITE_URL: env.NEXT_PUBLIC_CONVEX_SITE_URL,
-    NEXT_PUBLIC_CONVEX_URL: env.NEXT_PUBLIC_CONVEX_URL,
-    NEXT_PUBLIC_FILES_BASE: env.NEXT_PUBLIC_FILES_BASE,
-    NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN: posthogToken ?? "",
-    NEXT_PUBLIC_WORKOS_REDIRECT_URI: env.NEXT_PUBLIC_WORKOS_REDIRECT_URI,
+  // Vite inlines the VITE_PUBLIC_* values from the env files and the build's
+  // environment by itself. These three are worked out here: the release, and
+  // the PostHog token, which only an analytics-enabled build may ship.
+  const computedValues = {
+    VITE_PUBLIC_APP_VERSION: packageJson.version,
+    VITE_PUBLIC_COMMIT_SHA: resolveCommitSha(env) ?? "",
+    VITE_PUBLIC_POSTHOG_PROJECT_TOKEN: posthogToken ?? "",
   };
   return {
     server: {
@@ -44,9 +41,9 @@ export default defineConfig(({ mode }) => {
       strictPort: true,
     },
     define: Object.fromEntries(
-      Object.entries(publicValues).map(([name, value]) => [
-        `process.env.${name}`,
-        JSON.stringify(value ?? ""),
+      Object.entries(computedValues).map(([name, value]) => [
+        `import.meta.env.${name}`,
+        JSON.stringify(value),
       ])
     ),
     resolve: {

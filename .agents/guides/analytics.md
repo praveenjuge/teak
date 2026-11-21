@@ -95,7 +95,7 @@ Exceptions are `$exception` events built by `buildExceptionProperties` in `packa
 ## Performance rules
 
 - posthog-js never joins the web app's initial bundle. `src/lib/client-telemetry.ts`, which the client entry (`src/client.tsx`) imports first, has `posthog-client.ts` load it with a dynamic `import()` when the page is idle (`requestIdleCallback`, 3 s timeout). A small queue holds early calls and early `error`/`unhandledrejection` events.
-- The SDK, recorder and surveys load from the same-origin `/ingest` proxy (`src/server/analyticsProxy.ts`, the first request middleware in `src/start.ts`, ahead of sign-in; it drops the browser's cookies). CSP needs no third-party hosts.
+- The SDK, recorder and surveys load from the same-origin `/ingest` proxy (`src/server/analyticsProxy.ts`, which `src/server.ts` runs before the app, ahead of sign-in; it drops the browser's cookies). CSP needs no third-party hosts.
 - The feedback survey's tab sits on the right edge, lowered toward the bottom by `lowerFeedbackTab` (`posthog-config.ts`) so it clears an open card's Next button. Keep the survey's tab position on the right; the override only applies there.
 - No click autocapture, heatmaps, dead clicks, console logs or network capture. Teak uses no feature flags, but `/flags` still loads after init because the feedback survey's targeting depends on it.
 - Server-side capture (Convex, worker, extension, the web Worker's `src/server.ts`) uses the dependency-free `createPostHogBatch` and sends one `/batch/` request per unit of work. Convex actions flush once at the end (`withBackendTelemetryScope`). Mutations can't fetch, so they queue each event in the workflow dispatch outbox (`queueBackendEvent` in `packages/convex/telemetry/schedule.ts`) and the Core Worker sends a flush's events in one `/batch/` request, unchanged (`$lib: teak-backend`). Convex queues nothing without `POSTHOG_PROJECT_TOKEN`. Delivery is best effort: Convex drops the row when it hands it over.
@@ -105,7 +105,7 @@ Exceptions are `$exception` events built by `buildExceptionProperties` in `packa
 
 | Name | Where | Notes |
 | --- | --- | --- |
-| `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN` | The `teak-app` Worker's production build (Workers Builds) | Inlined only when `TEAK_ANALYTICS_ENABLED=true` (`apps/web/src/lib/analyticsGate.ts`) |
+| `VITE_PUBLIC_POSTHOG_PROJECT_TOKEN` | The `teak-app` Worker's production build (Workers Builds) | Inlined only when `TEAK_ANALYTICS_ENABLED=true` (`apps/web/src/lib/analyticsGate.ts`) |
 | `TEAK_ANALYTICS_ENABLED` | The `teak-app` Worker's production build and runtime; self-hosted web builds that opt in | `true` lets a web build report to its own token's project (`resolvePostHogToken`). Local, preview and other builds leave it unset and send nothing |
 | `POSTHOG_PROJECT_TOKEN` | GitHub secret, Convex prod (set by Backend Deploy), worker `wrangler.jsonc` var | Also feeds the Apple archive and the extension release build |
 | `WXT_POSTHOG_PROJECT_TOKEN` | Extension Release workflow | From `POSTHOG_PROJECT_TOKEN` |

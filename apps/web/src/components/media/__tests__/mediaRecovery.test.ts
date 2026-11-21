@@ -7,10 +7,10 @@ import {
 } from "../mediaRecovery";
 
 const withEnv = (
-  values: { NEXT_PUBLIC_CONVEX_URL?: string; NEXT_PUBLIC_FILES_BASE?: string },
+  values: { VITE_PUBLIC_CONVEX_URL?: string; VITE_PUBLIC_FILES_BASE?: string },
   run: () => void
 ) => {
-  const names = ["NEXT_PUBLIC_CONVEX_URL", "NEXT_PUBLIC_FILES_BASE"] as const;
+  const names = ["VITE_PUBLIC_CONVEX_URL", "VITE_PUBLIC_FILES_BASE"] as const;
   const previous = names.map((name) => process.env[name]);
   for (const name of names) {
     const value = values[name];
@@ -72,20 +72,20 @@ describe("media recovery", () => {
     [
       "the development Core Worker, for the development deployment",
       {
-        NEXT_PUBLIC_CONVEX_URL: DEFAULT_TEAK_DEV_CONVEX_URL,
+        VITE_PUBLIC_CONVEX_URL: DEFAULT_TEAK_DEV_CONVEX_URL,
       },
       "https://core-worker-dev.praveenjuge.workers.dev/__images/v1/grid/user/card/file.jpg?exp=1&sig=x",
     ],
     [
       "a self-hosted files host",
-      { NEXT_PUBLIC_FILES_BASE: "https://files.example.com" },
+      { VITE_PUBLIC_FILES_BASE: "https://files.example.com" },
       "https://files.example.com/__images/v1/grid/user/card/file.jpg?exp=1&sig=x",
     ],
     [
       "the local stack's Core Worker",
       {
-        NEXT_PUBLIC_CONVEX_URL: "http://127.0.0.1:3210",
-        NEXT_PUBLIC_FILES_BASE: "http://127.0.0.1:8789",
+        VITE_PUBLIC_CONVEX_URL: "http://127.0.0.1:3210",
+        VITE_PUBLIC_FILES_BASE: "http://127.0.0.1:8789",
       },
       "http://127.0.0.1:8789/__images/v1/grid/user/card/file.jpg?exp=1&sig=x",
     ],
@@ -98,7 +98,7 @@ describe("media recovery", () => {
 
   test("the development Core Worker isn't a files host for other deployments", () => {
     withEnv(
-      { NEXT_PUBLIC_CONVEX_URL: "https://other-deployment-1.convex.cloud" },
+      { VITE_PUBLIC_CONVEX_URL: "https://other-deployment-1.convex.cloud" },
       () => {
         expect(
           canRetryMedia(

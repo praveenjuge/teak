@@ -127,9 +127,9 @@ interface DerivedFilePlan {
 const WEB_PLAN: DerivedFilePlan = {
   path: WEB_ENV_PATH,
   keys: [
-    "NEXT_PUBLIC_CONVEX_URL",
-    "NEXT_PUBLIC_CONVEX_SITE_URL",
-    "NEXT_PUBLIC_WORKOS_REDIRECT_URI",
+    "VITE_PUBLIC_CONVEX_URL",
+    "VITE_PUBLIC_CONVEX_SITE_URL",
+    "VITE_PUBLIC_WORKOS_REDIRECT_URI",
   ],
 };
 

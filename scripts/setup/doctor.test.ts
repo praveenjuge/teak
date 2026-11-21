@@ -11,13 +11,13 @@ import {
 
 describe("findMissingKeys", () => {
   test("reports keys absent from dotenv content", () => {
-    const content = "# comment\nNEXT_PUBLIC_CONVEX_URL=http://x\n";
+    const content = "# comment\nVITE_PUBLIC_CONVEX_URL=http://x\n";
     expect(
       findMissingKeys(content, [
-        "NEXT_PUBLIC_CONVEX_URL",
-        "NEXT_PUBLIC_CONVEX_SITE_URL",
+        "VITE_PUBLIC_CONVEX_URL",
+        "VITE_PUBLIC_CONVEX_SITE_URL",
       ])
-    ).toEqual(["NEXT_PUBLIC_CONVEX_SITE_URL"]);
+    ).toEqual(["VITE_PUBLIC_CONVEX_SITE_URL"]);
   });
 
   test("empty when all keys present", () => {

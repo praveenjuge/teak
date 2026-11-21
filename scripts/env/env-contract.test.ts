@@ -65,7 +65,7 @@ describe("env-contract", () => {
   test("platform patterns do not swallow operator-owned prefixes", () => {
     for (const name of [
       "E2E_PUBLIC_ORIGIN",
-      "NEXT_PUBLIC_CONVEX_URL",
+      "VITE_PUBLIC_CONVEX_URL",
       "VITE_PUBLIC_CONVEX_URL",
     ]) {
       expect(isPlatformVar(name)).toBe(false);

@@ -11,14 +11,14 @@ const ROOT = join(import.meta.dir, "../..");
 const WEB_ENV_PATH = join(ROOT, "apps/web/.env.local");
 
 export const REQUIRED_WEB_ENV_KEYS = [
-  "NEXT_PUBLIC_CONVEX_URL",
-  "NEXT_PUBLIC_CONVEX_SITE_URL",
+  "VITE_PUBLIC_CONVEX_URL",
+  "VITE_PUBLIC_CONVEX_SITE_URL",
 ] as const;
 
 export const REQUIRED_WEB_AUTH_KEYS = [
   "WORKOS_CLIENT_ID",
   "WORKOS_COOKIE_PASSWORD",
-  "NEXT_PUBLIC_WORKOS_REDIRECT_URI",
+  "VITE_PUBLIC_WORKOS_REDIRECT_URI",
 ] as const;
 
 export interface EnvIssue {

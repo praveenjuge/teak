@@ -40,11 +40,11 @@ describe("env-loader", () => {
     mkdirSync(join(root, "apps/web"), { recursive: true });
     writeFileSync(
       join(root, "apps/web/.env.local"),
-      "NEXT_PUBLIC_CONVEX_URL=http://127.0.0.1:3210\n"
+      "VITE_PUBLIC_CONVEX_URL=http://127.0.0.1:3210\n"
     );
     writeFileSync(join(root, ".env.local"), "POISON=should-not-load\n");
     const loaded = loadTargetEnv("web", root);
-    expect(loaded.values.get("NEXT_PUBLIC_CONVEX_URL")).toBe(
+    expect(loaded.values.get("VITE_PUBLIC_CONVEX_URL")).toBe(
       "http://127.0.0.1:3210"
     );
     expect(loaded.values.has("POISON")).toBe(false);

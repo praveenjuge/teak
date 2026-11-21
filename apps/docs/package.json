@@ -15,7 +15,6 @@
     "generate:skills": "bun run scripts/generate-skills.ts",
     "lint": "biome check blume.config.ts cloudflare.config.ts lib scripts styles package.json turbo.json tsconfig.json tsconfig.typecheck.json",
     "preview": "blume preview",
-    "start": "blume preview",
     "test": "bun test lib scripts --coverage --dots",
     "typecheck": "bun run generate && blume check --strict && blume validate --strict",
     "validate": "bun run generate && blume validate --strict"

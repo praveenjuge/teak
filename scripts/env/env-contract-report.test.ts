@@ -56,7 +56,7 @@ describe("env-contract-report", () => {
   });
 
   test("generated aliases are not manually supplied", () => {
-    const alias = spec("NEXT_PUBLIC_CONVEX_URL", {
+    const alias = spec("VITE_PUBLIC_CONVEX_URL", {
       owners: ["@teak/web"],
       targets: ["web"],
       profiles: ["local"],
@@ -112,7 +112,7 @@ describe("env-contract-report", () => {
   });
 
   test("missing entries list absent required names with reasons", () => {
-    const alias = spec("NEXT_PUBLIC_CONVEX_URL", {
+    const alias = spec("VITE_PUBLIC_CONVEX_URL", {
       owners: ["@teak/web"],
       targets: ["web"],
       profiles: ["local"],
@@ -135,11 +135,11 @@ describe("env-contract-report", () => {
     });
     const missing = missingEntries("web", "local", new Set(), [alias, manual]);
     expect(missing).toHaveLength(1);
-    expect(missing[0]?.name).toBe("NEXT_PUBLIC_CONVEX_URL");
+    expect(missing[0]?.name).toBe("VITE_PUBLIC_CONVEX_URL");
     expect(missing[0]?.reason).toContain("CONVEX_URL");
-    expect(missing[0]?.example).toContain("NEXT_PUBLIC_CONVEX_URL=");
+    expect(missing[0]?.example).toContain("VITE_PUBLIC_CONVEX_URL=");
     expect(
-      missingEntries("web", "local", new Set(["NEXT_PUBLIC_CONVEX_URL"]), [
+      missingEntries("web", "local", new Set(["VITE_PUBLIC_CONVEX_URL"]), [
         alias,
         manual,
       ])

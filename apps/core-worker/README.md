@@ -1190,7 +1190,7 @@ missing.
 
 Builds for the dev deployment (`reminiscent-kangaroo-59`) allow exactly this
 origin: the web CSP and shared media recovery. No
-`NEXT_PUBLIC_FILES_BASE` is needed for it. Production builds never allow it. If
+`VITE_PUBLIC_FILES_BASE` is needed for it. Production builds never allow it. If
 the deployed workers.dev origin differs, change `DEVELOPMENT_FILES_ORIGIN` and
 its client copies together (a drift test checks them).
 
