@@ -106,7 +106,6 @@ export function SettingsLogoTile({ src }: { src: string }) {
       aria-hidden
       className="flex size-7 shrink-0 items-center justify-center rounded-lg border border-black/5 bg-white"
     >
-      {/* biome-ignore lint/performance/noImgElement: a small static SVG */}
       <img
         alt=""
         className="size-[18px] object-contain"

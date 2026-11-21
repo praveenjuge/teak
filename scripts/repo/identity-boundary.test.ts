@@ -15,7 +15,7 @@ const lint = (source: string) => {
     throw new Error("Expected a Biome configuration object");
   }
   const config = `{ "vcs": { "enabled": false },${sourceConfig.slice(1)}`
-    .replaceAll(/"ultracite\/biome\/(core|react|next)"/g, (value) =>
+    .replaceAll(/"ultracite\/biome\/[\w-]+"/g, (value) =>
       JSON.stringify(Bun.resolveSync(JSON.parse(value), root))
     )
     .replaceAll(/"\.\/(scripts\/lint\/[\w-]+\.grit)"/g, (_match, path) =>

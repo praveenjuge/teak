@@ -83,14 +83,8 @@ const nextConfig: NextConfig = {
   },
   // PostHog's endpoints end in a slash (/e/, /flags/); src/proxy.ts proxies them.
   skipTrailingSlashRedirect: true,
-  async headers() {
-    return [
-      {
-        source: "/:path*",
-        headers: staticSecurityHeaders,
-      },
-    ];
-  },
+  headers: () =>
+    Promise.resolve([{ source: "/:path*", headers: staticSecurityHeaders }]),
 };
 
 export default nextConfig;

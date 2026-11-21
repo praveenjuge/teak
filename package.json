@@ -74,6 +74,7 @@
   "catalog": {
     "@cf-wasm/photon": "^0.4.0",
     "@radix-ui/react-slot": "^1.5.0",
+    "@tailwindcss/vite": "^4.3.3",
     "@types/bun": "^1.4.4",
     "@types/node": "^26.6.5",
     "@types/react": "19.3.0",
@@ -96,6 +97,7 @@
     "typescript": "^6.0.3",
     "use-intl": "4.14.9",
     "vadivam-react": "^0.0.69",
+    "vite": "8.2.4",
     "wrangler": "^4.151.0",
     "zod": "4.6.7"
   },

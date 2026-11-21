@@ -1,0 +1,8 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "teak-app",
+  "compatibility_date": "2026-10-15",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "@tanstack/react-start/server-entry",
+  "workers_dev": false
+}
