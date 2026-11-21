@@ -46,7 +46,19 @@ export type AppSessionResult = AppSession | { unavailable: true };
  * gives the page. Without a session it redirects to sign-in.
  */
 export const loadAppSession = createServerFn({ method: "GET" })
-  .validator((data: { path: string; seeds: boolean }) => data)
+  .validator((data: { path: string; seeds: boolean }) => {
+    // The types hold for the app's own calls; a request built by hand gets
+    // checked here. The path is always the page's own, never another origin.
+    const { path, seeds } = (data ?? {}) as Partial<Record<string, unknown>>;
+    if (
+      typeof path !== "string" ||
+      !path.startsWith("/") ||
+      path.startsWith("//")
+    ) {
+      throw new Error("loadAppSession needs the page's path");
+    }
+    return { path, seeds: seeds === true };
+  })
   .handler(async ({ data }): Promise<AppSessionResult> => {
     let auth: Awaited<ReturnType<typeof getAuth>>;
     try {

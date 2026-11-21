@@ -1,6 +1,9 @@
 import { useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 
+// Long enough for the new page's head and any title set in an effect to land.
+const SETTLE_MS = 100;
+
 /**
  * Tells screen readers which page a client-side navigation opened, the way a
  * full page load would: it reads the tab title once the new page has
@@ -11,25 +14,34 @@ export function RouteAnnouncer() {
   const router = useRouter();
   const [announcement, setAnnouncement] = useState("");
   useEffect(() => {
-    let frame = 0;
-    const unsubscribe = router.subscribe("onRendered", (event) => {
-      if (!(event.fromLocation && event.pathChanged)) {
+    // The path last announced, kept here: the router's own `pathChanged`
+    // compares with the last resolved location, which a quick run of
+    // replaced URLs (typing in a search field) can leave behind.
+    let announcedPath = router.state.location.pathname;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const announce = ({ toLocation }: { toLocation: { pathname: string } }) => {
+      if (toLocation.pathname === announcedPath) {
         return;
       }
-      cancelAnimationFrame(frame);
-      // A frame later, the route's head and any page title set in an effect
-      // have landed.
-      frame = requestAnimationFrame(() => {
+      announcedPath = toLocation.pathname;
+      clearTimeout(timer);
+      timer = setTimeout(() => {
         setAnnouncement(
           document.title ||
             document.querySelector("main h1, h1")?.textContent?.trim() ||
-            event.toLocation.pathname
+            toLocation.pathname
         );
-      });
-    });
+      }, SETTLE_MS);
+    };
+    const unsubscribers = [
+      router.subscribe("onResolved", announce),
+      router.subscribe("onRendered", announce),
+    ];
     return () => {
-      cancelAnimationFrame(frame);
-      unsubscribe();
+      clearTimeout(timer);
+      for (const unsubscribe of unsubscribers) {
+        unsubscribe();
+      }
     };
   }, [router]);
   return (
