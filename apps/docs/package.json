@@ -1,17 +1,19 @@
 {
   "name": "@teak/docs",
   "version": "1.0.95",
+  "type": "module",
   "scripts": {
     "audit": "bun run build:site && blume audit --fail-on error",
     "audit:live": "blume audit --url https://teakvault.com --fail-on error",
-    "build": "bun run build:site && blume audit --fail-on error && bun run scripts/check-header-visibility.ts",
+    "build": "bun run build:site && bun run scripts/security-headers.ts && blume audit --fail-on error && bun run scripts/check-header-visibility.ts",
     "build:site": "bun run generate && blume build --budget-js=850",
+    "deploy": "cf deploy dist",
     "dev": "bun run generate && blume dev --port ${DOCS_PORT:-3001} --host 127.0.0.1",
     "eval": "bun run generate && blume eval --agent claude",
     "generate": "bun run generate:openapi && bun run generate:skills",
     "generate:openapi": "bun run scripts/generate-openapi.ts",
     "generate:skills": "bun run scripts/generate-skills.ts",
-    "lint": "biome check blume.config.ts lib middleware.ts scripts styles vercel.json package.json turbo.json tsconfig.json tsconfig.typecheck.json",
+    "lint": "biome check blume.config.ts cloudflare.config.ts lib scripts styles package.json turbo.json tsconfig.json tsconfig.typecheck.json",
     "preview": "blume preview",
     "start": "blume preview",
     "test": "bun test lib scripts --coverage --dots",
@@ -20,12 +22,12 @@
   },
   "dependencies": {
     "@teak/convex": "workspace:*",
-    "@vercel/functions": "^3.7.6",
     "blume": "^2.2.1",
     "teak-sdk": "workspace:*"
   },
   "devDependencies": {
     "@types/bun": "catalog:",
+    "cf": "1.0.0-rc.2",
     "typescript": "catalog:"
   },
   "engines": {

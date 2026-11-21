@@ -78,7 +78,8 @@ sign-in fails. The owner sets the value and registers the resources.
 
 - `CONVEX_DEPLOY_KEY` (Backend Deploy): Convex non-interactive auth has no OIDC
   alternative; the deploy key stays, scoped to that workflow's `env` block.
-- Web deploys through the Vercel Git integration with no repository
+- Web deploys through the Vercel Git integration, and the docs site (the
+  `teak-site` Worker) through Workers Builds, neither with a repository
   credential; App Store and Chrome Web Store credentials are vendor JWT/OAuth
   flows without an OIDC alternative.
 

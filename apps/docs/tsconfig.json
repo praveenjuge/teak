@@ -18,6 +18,6 @@
     "pages/**/*.astro",
     "layouts/**/*.astro",
     "components/**/*.astro",
-    "vercel.json"
+    "cloudflare.config.ts"
   ]
 }
