@@ -28,8 +28,10 @@ const removeSourceMaps = async (directory: string): Promise<number> => {
 
 /**
  * After `vite build`: tags each browser chunk with a PostHog chunk ID,
- * uploads the browser source maps under this release, then deletes every
- * `.map` file so source is never served. It runs only for builds that report
+ * uploads the browser source maps under this release, then deletes them so
+ * source is never served. The Worker's own maps stay: Wrangler uploads them
+ * to Cloudflare for Workers Issues, and they are never served. It runs only
+ * for builds that report
  * to PostHog with CLI credentials (vite.config.ts writes hidden maps then).
  * Uploading is best effort; a PostHog outage must never fail a deploy.
  */
@@ -77,7 +79,7 @@ const main = async () => {
         : String(error);
     console.warn(`[posthog] Source map upload failed; continuing.\n${detail}`);
   } finally {
-    const removed = await removeSourceMaps(distDir);
+    const removed = await removeSourceMaps(clientDir);
     console.info(`[posthog] Removed ${removed} source maps`);
   }
 };

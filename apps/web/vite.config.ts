@@ -66,6 +66,11 @@ export default defineConfig(({ mode }) => {
       // Hidden maps are uploaded to PostHog after the build, then deleted.
       sourcemap: uploadSourceMaps ? "hidden" : false,
     },
+    environments: {
+      // The Worker's maps go to Cloudflare with the deploy (wrangler.jsonc,
+      // `upload_source_maps`), so Workers Issues shows source lines.
+      ssr: { build: { sourcemap: true } },
+    },
     plugins: [
       cloudflare({ viteEnvironment: { name: "ssr" } }),
       tailwindcss(),

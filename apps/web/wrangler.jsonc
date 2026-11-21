@@ -10,5 +10,13 @@
   // Page loads query Convex before they answer; running near it beats
   // running near the visitor.
   "placement": { "mode": "smart" },
-  "observability": { "enabled": true }
+  "upload_source_maps": true,
+  // Logs, traces and Issues for every request the Worker handles; static
+  // files never run it. Traffic is low enough to keep everything.
+  "observability": {
+    "enabled": true,
+    "logs": { "head_sampling_rate": 1, "invocation_logs": true },
+    "traces": { "enabled": true, "head_sampling_rate": 1 },
+    "issues": { "enabled": true }
+  }
 }
