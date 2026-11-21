@@ -89,18 +89,18 @@ describe("menus run the shortcuts their items list", () => {
           <DropdownMenuContent onKeyDown={runMenuItemShortcut}>
             <DropdownMenuItem
               aria-keyshortcuts={spies.note.keys}
-              onSelect={spies.note.onSelect}
+              onClick={spies.note.onSelect}
             >
               Note
             </DropdownMenuItem>
             <DropdownMenuItem
               aria-keyshortcuts={spies.upload.keys}
               disabled={uploadDisabled}
-              onSelect={spies.upload.onSelect}
+              onClick={spies.upload.onSelect}
             >
               Upload
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={spies.other.onSelect}>
+            <DropdownMenuItem onClick={spies.other.onSelect}>
               Nothing listed
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -108,7 +108,7 @@ describe("menus run the shortcuts their items list", () => {
       )
     );
     const trigger = container.querySelector("button") as HTMLElement;
-    await keydown(trigger, { key: "Enter" });
+    await act(() => trigger.click());
     const menu = document.querySelector<HTMLElement>("[role='menu']");
     expect(menu).not.toBeNull();
     return menu as HTMLElement;
@@ -149,7 +149,7 @@ describe("menus run the shortcuts their items list", () => {
         <ContextMenu>
           <ContextMenuTrigger>Area</ContextMenuTrigger>
           <ContextMenuContent onKeyDown={runMenuItemShortcut}>
-            <ContextMenuItem aria-keyshortcuts="Delete" onSelect={onSelect}>
+            <ContextMenuItem aria-keyshortcuts="Delete" onClick={onSelect}>
               Delete
             </ContextMenuItem>
           </ContextMenuContent>

@@ -1,5 +1,3 @@
-import type { PointerEvent } from "react";
-
 /**
  * How long after a context menu opens a pointer release is still treated as
  * the end of the press that opened it.
@@ -39,14 +37,19 @@ export function isMenuOpeningRelease(
 }
 
 /**
- * Runs on every context menu item's `pointerup` before Radix's own handler,
- * which clicks the item when the press didn't start on it. Preventing the
- * default skips that click, so the release that opened the menu never picks
- * an item; a real click (press and release on the item) still does.
+ * Runs on every context menu item's `mouseup` before Base UI's own handler,
+ * which clicks the item when the press didn't start on it. Base UI only skips
+ * that click when the pointer hasn't moved, so this also skips it for any
+ * secondary-button release and any release right after the menu opened. The
+ * release that opened the menu never picks an item; a real click (press and
+ * release on the item) still does.
  */
-export function ignoreMenuOpeningRelease(event: PointerEvent<HTMLElement>) {
+export function ignoreMenuOpeningRelease(event: {
+  button: number;
+  preventBaseUIHandler: () => void;
+}) {
   if (isMenuOpeningRelease({ button: event.button })) {
-    event.preventDefault();
+    event.preventBaseUIHandler();
   }
 }
 

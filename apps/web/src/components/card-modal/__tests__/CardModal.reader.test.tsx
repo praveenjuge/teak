@@ -120,7 +120,7 @@ const toggleItems = () =>
 
 const selectedView = () =>
   toggleItems()
-    .find((item) => item.getAttribute("data-state") === "on")
+    .find((item) => item.hasAttribute("data-pressed"))
     ?.textContent?.trim();
 
 const press = async (key: string) => {

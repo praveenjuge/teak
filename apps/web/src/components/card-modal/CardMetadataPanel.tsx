@@ -278,19 +278,19 @@ export function HighlightsSection({
             )}
             {card.isDeleted ? null : (
               <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    aria-label={t("highlightActions")}
-                    className="absolute top-1 right-0 flex size-6 items-center justify-center rounded-md text-muted-foreground opacity-0 pointer-coarse:opacity-100 transition-opacity duration-150 hover:bg-foreground/10 hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-focus-within/highlight:opacity-100 group-hover/highlight:opacity-100 data-[state=open]:opacity-100 [&_svg]:size-3.5"
-                    type="button"
-                  >
-                    <Ellipsis />
-                  </button>
-                </DropdownMenuTrigger>
+                <DropdownMenuTrigger
+                  render={
+                    <button
+                      aria-label={t("highlightActions")}
+                      className="absolute top-1 right-0 flex size-6 items-center justify-center rounded-md text-muted-foreground opacity-0 pointer-coarse:opacity-100 transition-opacity duration-150 hover:bg-foreground/10 hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-focus-within/highlight:opacity-100 group-hover/highlight:opacity-100 data-popup-open:opacity-100 [&_svg]:size-3.5"
+                      type="button"
+                    >
+                      <Ellipsis />
+                    </button>
+                  }
+                />
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem
-                    onSelect={() => control.onRemove(highlight)}
-                  >
+                  <DropdownMenuItem onClick={() => control.onRemove(highlight)}>
                     <Trash />
                     {tc("remove")}
                   </DropdownMenuItem>

@@ -90,19 +90,19 @@ export function AppSidebar({
     return (
       <SidebarMenuItem key={view}>
         <SidebarMenuButton
-          asChild
           isActive={isActive}
+          render={
+            <LinkComponent
+              aria-current={isActive ? "page" : undefined}
+              href={href}
+              onClick={handleNavigate}
+            >
+              <Icon />
+              <span>{label}</span>
+            </LinkComponent>
+          }
           tooltip={goToTooltip(view, label)}
-        >
-          <LinkComponent
-            aria-current={isActive ? "page" : undefined}
-            href={href}
-            onClick={handleNavigate}
-          >
-            <Icon />
-            <span>{label}</span>
-          </LinkComponent>
-        </SidebarMenuButton>
+        />
       </SidebarMenuItem>
     );
   };
@@ -111,24 +111,24 @@ export function AppSidebar({
     <Sidebar
       className="group/sidebar-panel"
       collapsible="icon"
-      onMobileCloseAutoFocus={(event) => returnFocus(event)}
+      mobileFinalFocus={() => returnFocus()}
     >
       <SidebarHeader className="h-13 flex-row items-center gap-0.5 px-2 py-0 group-data-[collapsible=icon]:h-auto group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:justify-start group-data-[collapsible=icon]:pt-2.5 group-data-[collapsible=icon]:pb-0">
         <SidebarMenu className="w-auto">
           <SidebarMenuItem>
             <SidebarMenuButton
-              asChild
               className="h-8 w-auto px-[7px] hover:bg-transparent active:bg-transparent group-data-[collapsible=icon]:h-8! group-data-[collapsible=icon]:px-[7px]! [&>svg]:size-[18px] [&>svg]:opacity-100"
+              render={
+                <LinkComponent
+                  aria-label={t("home")}
+                  href={GO_TO.all.href}
+                  onClick={handleNavigate}
+                >
+                  <LogoMark />
+                </LinkComponent>
+              }
               tooltip="Teak"
-            >
-              <LinkComponent
-                aria-label={t("home")}
-                href={GO_TO.all.href}
-                onClick={handleNavigate}
-              >
-                <LogoMark />
-              </LinkComponent>
-            </SidebarMenuButton>
+            />
           </SidebarMenuItem>
         </SidebarMenu>
         <span className="flex-1 group-data-[collapsible=icon]:hidden" />
@@ -158,19 +158,19 @@ export function AppSidebar({
             {PRIMARY_VIEWS.map(viewItem)}
             <SidebarMenuItem>
               <SidebarMenuButton
-                asChild
                 isActive={isTagsActive}
+                render={
+                  <LinkComponent
+                    aria-current={isTagsActive ? "page" : undefined}
+                    href={GO_TO.tags.href}
+                    onClick={handleNavigate}
+                  >
+                    <TagsIcon />
+                    <span>{t("tags")}</span>
+                  </LinkComponent>
+                }
                 tooltip={goToTooltip("tags", t("tags"))}
-              >
-                <LinkComponent
-                  aria-current={isTagsActive ? "page" : undefined}
-                  href={GO_TO.tags.href}
-                  onClick={handleNavigate}
-                >
-                  <TagsIcon />
-                  <span>{t("tags")}</span>
-                </LinkComponent>
-              </SidebarMenuButton>
+              />
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarGroup>
@@ -185,20 +185,20 @@ export function AppSidebar({
           {SECONDARY_VIEWS.map(viewItem)}
           <SidebarMenuItem>
             <SidebarMenuButton
-              asChild
               isActive={isSettingsActive}
+              render={
+                <LinkComponent
+                  aria-current={isSettingsActive ? "page" : undefined}
+                  aria-label={t("settings")}
+                  href={GO_TO.settings.href}
+                  onClick={handleNavigate}
+                >
+                  <SettingsIcon />
+                  <span>{t("settings")}</span>
+                </LinkComponent>
+              }
               tooltip={goToTooltip("settings", t("settings"))}
-            >
-              <LinkComponent
-                aria-current={isSettingsActive ? "page" : undefined}
-                aria-label={t("settings")}
-                href={GO_TO.settings.href}
-                onClick={handleNavigate}
-              >
-                <SettingsIcon />
-                <span>{t("settings")}</span>
-              </LinkComponent>
-            </SidebarMenuButton>
+            />
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>

@@ -159,11 +159,7 @@ async function openMenu() {
   const trigger = document.querySelector<HTMLButtonElement>(
     "button[aria-label='More actions']"
   );
-  await act(() => {
-    trigger?.dispatchEvent(
-      new KeyboardEvent("keydown", { bubbles: true, key: "Enter" })
-    );
-  });
+  await act(() => trigger?.click());
 }
 
 const button = (label: string) =>

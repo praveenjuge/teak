@@ -157,17 +157,19 @@ export function BulkActionBar({
         )}
         {view !== "trash" && !addToFolder && (
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                aria-label={t("moreActions")}
-                disabled={disabled}
-                size="sm"
-                variant="outline"
-              >
-                <Ellipsis />
-                <span className="max-sm:sr-only">{tc("more")}</span>
-              </Button>
-            </DropdownMenuTrigger>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  aria-label={t("moreActions")}
+                  disabled={disabled}
+                  size="sm"
+                  variant="outline"
+                >
+                  <Ellipsis />
+                  <span className="max-sm:sr-only">{tc("more")}</span>
+                </Button>
+              }
+            />
             <DropdownMenuContent
               align="end"
               className="w-52"
@@ -198,25 +200,25 @@ export function BulkActionBar({
                 <Tag />
                 {t("addTags")}
               </BarMenuItem>
-              <DropdownMenuItem onSelect={() => onAction("removeTags")}>
+              <DropdownMenuItem onClick={() => onAction("removeTags")}>
                 <Tags />
                 {t("removeTags")}
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => onAction("copyLinks")}>
+              <DropdownMenuItem onClick={() => onAction("copyLinks")}>
                 <LinkIcon />
                 {t("copyLinks")}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={() => onAction("addToFolder")}>
+              <DropdownMenuItem onClick={() => onAction("addToFolder")}>
                 <FolderPlus />
                 {t("addToFolder")}
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => onAction("moveToFolder")}>
+              <DropdownMenuItem onClick={() => onAction("moveToFolder")}>
                 <FolderInput />
                 {t("moveToFolder")}
               </DropdownMenuItem>
               {folder ? (
-                <DropdownMenuItem onSelect={() => onAction("removeFromFolder")}>
+                <DropdownMenuItem onClick={() => onAction("removeFromFolder")}>
                   <FolderMinus />
                   <span className="truncate">
                     {t("removeFromFolder", { folder: folder.name })}
@@ -269,7 +271,7 @@ function BarMenuItem({
   return (
     <DropdownMenuItem
       aria-keyshortcuts={shortcut?.keys}
-      onSelect={() => onAction(action)}
+      onClick={() => onAction(action)}
       variant={variant}
     >
       {children}

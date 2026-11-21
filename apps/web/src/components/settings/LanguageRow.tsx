@@ -74,11 +74,11 @@ export function LanguageRow({ locale, onChange, pending }: LanguageSetting) {
       <Select
         disabled={pending}
         onValueChange={(next) => {
-          if (isLocale(next)) {
+          if (next && isLocale(next)) {
             onChange(next);
           }
         }}
-        value={selected}
+        value={selected || null}
       >
         <SelectTrigger aria-label={t("label")} size="sm">
           <SelectValue placeholder={LOCALE_NAMES.en.native}>
@@ -89,8 +89,8 @@ export function LanguageRow({ locale, onChange, pending }: LanguageSetting) {
           {SUPPORTED_LOCALES.map((option) => (
             <SelectItem
               key={option}
+              label={LOCALE_NAMES[option].native}
               lang={option}
-              textValue={LOCALE_NAMES[option].native}
               value={option}
             >
               {LOCALE_NAMES[option].native}

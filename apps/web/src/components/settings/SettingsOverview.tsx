@@ -276,16 +276,20 @@ function PlanSection({
     plan = (
       <SettingsRow
         action={
-          <Button asChild className={LOADED} size="sm">
-            <AppLink
-              href={SETTINGS_PATHS.plan}
-              onClick={() =>
-                captureEvent("upgrade_clicked", { placement: "settings" })
-              }
-            >
-              {tSubscription("title")}
-            </AppLink>
-          </Button>
+          <Button
+            className={LOADED}
+            render={
+              <AppLink
+                href={SETTINGS_PATHS.plan}
+                onClick={() =>
+                  captureEvent("upgrade_clicked", { placement: "settings" })
+                }
+              >
+                {tSubscription("title")}
+              </AppLink>
+            }
+            size="sm"
+          />
         }
         label={tNav("plan")}
       />

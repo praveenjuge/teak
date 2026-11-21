@@ -183,11 +183,7 @@ test("on a phone, Add to folder from the menu opens once the menu has closed, wi
   const trigger = document.querySelector<HTMLButtonElement>(
     "button[aria-label='More actions']"
   );
-  await act(() => {
-    trigger?.dispatchEvent(
-      new KeyboardEvent("keydown", { bubbles: true, key: "Enter" })
-    );
-  });
+  await act(() => trigger?.click());
   const item = Array.from(document.querySelectorAll("[role='menuitem']")).find(
     (element) => element.textContent?.trim() === "Add to folder…"
   ) as HTMLElement | undefined;
@@ -214,11 +210,7 @@ test("archiving an emptied note says it keeps its last text", async () => {
   const trigger = document.querySelector<HTMLButtonElement>(
     "button[aria-label='More actions']"
   );
-  await act(() => {
-    trigger?.dispatchEvent(
-      new KeyboardEvent("keydown", { bubbles: true, key: "Enter" })
-    );
-  });
+  await act(() => trigger?.click());
   const item = Array.from(document.querySelectorAll("[role='menuitem']")).find(
     (element) => element.textContent?.trim().startsWith("Archive")
   ) as HTMLElement | undefined;

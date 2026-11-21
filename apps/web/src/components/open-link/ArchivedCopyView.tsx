@@ -59,35 +59,47 @@ export function ArchivedCopyBar({
         <span className="sm:hidden">{t("noLongerAvailableShort")}</span>
       </p>
       <div className="hidden shrink-0 items-center gap-1 sm:flex">
-        <Button asChild size="sm" variant="ghost">
-          <a href={url} rel="noopener noreferrer">
-            {t("tryOriginal")}
-          </a>
-        </Button>
-        <Button asChild size="sm" variant="outline">
-          <AppLink href={cardHref(cardId)}>{t("openInTeak")}</AppLink>
-        </Button>
-      </div>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            aria-label={t("moreActions")}
-            className="size-8 shrink-0 sm:hidden"
-            size="icon"
-            variant="ghost"
-          >
-            <Ellipsis aria-hidden="true" className="size-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem asChild>
+        <Button
+          render={
             <a href={url} rel="noopener noreferrer">
               {t("tryOriginal")}
             </a>
-          </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <AppLink href={cardHref(cardId)}>{t("openInTeak")}</AppLink>
-          </DropdownMenuItem>
+          }
+          size="sm"
+          variant="ghost"
+        />
+        <Button
+          render={<AppLink href={cardHref(cardId)}>{t("openInTeak")}</AppLink>}
+          size="sm"
+          variant="outline"
+        />
+      </div>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              aria-label={t("moreActions")}
+              className="size-8 shrink-0 sm:hidden"
+              size="icon"
+              variant="ghost"
+            >
+              <Ellipsis aria-hidden="true" className="size-4" />
+            </Button>
+          }
+        />
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem
+            render={
+              <a href={url} rel="noopener noreferrer">
+                {t("tryOriginal")}
+              </a>
+            }
+          />
+          <DropdownMenuItem
+            render={
+              <AppLink href={cardHref(cardId)}>{t("openInTeak")}</AppLink>
+            }
+          />
         </DropdownMenuContent>
       </DropdownMenu>
     </header>

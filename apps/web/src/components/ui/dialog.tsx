@@ -1,42 +1,36 @@
-import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { useTranslations } from "@teak/i18n/react";
-import * as React from "react";
+import type * as React from "react";
 import { XIcon } from "vadivam-react";
 
 import { cn } from "../../lib/utils";
 
-function Dialog({
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Root>) {
+type DialogOpenChangeDetails = DialogPrimitive.Root.ChangeEventDetails;
+
+function Dialog({ ...props }: DialogPrimitive.Root.Props) {
   return <DialogPrimitive.Root data-slot="dialog" {...props} />;
 }
 
-function DialogTrigger({
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Trigger>) {
+function DialogTrigger({ ...props }: DialogPrimitive.Trigger.Props) {
   return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />;
 }
 
-function DialogPortal({
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Portal>) {
+function DialogPortal({ ...props }: DialogPrimitive.Portal.Props) {
   return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />;
 }
 
-function DialogClose({
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Close>) {
+function DialogClose({ ...props }: DialogPrimitive.Close.Props) {
   return <DialogPrimitive.Close data-slot="dialog-close" {...props} />;
 }
 
 function DialogOverlay({
   className,
   ...props
-}: React.ComponentProps<typeof DialogPrimitive.Overlay>) {
+}: Omit<DialogPrimitive.Backdrop.Props, "className"> & { className?: string }) {
   return (
-    <DialogPrimitive.Overlay
+    <DialogPrimitive.Backdrop
       className={cn(
-        "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/50 data-[state=closed]:animate-out data-[state=open]:animate-in dark:bg-black/80",
+        "data-closed:fade-out-0 data-open:fade-in-0 fixed inset-0 z-50 bg-black/50 data-closed:animate-out data-open:animate-in dark:bg-black/80",
         className
       )}
       data-slot="dialog-overlay"
@@ -45,66 +39,30 @@ function DialogOverlay({
   );
 }
 
-function isInsideToaster(target: EventTarget | null): boolean {
-  return (
-    target instanceof Element &&
-    target.closest("[data-sonner-toaster]") !== null
-  );
-}
-
 function DialogContent({
   className,
   children,
-  onCloseAutoFocus,
-  onInteractOutside,
-  onOpenAutoFocus,
   overlayClassName,
   showCloseButton = true,
   ...props
-}: React.ComponentProps<typeof DialogPrimitive.Content> & {
+}: Omit<DialogPrimitive.Popup.Props, "className"> & {
+  className?: string;
   overlayClassName?: string;
   showCloseButton?: boolean;
 }) {
   const t = useTranslations("ui");
-  // Radix returns focus to a `DialogTrigger`, and most dialogs here open
-  // from state without one, which left focus on <body>. Return it to
-  // whatever had focus when the dialog opened instead.
-  const returnFocusRef = React.useRef<HTMLElement | null>(null);
 
   return (
-    <DialogPortal data-slot="dialog-portal">
+    <DialogPortal>
       <DialogOverlay className={overlayClassName} />
-      <DialogPrimitive.Content
+      <DialogPrimitive.Popup
         className={cn(
-          "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-2xl border bg-background p-6 shadow-lg duration-200 data-[state=closed]:animate-out data-[state=open]:animate-in sm:max-w-lg",
+          "data-closed:fade-out-0 data-open:fade-in-0 data-closed:zoom-out-95 data-open:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-2xl border bg-background p-6 shadow-lg outline-none duration-200 data-closed:animate-out data-open:animate-in sm:max-w-lg",
           // The title leaves room for the Close button in the corner.
           showCloseButton && "[&_[data-slot=dialog-title]]:pr-8",
           className
         )}
         data-slot="dialog-content"
-        onCloseAutoFocus={(event) => {
-          onCloseAutoFocus?.(event);
-          const target = returnFocusRef.current;
-          returnFocusRef.current = null;
-          if (!event.defaultPrevented && target?.isConnected) {
-            event.preventDefault();
-            target.focus({ preventScroll: true });
-          }
-        }}
-        onInteractOutside={(event) => {
-          if (isInsideToaster(event.target)) {
-            event.preventDefault();
-          }
-          onInteractOutside?.(event);
-        }}
-        onOpenAutoFocus={(event) => {
-          const active = document.activeElement;
-          returnFocusRef.current =
-            active instanceof HTMLElement && active !== document.body
-              ? active
-              : null;
-          onOpenAutoFocus?.(event);
-        }}
         {...props}
       >
         {children}
@@ -119,7 +77,7 @@ function DialogContent({
             <XIcon aria-hidden="true" />
           </DialogPrimitive.Close>
         ) : null}
-      </DialogPrimitive.Content>
+      </DialogPrimitive.Popup>
     </DialogPortal>
   );
 }
@@ -150,7 +108,7 @@ function DialogFooter({ className, ...props }: React.ComponentProps<"div">) {
 function DialogTitle({
   className,
   ...props
-}: React.ComponentProps<typeof DialogPrimitive.Title>) {
+}: Omit<DialogPrimitive.Title.Props, "className"> & { className?: string }) {
   return (
     <DialogPrimitive.Title
       className={cn("font-semibold text-lg leading-none", className)}
@@ -163,7 +121,9 @@ function DialogTitle({
 function DialogDescription({
   className,
   ...props
-}: React.ComponentProps<typeof DialogPrimitive.Description>) {
+}: Omit<DialogPrimitive.Description.Props, "className"> & {
+  className?: string;
+}) {
   return (
     <DialogPrimitive.Description
       className={cn("text-muted-foreground text-sm", className)}
@@ -173,6 +133,7 @@ function DialogDescription({
   );
 }
 
+export type { DialogOpenChangeDetails };
 export {
   Dialog,
   DialogClose,

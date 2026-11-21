@@ -35,12 +35,8 @@ mock.module("antd", () => ({
 mock.module("@/components/ui/context-menu", () => ({
   ContextMenu: ({ children }: any) =>
     React.createElement("div", { className: "context-menu" }, children),
-  ContextMenuTrigger: ({ children, disabled }: any) =>
-    React.createElement(
-      "div",
-      { className: "context-trigger", disabled },
-      children
-    ),
+  ContextMenuTrigger: ({ render }: any) =>
+    React.createElement("div", { className: "context-trigger" }, render),
   ContextMenuContent: ({ children }: any) =>
     React.createElement("div", { className: "context-content" }, children),
   ContextMenuItem: ({ children, "aria-keyshortcuts": keys }: any) =>

@@ -78,17 +78,19 @@ export function PageArchiveRow({ card }: { card: ClientCard }) {
     value = (
       <span className="inline-flex items-center gap-1 text-muted-foreground">
         {t("archiveFailed")}
-        <TooltipProvider delayDuration={300}>
+        <TooltipProvider delay={300}>
           <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                aria-label={reason}
-                className="flex size-5 shrink-0 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&_svg]:size-3.5"
-                type="button"
-              >
-                <Info aria-hidden="true" />
-              </button>
-            </TooltipTrigger>
+            <TooltipTrigger
+              render={
+                <button
+                  aria-label={reason}
+                  className="flex size-5 shrink-0 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&_svg]:size-3.5"
+                  type="button"
+                >
+                  <Info aria-hidden="true" />
+                </button>
+              }
+            />
             <TooltipContent className="max-w-64" side="left">
               {reason}
             </TooltipContent>

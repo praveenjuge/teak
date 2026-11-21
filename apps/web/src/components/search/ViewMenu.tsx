@@ -77,35 +77,37 @@ export function ViewMenu({
   const changed = count > 0 || changedOrder;
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          aria-label={viewMenuLabel(activeTypes, sort, t, types)}
-          className="relative h-9 shrink-0 gap-1.5 px-2.5 font-normal text-muted-foreground hover:text-foreground data-[state=open]:bg-accent data-[state=open]:text-foreground max-lg:w-9 max-lg:px-0"
-          type="button"
-          variant="ghost"
-        >
-          <SlidersHorizontal
-            className={cn("size-4", changed && "text-primary")}
-          />
-          <span aria-hidden="true" className="max-lg:hidden">
-            {t("viewMenu.label")}
-          </span>
-          {count > 0 && (
-            <span
-              aria-hidden="true"
-              className="flex size-4 items-center justify-center rounded-full bg-primary font-semibold text-[10px] text-primary-foreground tabular-nums max-lg:absolute max-lg:top-1 max-lg:right-1 max-lg:size-3.5 max-lg:text-[9px]"
-            >
-              {count}
-            </span>
-          )}
-          {count === 0 && changedOrder && (
-            <span
-              aria-hidden="true"
-              className="size-1.5 rounded-full bg-primary max-lg:absolute max-lg:top-2 max-lg:right-2"
+      <DropdownMenuTrigger
+        render={
+          <Button
+            aria-label={viewMenuLabel(activeTypes, sort, t, types)}
+            className="relative h-9 shrink-0 gap-1.5 px-2.5 font-normal text-muted-foreground hover:text-foreground data-popup-open:bg-accent data-popup-open:text-foreground max-lg:w-9 max-lg:px-0"
+            type="button"
+            variant="ghost"
+          >
+            <SlidersHorizontal
+              className={cn("size-4", changed && "text-primary")}
             />
-          )}
-        </Button>
-      </DropdownMenuTrigger>
+            <span aria-hidden="true" className="max-lg:hidden">
+              {t("viewMenu.label")}
+            </span>
+            {count > 0 && (
+              <span
+                aria-hidden="true"
+                className="flex size-4 items-center justify-center rounded-full bg-primary font-semibold text-[10px] text-primary-foreground tabular-nums max-lg:absolute max-lg:top-1 max-lg:right-1 max-lg:size-3.5 max-lg:text-[9px]"
+              >
+                {count}
+              </span>
+            )}
+            {count === 0 && changedOrder && (
+              <span
+                aria-hidden="true"
+                className="size-1.5 rounded-full bg-primary max-lg:absolute max-lg:top-2 max-lg:right-2"
+              />
+            )}
+          </Button>
+        }
+      />
       <DropdownMenuContent align="end" className="w-52">
         {onToggleType ? (
           <>
@@ -117,11 +119,9 @@ export function ViewMenu({
               return (
                 <DropdownMenuCheckboxItem
                   checked={activeTypes.includes(type)}
+                  closeOnClick={false}
                   key={type}
-                  onSelect={(event) => {
-                    event.preventDefault();
-                    onToggleType(type);
-                  }}
+                  onCheckedChange={() => onToggleType(type)}
                 >
                   <Icon className="text-muted-foreground" />
                   {types(type)}
@@ -131,10 +131,8 @@ export function ViewMenu({
             {count > 0 && onClearTypes && (
               <DropdownMenuItem
                 className="text-muted-foreground"
-                onSelect={(event) => {
-                  event.preventDefault();
-                  onClearTypes();
-                }}
+                closeOnClick={false}
+                onClick={onClearTypes}
               >
                 {t("viewMenu.showAllTypes")}
               </DropdownMenuItem>
@@ -204,7 +202,7 @@ export function ViewMenu({
         {onSaveSearch ? (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={onSaveSearch}>
+            <DropdownMenuItem onClick={onSaveSearch}>
               <FolderSearch />
               {t("viewMenu.saveAsSmartFolder")}
             </DropdownMenuItem>
@@ -218,20 +216,22 @@ export function ViewMenu({
 export function ReshuffleButton({ onReshuffle }: { onReshuffle: () => void }) {
   const t = useTranslations("search.viewMenu");
   return (
-    <TooltipProvider delayDuration={300}>
+    <TooltipProvider delay={300}>
       <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            aria-label={t("reshuffle")}
-            className="size-9 shrink-0 text-muted-foreground hover:text-foreground"
-            onClick={onReshuffle}
-            size="icon"
-            type="button"
-            variant="ghost"
-          >
-            <Dices className="size-4" />
-          </Button>
-        </TooltipTrigger>
+        <TooltipTrigger
+          render={
+            <Button
+              aria-label={t("reshuffle")}
+              className="size-9 shrink-0 text-muted-foreground hover:text-foreground"
+              onClick={onReshuffle}
+              size="icon"
+              type="button"
+              variant="ghost"
+            >
+              <Dices className="size-4" />
+            </Button>
+          }
+        />
         <TooltipContent>{t("reshuffle")}</TooltipContent>
       </Tooltip>
     </TooltipProvider>

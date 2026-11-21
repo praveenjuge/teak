@@ -162,17 +162,18 @@ test.each([
 test("an open dialog or menu silences shortcuts, but not the shortcuts list", () => {
   const dialog = document.createElement("div");
   dialog.setAttribute("role", "dialog");
-  dialog.setAttribute("data-state", "open");
+  dialog.setAttribute("data-open", "");
   document.body.append(dialog);
   press("n");
   press("?", { shiftKey: true });
   expect(newCard).not.toHaveBeenCalled();
   expect(help).not.toHaveBeenCalled();
 
-  dialog.setAttribute("data-state", "closed");
+  dialog.removeAttribute("data-open");
+  dialog.setAttribute("data-closed", "");
   const menu = document.createElement("div");
   menu.setAttribute("role", "menu");
-  menu.setAttribute("data-state", "open");
+  menu.setAttribute("data-open", "");
   document.body.append(menu);
   press("n");
   expect(newCard).not.toHaveBeenCalled();
@@ -180,7 +181,7 @@ test("an open dialog or menu silences shortcuts, but not the shortcuts list", ()
 
   const list = document.createElement("div");
   list.setAttribute("role", "dialog");
-  list.setAttribute("data-state", "open");
+  list.setAttribute("data-open", "");
   list.setAttribute(SHORTCUTS_DIALOG_ATTRIBUTE, "");
   document.body.append(list);
   press("g", {}, list);
@@ -191,7 +192,7 @@ test("an open dialog or menu silences shortcuts, but not the shortcuts list", ()
 test("? still works over an open card, but not over a menu on it", () => {
   const card = document.createElement("div");
   card.setAttribute("role", "dialog");
-  card.setAttribute("data-state", "open");
+  card.setAttribute("data-open", "");
   card.setAttribute(CARD_DIALOG_ATTRIBUTE, "");
   document.body.append(card);
   press("n", {}, card);
@@ -201,7 +202,7 @@ test("? still works over an open card, but not over a menu on it", () => {
 
   const menu = document.createElement("div");
   menu.setAttribute("role", "menu");
-  menu.setAttribute("data-state", "open");
+  menu.setAttribute("data-open", "");
   document.body.append(menu);
   press("?", { shiftKey: true }, menu);
   expect(help).toHaveBeenCalledTimes(1);

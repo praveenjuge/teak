@@ -82,19 +82,15 @@ export function AddColorPopover({
       }}
       open={open}
     >
-      <PopoverTrigger asChild>
-        <Button size="sm" type="button" variant="outline">
-          <Plus aria-hidden />
-          {t("addColor")}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent
-        className="w-64"
-        onOpenAutoFocus={(event) => {
-          event.preventDefault();
-          hexInputRef.current?.focus();
-        }}
-      >
+      <PopoverTrigger
+        render={
+          <Button size="sm" type="button" variant="outline">
+            <Plus aria-hidden />
+            {t("addColor")}
+          </Button>
+        }
+      />
+      <PopoverContent className="w-64" initialFocus={hexInputRef}>
         <form className="flex flex-col gap-3" onSubmit={submit}>
           <div className="flex items-center gap-2">
             <label

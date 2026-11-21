@@ -147,19 +147,19 @@ const TagRow = memo(function TagRow({
           onOpenChange={(open) => onMenuOpenChange(open ? item.name : null)}
           open
         >
-          <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
+          <DropdownMenuTrigger render={trigger} />
           <DropdownMenuContent align="end" className="w-44">
-            <DropdownMenuItem onSelect={() => onAction("rename", item)}>
+            <DropdownMenuItem onClick={() => onAction("rename", item)}>
               <Pencil />
               {t("rename")}
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => onAction("merge", item)}>
+            <DropdownMenuItem onClick={() => onAction("merge", item)}>
               <Combine />
               {t("mergeInto")}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
-              onSelect={() => onAction("delete", item)}
+              onClick={() => onAction("delete", item)}
               variant="destructive"
             >
               <Trash />
@@ -185,24 +185,26 @@ function TagSortMenu({
   const Icon = sort === "name" ? ArrowDownAZ : ArrowDownWideNarrow;
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          aria-label={t("sortLabel", { sort: t(SORT_LABELS[sort]) })}
-          className="h-9 shrink-0 gap-1.5 px-2.5 font-normal text-muted-foreground hover:text-foreground max-lg:w-9 max-lg:px-0"
-          type="button"
-          variant="ghost"
-        >
-          <Icon
-            className={cn(
-              "size-4 transition-colors duration-150",
-              sort === "name" && "text-primary"
-            )}
-          />
-          <span aria-hidden="true" className="max-lg:hidden">
-            {t("sortLabel", { sort: t(SORT_LABELS[sort]) })}
-          </span>
-        </Button>
-      </DropdownMenuTrigger>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            aria-label={t("sortLabel", { sort: t(SORT_LABELS[sort]) })}
+            className="h-9 shrink-0 gap-1.5 px-2.5 font-normal text-muted-foreground hover:text-foreground max-lg:w-9 max-lg:px-0"
+            type="button"
+            variant="ghost"
+          >
+            <Icon
+              className={cn(
+                "size-4 transition-colors duration-150",
+                sort === "name" && "text-primary"
+              )}
+            />
+            <span aria-hidden="true" className="max-lg:hidden">
+              {t("sortLabel", { sort: t(SORT_LABELS[sort]) })}
+            </span>
+          </Button>
+        }
+      />
       <DropdownMenuContent align="end" className="w-44">
         <DropdownMenuLabel className="font-normal text-muted-foreground text-xs">
           {t("sortBy")}

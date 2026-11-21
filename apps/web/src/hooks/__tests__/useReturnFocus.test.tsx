@@ -41,7 +41,7 @@ function button(label: string) {
   return element;
 }
 
-test("puts focus back on what had it when the dialog opened", async () => {
+test("gives back what had focus when the dialog opened", async () => {
   const opener = button("Opener");
   const other = button("Other");
   const { returnFocus, setOpen } = await renderReturnFocus();
@@ -50,22 +50,18 @@ test("puts focus back on what had it when the dialog opened", async () => {
   await setOpen(true);
   other.focus();
   await setOpen(false);
-  const event = new Event("focusout", { cancelable: true });
-  returnFocus()(event);
 
-  expect(document.activeElement).toBe(opener);
-  expect(event.defaultPrevented).toBe(true);
+  expect(returnFocus()()).toBe(opener);
 });
 
-test("uses the fallback when nothing had focus on opening", async () => {
+test("falls back when nothing had focus on opening", async () => {
   const fallback = button("Fallback");
   const { returnFocus, setOpen } = await renderReturnFocus();
 
   await setOpen(true);
   await setOpen(false);
-  returnFocus()(new Event("focusout", { cancelable: true }), fallback);
 
-  expect(document.activeElement).toBe(fallback);
+  expect(returnFocus()(fallback)).toBe(fallback);
 });
 
 test("leaves focus to the dialog when the opener is gone", async () => {
@@ -76,8 +72,6 @@ test("leaves focus to the dialog when the opener is gone", async () => {
   await setOpen(true);
   opener.remove();
   await setOpen(false);
-  const event = new Event("focusout", { cancelable: true });
-  returnFocus()(event);
 
-  expect(event.defaultPrevented).toBe(false);
+  expect(returnFocus()()).toBe(true);
 });
