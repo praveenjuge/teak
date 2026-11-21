@@ -16,7 +16,7 @@ Teak is a Turborepo monorepo. Every app talks to one Convex backend; one Cloudfl
 | Path | What it is | Built with | Runs on |
 | --- | --- | --- | --- |
 | `apps/web` | The web app at app.teakvault.com | Next.js | Vercel |
-| `apps/docs` | teakvault.com: the website, these docs and the changelog | Blume | Vercel |
+| `apps/docs` | teakvault.com: the website, these docs and the changelog | Blume | Cloudflare (Workers static assets) |
 | `apps/apple` | The iPhone, iPad and Mac app, with its share and Safari extensions | SwiftUI | App Store |
 | `apps/android` | The Android app | Kotlin, Jetpack Compose | Google Play |
 | `apps/extension` | The Chrome and Firefox extension | WXT | Chrome Web Store, Firefox Add-ons |
@@ -93,7 +93,7 @@ The Monday `sweep-orphaned-objects` cron first runs `embedding/sweep:sweepVector
 
 ## Public API and MCP
 
-The REST API, the MCP server, the OpenAPI spec and the OAuth discovery documents are Convex HTTP routes. In production, `teakvault.com/api`, `/mcp` and the discovery documents reach Convex only through the Core Worker's edge proxy (`apps/core-worker/src/edge/apiProxy.ts`), which also rate-limits them. The docs site on Vercel has no rewrites for them. The [API](/docs/api), [MCP](/docs/mcp), [SDK](/docs/sdk) and [CLI](/docs/cli) offer the same operations, and a test keeps them in step ([Adding a Feature](/docs/adding-a-feature#one-feature-every-surface)).
+The REST API, the MCP server, the OpenAPI spec and the OAuth discovery documents are Convex HTTP routes. In production, `teakvault.com/api`, `/mcp` and the discovery documents reach Convex only through the Core Worker's edge proxy (`apps/core-worker/src/edge/apiProxy.ts`), which also rate-limits them. The Core Worker's routes run before the docs site, which has no rewrites for them. The [API](/docs/api), [MCP](/docs/mcp), [SDK](/docs/sdk) and [CLI](/docs/cli) offer the same operations, and a test keeps them in step ([Adding a Feature](/docs/adding-a-feature#one-feature-every-surface)).
 
 ## Save by email
 
