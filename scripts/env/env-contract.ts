@@ -117,6 +117,8 @@ export const PLATFORM_EXACT = [
   "VERCEL_PROJECT_PRODUCTION_URL",
   "VERCEL_REGION",
   "VERCEL_URL",
+  // Workers Builds sets it on the web app's build.
+  "WORKERS_CI_COMMIT_SHA",
   "XDG_CONFIG_HOME",
 ] as const;
 
