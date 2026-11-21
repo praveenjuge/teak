@@ -76,6 +76,12 @@ const MEASURING_STYLE = {
   position: "absolute",
   top: 0,
 } as const;
+// With no stand-in grid there is nothing to keep focus for, so the cards are
+// out of the tab order and the accessibility tree until they are placed.
+const MEASURING_ALONE_STYLE = {
+  ...MEASURING_STYLE,
+  visibility: "hidden",
+} as const;
 
 const FALLBACK_COLUMNS = { xs: 1, sm: 2, md: 3, lg: 5, xl: 5, xxl: 5 };
 /** How far below the screen the next cards start to load. */
@@ -219,6 +225,9 @@ export const MasonryGrid = memo(function MasonryGrid({
   const [measuring, setMeasuring] = useState(true);
   const endMeasuring = useCallback(() => setMeasuring(false), []);
   const firstPaint = measuring && serverRendered;
+  const measuringStyle = serverRendered
+    ? MEASURING_STYLE
+    : MEASURING_ALONE_STYLE;
   const loadMoreRequestedRef = useRef(false);
   const resetKeyRef = useRef(resetKey);
   const prevCardsLengthRef = useRef(filteredCards.length);
@@ -901,7 +910,7 @@ export const MasonryGrid = memo(function MasonryGrid({
             itemRender={renderItem}
             items={masonryItems}
             onLayoutChange={measuring ? endMeasuring : undefined}
-            style={measuring ? MEASURING_STYLE : undefined}
+            style={measuring ? measuringStyle : undefined}
           />
         </ConfigProvider>
       </div>
