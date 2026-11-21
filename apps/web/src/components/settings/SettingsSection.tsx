@@ -1,6 +1,6 @@
-import Link from "next/link";
 import type { ComponentProps, ReactNode } from "react";
 import { ArrowUpRight, ChevronRight, type VadivamIcon } from "vadivam-react";
+import { AppLink } from "@/components/AppLink";
 import { cn } from "../../lib/utils";
 
 /** The page's own heading, under the header's "Settings › Page" breadcrumb. */
@@ -106,7 +106,6 @@ export function SettingsLogoTile({ src }: { src: string }) {
       aria-hidden
       className="flex size-7 shrink-0 items-center justify-center rounded-lg border border-black/5 bg-white"
     >
-      {/* biome-ignore lint/performance/noImgElement: a small static SVG */}
       <img
         alt=""
         className="size-[18px] object-contain"
@@ -238,9 +237,9 @@ export function SettingsLinkRow({
     );
   }
   return (
-    <Link className={LINK_ROW} href={href} {...props}>
+    <AppLink className={LINK_ROW} href={href} {...props}>
       {body}
-    </Link>
+    </AppLink>
   );
 }
 

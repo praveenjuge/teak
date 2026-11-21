@@ -1,0 +1,10 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "./theme.css";
+@import "./fonts.css";
+
+@layer base {
+  html {
+    min-height: 100%;
+  }
+}

@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, expect, mock, test } from "bun:test";
-import "@/__tests__/helpers/nextRouter";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import type { Root } from "react-dom/client";
 
 GlobalRegistrator.register({ url: "http://localhost:3000" });
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
+const { TestRouter } = await import("@/__tests__/helpers/router");
 const React = await import("react");
 const { act } = React;
 
@@ -86,9 +86,11 @@ async function mount() {
   root = createRoot(container);
   await act(() =>
     root?.render(
-      <ComposerProvider>
-        <AddCardForm onOpenCard={() => undefined} />
-      </ComposerProvider>
+      <TestRouter>
+        <ComposerProvider>
+          <AddCardForm onOpenCard={() => undefined} />
+        </ComposerProvider>
+      </TestRouter>
     )
   );
 }
@@ -145,9 +147,11 @@ test("keeps the draft when another composer takes the first one's place", async 
   await type("Half a thought");
   await act(() =>
     root?.render(
-      <ComposerProvider>
-        <AddCardForm key="grid" onOpenCard={() => undefined} />
-      </ComposerProvider>
+      <TestRouter>
+        <ComposerProvider>
+          <AddCardForm key="grid" onOpenCard={() => undefined} />
+        </ComposerProvider>
+      </TestRouter>
     )
   );
   expect(textarea()?.value).toBe("Half a thought");

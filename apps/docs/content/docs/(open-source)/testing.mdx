@@ -35,7 +35,7 @@ Each workspace script runs only the files it matches. A test file outside these 
 | Workspace | Test files |
 | --- | --- |
 | `packages/convex` | `__tests__/**/*.test.ts` (Bun). `edge/**/*.test.ts` (Vitest, `convex-test`). Both trees mirror the source folders, so one feature's tests sit at the same path in each: `card/thumbnailOverride.ts` is tested by `__tests__/card/thumbnailOverride.test.ts` and `edge/card/thumbnailOverride.test.ts`, and a top-level module such as `workflowDispatch.ts` by `edge/workflowDispatch.test.ts`. Edge files get the module map from `edge/helpers.testUtils.ts`, whose `import.meta.glob("../**/*.ts")` keeps function paths rooted at `packages/convex` wherever the test sits. Don't colocate Bun tests next to source files. |
-| `apps/web` | `src/**/*.test.{ts,tsx}` (Bun, `--parallel`, so each file gets a fresh global). Tests sit in the `__tests__` folder beside the code they cover; `src/__tests__` holds route, `next.config.ts` and cross-cutting wiring tests. |
+| `apps/web` | `src/**/*.test.{ts,tsx}` (Bun with happy-dom, `--parallel`, so each file gets a fresh global). Tests sit in the `__tests__` folder beside the code they cover; `src/__tests__` holds route and cross-cutting wiring tests. Server routes keep their logic in plain functions (`src/lib/share/shareActionRoute.ts`, `src/lib/webManifest.ts`, `src/server/`), and tests call those. |
 | `packages/tests` | `src/**/*.e2e.ts` (e2e; each `e2e*.config.ts` names the directories it runs), `src/**/*.test.ts` (Bun) |
 | `apps/cli`, `apps/core-worker`, `packages/files-protocol`, `packages/sdk` | `src/**` |
 | `apps/raycast` | `src/__tests__/**` |
@@ -73,7 +73,7 @@ Turbo replays a cached pass until a task's inputs change, and a task's inputs ar
 
 **Keep tests hermetic.**
 - Restore any `process.env` keys you change.
-- Clear variables that other modules set at import time. For example, `next.config.ts` sets `NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA` whenever a commit SHA is present, as it is in CI.
+- Clear variables that other modules set at import time.
 - Don't depend on test order. Check with `bun test --randomize` and `bun test --seed=<n>`.
 
 **One behavior per test, named as the behavior.** Write "refuses to auto-save chrome:// pages", not "test isValidUrl 3". Use `test.each` for tables of inputs.
@@ -163,7 +163,7 @@ Files in a suite run in parallel and share nothing: every spec makes its own acc
 
 ### How the stack is wired
 
-`scripts/dev/local-stack/backend.ts` points `packages/convex/.env.local` at a local backend and sets `WORKOS_CLIENT_ID`, `WORKOS_API_KEY` and `WORKOS_API_BASE_URL` on it. The stack passes the web app its emulator settings (no API key: it signs in as a public client), including `WORKOS_API_HOSTNAME`, `WORKOS_API_PORT` and `WORKOS_API_HTTPS` for authkit-nextjs, as process environment, which Next.js prefers over `apps/web/.env.local`, so the development wiring in that file stays as it is.
+`scripts/dev/local-stack/backend.ts` points `packages/convex/.env.local` at a local backend and sets `WORKOS_CLIENT_ID`, `WORKOS_API_KEY` and `WORKOS_API_BASE_URL` on it. The stack passes the web app its emulator settings (no API key: it signs in as a public client), including `WORKOS_API_HOSTNAME`, `WORKOS_API_PORT` and `WORKOS_API_HTTPS` for AuthKit, as process environment with `CLOUDFLARE_INCLUDE_PROCESS_ENV=true`. Vite and the Worker prefer it over `apps/web/.env.local`, so the development wiring in that file stays as it is.
 
 The emulator runs with:
 

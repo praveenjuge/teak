@@ -28,6 +28,8 @@ export interface AuditFinding {
 
 const ALIAS_ACCESSOR_FILES = new Set([
   "apps/web/src/lib/public-env.ts",
+  // It inlines the web app's public values at build time.
+  "apps/web/vite.config.ts",
   "apps/extension/lib/env.ts",
 ]);
 

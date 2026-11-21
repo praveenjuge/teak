@@ -1,11 +1,11 @@
 import { afterEach, expect, mock, test } from "bun:test";
-import "@/__tests__/helpers/nextRouter";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import type { Root } from "react-dom/client";
 
 GlobalRegistrator.register({ url: "http://localhost:3000" });
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
+const { TestRouter } = await import("@/__tests__/helpers/router");
 const React = await import("react");
 const { act } = React;
 
@@ -100,9 +100,11 @@ test("saves a second note with the shortcut while the first is still saving", as
   root = createRoot(container);
   await act(() =>
     root?.render(
-      <ComposerProvider>
-        <AddCardForm />
-      </ComposerProvider>
+      <TestRouter>
+        <ComposerProvider>
+          <AddCardForm />
+        </ComposerProvider>
+      </TestRouter>
     )
   );
 
@@ -131,9 +133,11 @@ test("never submits the same note twice", async () => {
   root = createRoot(container);
   await act(() =>
     root?.render(
-      <ComposerProvider>
-        <AddCardForm />
-      </ComposerProvider>
+      <TestRouter>
+        <ComposerProvider>
+          <AddCardForm />
+        </ComposerProvider>
+      </TestRouter>
     )
   );
 

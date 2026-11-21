@@ -42,6 +42,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Kbd } from "@/components/ui/kbd";
+import { useAdoptTypedValue } from "@/hooks/useAdoptTypedValue";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import type { CardDensity } from "@/lib/cardDensity";
 import {
@@ -292,6 +293,7 @@ export function SearchBar({
   const listId = useId();
   const inputId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
+  useAdoptTypedValue(inputRef, searchQuery, onSearchChange);
   const [focused, setFocused] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   // The phone's search field shows once it opens, and takes focus then.

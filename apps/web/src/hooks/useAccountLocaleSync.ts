@@ -1,8 +1,6 @@
-"use client";
-
+import { useRouter } from "@tanstack/react-router";
 import { api } from "@teak/convex";
 import { isSupportedLocale, PSEUDO_LOCALE } from "@teak/i18n";
-import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { useLocaleSwitch } from "@/components/providers/LocaleProvider";
 import { useQuery } from "@/lib/convexQueryHooks";
@@ -39,7 +37,7 @@ export function useAccountLocaleSync() {
       return;
     }
     switchLocale(accountLocale)
-      .then(() => router.refresh())
+      .then(() => router.invalidate())
       .catch(() => undefined);
   }, [accountLocale, current, router, switchLocale]);
 }

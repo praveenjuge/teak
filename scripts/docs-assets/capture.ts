@@ -503,8 +503,7 @@ if (import.meta.main) {
   });
   await context.addInitScript(() => {
     const style = document.createElement("style");
-    style.textContent =
-      "nextjs-portal{display:none!important} *{scrollbar-width:none!important}";
+    style.textContent = "*{scrollbar-width:none!important}";
     document.addEventListener("DOMContentLoaded", () =>
       document.head.append(style)
     );

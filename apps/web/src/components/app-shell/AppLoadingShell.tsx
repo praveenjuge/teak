@@ -1,6 +1,4 @@
-"use client";
-
-import { usePathname } from "next/navigation";
+import { useLocation } from "@tanstack/react-router";
 import { PanelLeft, Search } from "vadivam-react";
 import { CardsGridSkeleton } from "@/components/feedback/CardSkeleton";
 import { LogoMark } from "@/components/LogoMark";
@@ -18,7 +16,9 @@ const NAV_ROWS = ["new", "all", "favorites", "revisit", "archive", "tags"];
  * language and nothing swaps from a spinner to a skeleton.
  */
 export function AppLoadingShell() {
-  const isSettings = isSettingsPath(usePathname());
+  const isSettings = isSettingsPath(
+    useLocation({ select: (location) => location.pathname })
+  );
   return (
     <div className="flex min-h-svh w-full" data-slot="app-loading-shell">
       {/* The root layout's head script sets the width and the collapsed state

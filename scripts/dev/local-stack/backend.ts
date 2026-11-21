@@ -103,7 +103,7 @@ export const localBackendArgs = (ports?: LocalBackendPorts): string[] =>
 
 /**
  * Seconds a query or mutation may run on the local backend (Convex's own is
- * 1). The backend shares this machine with the browser and `next dev`, and a
+ * 1). The backend shares this machine with the browser and `vite dev`, and a
  * cold isolate loading a module could pass 1 s before the function started.
  */
 export const LOCAL_FUNCTION_TIMEOUT_SECONDS = "5";

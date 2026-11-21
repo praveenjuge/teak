@@ -1,5 +1,4 @@
 import { afterEach, expect, mock, test } from "bun:test";
-import "@/__tests__/helpers/nextRouter";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import type { Root } from "react-dom/client";
 
@@ -9,6 +8,7 @@ if (!GlobalRegistrator.isRegistered) {
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
 let save = mock(async (_args: unknown) => ({}) as unknown);
+const { TestRouter } = await import("@/__tests__/helpers/router");
 const realConvexReact = await import("convex/react");
 mock.module("convex/react", () => ({
   ...realConvexReact,
@@ -55,7 +55,13 @@ function Harness() {
 
 const render = async () => {
   root = createRoot(document.createElement("div"));
-  await act(() => root?.render(<Harness />));
+  await act(() =>
+    root?.render(
+      <TestRouter>
+        <Harness />
+      </TestRouter>
+    )
+  );
 };
 
 afterEach(async () => {

@@ -1,22 +1,17 @@
 import { describe, expect, mock, test } from "bun:test";
-import React, { type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-
-mock.module("next/link", () => ({
-  default: ({
-    children,
-    href,
-    ...props
-  }: { children?: ReactNode; href: string } & Record<string, unknown>) =>
-    React.createElement("a", { href, ...props }, children),
-}));
-mock.module("next/navigation", () => ({
-  usePathname: () => "/settings",
-}));
+import { TestRouter, testRouter } from "@/__tests__/helpers/router";
 
 const { SettingsOverview } = await import("../SettingsOverview");
 const { PlanSettings } = await import("../PlanSettings");
 const { IntegrationsSettings } = await import("../IntegrationsSettings");
+
+// Settings pages render inside the app's router, on /settings.
+const renderSettings = (ui: ReactNode) =>
+  renderToStaticMarkup(
+    <TestRouter router={testRouter("/settings")}>{ui}</TestRouter>
+  );
 
 const overviewProps = {
   accountLoading: false,
@@ -50,7 +45,7 @@ const links = (markup: string) =>
 
 describe("SettingsOverview", () => {
   test("keeps sign out and the pages available while the account loads", () => {
-    const markup = renderToStaticMarkup(
+    const markup = renderSettings(
       <SettingsOverview
         {...overviewProps}
         accountLoading
@@ -77,9 +72,7 @@ describe("SettingsOverview", () => {
   });
 
   test("shows who is signed in and a summary of every page once loaded", () => {
-    const markup = renderToStaticMarkup(
-      <SettingsOverview {...overviewProps} />
-    );
+    const markup = renderSettings(<SettingsOverview {...overviewProps} />);
 
     expect(markup).toContain("Signed in as");
     expect(markup).toContain(">Ada Lovelace<");
@@ -95,7 +88,7 @@ describe("SettingsOverview", () => {
   });
 
   test("summarises Pro, a running export and more devices than one page", () => {
-    const markup = renderToStaticMarkup(
+    const markup = renderSettings(
       <SettingsOverview
         {...overviewProps}
         apiKeyCount={2}
@@ -126,7 +119,7 @@ describe("SettingsOverview", () => {
   });
 
   test("with billing off, shows Pro and unlimited cards without linking Plan", () => {
-    const markup = renderToStaticMarkup(
+    const markup = renderSettings(
       <SettingsOverview {...overviewProps} billingEnabled={false} hasPremium />
     );
 
@@ -138,9 +131,7 @@ describe("SettingsOverview", () => {
   });
 
   test("shows cards used, the way to upgrade and the shortcuts", () => {
-    const markup = renderToStaticMarkup(
-      <SettingsOverview {...overviewProps} />
-    );
+    const markup = renderSettings(<SettingsOverview {...overviewProps} />);
 
     expect(markup).toContain("Cards used");
     expect(markup).toContain('role="progressbar"');
@@ -156,7 +147,7 @@ describe("SettingsOverview", () => {
 
 describe("PlanSettings", () => {
   test("the free plan shows its usage and the upgrade choice", () => {
-    const markup = renderToStaticMarkup(
+    const markup = renderSettings(
       <PlanSettings
         accountLoading={false}
         cardCount={150}
@@ -178,7 +169,7 @@ describe("PlanSettings", () => {
   });
 
   test("a full free plan says so", () => {
-    const markup = renderToStaticMarkup(
+    const markup = renderSettings(
       <PlanSettings
         accountLoading={false}
         cardCount={200}
@@ -193,7 +184,7 @@ describe("PlanSettings", () => {
   });
 
   test("Pro offers the subscription portal instead of checkout", () => {
-    const markup = renderToStaticMarkup(
+    const markup = renderSettings(
       <PlanSettings
         accountLoading={false}
         cardCount={1234}
@@ -213,7 +204,7 @@ describe("PlanSettings", () => {
   });
 
   test("shows neither plan while the account loads", () => {
-    const markup = renderToStaticMarkup(
+    const markup = renderSettings(
       <PlanSettings
         accountLoading
         cardCount={0}
@@ -230,7 +221,7 @@ describe("PlanSettings", () => {
 
 describe("IntegrationsSettings", () => {
   test("lists Save by email, the apps in new tabs, and API keys", () => {
-    const markup = renderToStaticMarkup(
+    const markup = renderSettings(
       <IntegrationsSettings
         apiKeys={{
           isLoading: false,

@@ -4,9 +4,9 @@
  *
  * Creates a throwaway, already-verified WorkOS user with a random password,
  * signs in with the password grant, and seals the tokens into the session
- * cookie exactly as @workos-inc/authkit-nextjs 4.4 does after its callback
- * (iron-session `sealData` with the web's WORKOS_COOKIE_PASSWORD and ttl 0,
- * cookie `wos-session`). Callers must always run `cleanup()`, which deletes
+ * cookie the web app's AuthKit SDK (@workos/authkit-tanstack-react-start)
+ * reads (iron-session `sealData` with the web's WORKOS_COOKIE_PASSWORD and
+ * ttl 0, cookie `wos-session`; the SDK unseals the same Iron format). Callers must always run `cleanup()`, which deletes
  * the WorkOS user. Nothing here logs emails, passwords, tokens, or cookies.
  */
 
@@ -14,7 +14,7 @@ import { randomBytes } from "node:crypto";
 import { type AuthenticationResponse, WorkOS } from "@workos-inc/node";
 import { sealData } from "iron-session";
 
-/** authkit-nextjs default; Teak does not set WORKOS_COOKIE_NAME. */
+/** AuthKit's default; Teak does not set WORKOS_COOKIE_NAME. */
 export const WORKOS_SESSION_COOKIE_NAME = "wos-session";
 
 /**
@@ -53,7 +53,7 @@ export interface WorkosTestSession {
   userId: string;
 }
 
-// authkit-nextjs keeps the session cookie for 400 days (Chrome's maximum);
+// AuthKit keeps the session cookie for 400 days (Chrome's maximum);
 // the access and refresh tokens are what expire.
 const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 400;
 

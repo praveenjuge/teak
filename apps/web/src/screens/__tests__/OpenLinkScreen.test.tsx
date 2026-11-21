@@ -45,6 +45,7 @@ mock.module("convex-helpers/react/cache/hooks", () => ({
 
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
+const { TestRouter } = await import("@/__tests__/helpers/router");
 const { OpenLinkScreen, OPEN_LINK_LIMIT_MS, OPEN_LINK_SLOW_MS } = await import(
   "../OpenLinkScreen"
 );
@@ -84,7 +85,11 @@ const open = async (answer: () => Promise<unknown>) => {
   document.body.append(container);
   root = createRoot(container);
   await act(async () => {
-    root?.render(<OpenLinkScreen cardId="k1" />);
+    root?.render(
+      <TestRouter>
+        <OpenLinkScreen cardId="k1" />
+      </TestRouter>
+    );
     await Promise.resolve();
   });
 };

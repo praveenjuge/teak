@@ -51,7 +51,7 @@ A backfill is a self-scheduling, paged internal mutation in `packages/convex/mig
 ## Deploys
 
 - Core Worker changes deploy before the Convex and web changes that use them.
-- `Backend Deploy` deploys Convex when `main` changes a backend path, after it waits for a compatible Core Worker. Vercel deploys the web app from `main`, and Workers Builds deploys the docs site (the `teak-site` Worker).
+- `Backend Deploy` deploys Convex when `main` changes a backend path, after it waits for a compatible Core Worker. Workers Builds deploys the web app (the `teak-app` Worker) and the docs site (the `teak-site` Worker) from `main`.
 
 ## Plans and limits
 

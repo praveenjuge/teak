@@ -32,7 +32,8 @@ describe("languageSecondaryNames", () => {
     const german = languageSecondaryNames("de");
     expect(german.en).toBe("Englisch");
     expect(german.fr).toBe("Französisch");
-    expect(german["zh-Hans"]).toBe("Chinesisch (Vereinfacht)");
+    // Newer ICU writes the script in lower case.
+    expect(german["zh-Hans"]).toMatch(/^Chinesisch \((V|v)ereinfacht\)$/u);
     const english = languageSecondaryNames("en");
     expect(english.de).toBe("German");
     expect(english["pt-BR"]).toBe("Portuguese (Brazil)");

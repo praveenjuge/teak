@@ -28,6 +28,10 @@ apps/core-worker/development/.dev.vars
 apps/core-worker/development/.wrangler/
 apps/core-worker/self-host/.wrangler/
 apps/core-worker/self-host/wrangler.deploy.jsonc
+apps/web/.dev.vars
+apps/web/.wrangler/
+apps/web/.output/
+apps/web/dist/
 
 .vercel
 

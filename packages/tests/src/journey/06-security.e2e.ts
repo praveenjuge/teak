@@ -46,7 +46,7 @@ test("cross-tenant, revoked-key, hostile input, headers, and cookie security", {
       "undefined"
     );
     // The local stack serves http, so the session cookie can't be Secure
-    // here; authkit-nextjs sets Secure from an https redirect URI.
+    // here; AuthKit sets Secure from an https redirect URI.
     const session = (await browser.cookies()).find(
       (cookie) => cookie.name === "wos-session"
     );

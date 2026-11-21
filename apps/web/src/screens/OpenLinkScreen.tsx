@@ -1,5 +1,3 @@
-"use client";
-
 import { api } from "@teak/convex";
 import { captureEvent } from "@teak/convex/shared/analytics";
 import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
@@ -7,8 +5,8 @@ import { urlHostForDisplay } from "@teak/convex/shared/utils/urlHost";
 import { useTranslations } from "@teak/i18n/react";
 import { useAction } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
-import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { AppLink } from "@/components/AppLink";
 import { SiteFavicon } from "@/components/media";
 import {
   type ArchivedCopy,
@@ -111,12 +109,12 @@ function UnavailableCard() {
             {t("unavailableBody")}
           </p>
         </div>
-        <Link
+        <AppLink
           className={buttonVariants({ className: "min-w-32", size: "lg" })}
           href="/"
         >
           {t("backToTeak")}
-        </Link>
+        </AppLink>
       </div>
     </main>
   );

@@ -1,23 +1,38 @@
-import { beforeEach, expect, mock, test } from "bun:test";
-import { getFunctionName } from "convex/server";
+import { afterAll, beforeEach, expect, test } from "bun:test";
 
-mock.module("server-only", () => ({}));
 process.env.NEXT_PUBLIC_CONVEX_URL ??= "https://fixture.convex.cloud";
+const queryUrl = new URL("/api/query", process.env.NEXT_PUBLIC_CONVEX_URL).href;
 
 type Answer = (args: Record<string, unknown>) => Promise<unknown>;
 const answers = new Map<string, Answer>();
-const tokens: (string | undefined)[] = [];
-mock.module("convex/nextjs", () => ({
-  fetchQuery: (
-    query: Parameters<typeof getFunctionName>[0],
-    args: Record<string, unknown>,
-    options: { token?: string }
-  ) => {
-    tokens.push(options.token);
-    const answer = answers.get(getFunctionName(query));
-    return answer ? answer(args) : Promise.resolve(null);
-  },
-}));
+const tokens: (string | null)[] = [];
+// Convex's HTTP query endpoint is the only network this may reach.
+const realFetch = globalThis.fetch;
+globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+  const url = String(input instanceof Request ? input.url : input);
+  if (url !== queryUrl) {
+    throw new Error(`Must not reach ${url}`);
+  }
+  const { path, args } = JSON.parse(String(init?.body)) as {
+    path: string;
+    args: Record<string, unknown>[];
+  };
+  tokens.push(new Headers(init?.headers).get("authorization"));
+  const answer = answers.get(path);
+  try {
+    const value = answer ? await answer(args[0] ?? {}) : null;
+    return Response.json({ status: "success", value, logLines: [] });
+  } catch (error) {
+    return Response.json({
+      status: "error",
+      errorMessage: (error as Error).message,
+      logLines: [],
+    });
+  }
+}) as typeof fetch;
+afterAll(() => {
+  globalThis.fetch = realFetch;
+});
 
 const { fetchFirstLoadSeeds } = await import("../firstLoadSeeds");
 
@@ -42,7 +57,7 @@ test("fetches the page's first queries with the visitor's token", async () => {
   expect(seeds.find(({ name }) => name === "auth:getAuthUser")?.value).toEqual({
     _id: "teak_A",
   });
-  expect(new Set(tokens)).toEqual(new Set(["tok"]));
+  expect(new Set(tokens)).toEqual(new Set(["Bearer tok"]));
 });
 
 test("leaves out queries that fail or miss the time budget", async () => {

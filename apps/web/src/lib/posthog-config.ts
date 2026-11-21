@@ -27,19 +27,7 @@ export const resolveAnalyticsProxyTarget = (url: URL): URL | null => {
   return target.origin === new URL(host).origin ? target : null;
 };
 
-// On Vercel only production reports, so previews never do. Anywhere else
-// (a self-hosted build, or a local one with a token in its env file) reports
-// only when TEAK_ANALYTICS_ENABLED is "true", to the token's own project.
-export const resolvePostHogToken = (env: {
-  analyticsEnabled?: string;
-  token?: string;
-  vercelEnvironment?: string;
-}): string | undefined => {
-  const reports = env.vercelEnvironment
-    ? env.vercelEnvironment === "production"
-    : env.analyticsEnabled?.trim() === "true";
-  return reports ? env.token?.trim() || undefined : undefined;
-};
+export { resolvePostHogToken } from "./analyticsGate";
 
 /**
  * The release every web event reports: `$app_version` is the lockstep
@@ -100,12 +88,11 @@ const isReactOrBundledFrame = ({ filename }: ExceptionFrame) =>
     filename &&
       (filename.includes("/react-dom/") ||
         filename.includes("/scheduler/") ||
-        filename.includes("/_next/static/chunks/") ||
-        filename.includes("/_next/static/immutable/chunks/"))
+        filename.includes("/assets/"))
   );
 
-// Frames arrive before symbolication, so React's frames look like Next
-// chunks. Teak code never calls removeChild (scripts/lint/no-remove-child.grit),
+// Frames arrive before symbolication, so React's frames look like the app's
+// own Vite chunks under /assets/. Teak code never calls removeChild (scripts/lint/no-remove-child.grit),
 // so this error comes from an extension editing the DOM React owns.
 const isExternalDomMutation = (entry: ExceptionEntry) =>
   entry.type === "NotFoundError" &&

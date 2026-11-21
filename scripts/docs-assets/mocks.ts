@@ -437,7 +437,7 @@ const architecture = () => `
     <div class="body">
     <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px">
       ${[
-        ["globe", "Web", "Next.js"],
+        ["globe", "Web", "TanStack Start"],
         ["smartphone", "Apple", "SwiftUI"],
         ["smartphone", "Android", "Compose"],
         ["puzzle", "Extension", "WXT"],
@@ -519,7 +519,7 @@ const selfHosting = () => `
     <p>The same pieces as teakvault.com, on accounts you own.</p>
     <div class="body">
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px">
-      ${node("globe", "Web app", "<code>apps/web</code> on Vercel or any Next.js host<br><i class='tag req'>Required</i>")}
+      ${node("globe", "Web app", "<code>apps/web</code> on Cloudflare Workers<br><i class='tag req'>Required</i>")}
       ${node("database", "Convex deployment", "Data, functions, REST API and MCP<br><i class='tag req'>Required</i>", "accent")}
       ${node("key", "WorkOS AuthKit", "Email and password, plus Google or Apple<br><i class='tag req'>Required</i>")}
     </div>

@@ -4,11 +4,10 @@ import {
   beforeEach,
   describe,
   expect,
-  mock,
+  spyOn,
   test,
 } from "bun:test";
 
-mock.module("server-only", () => ({}));
 const originalFetch = globalThis.fetch;
 const keys = [
   "NEXT_PUBLIC_CONVEX_URL",
@@ -28,9 +27,17 @@ process.env.WORKOS_COOKIE_PASSWORD = "test-session-password-for-fixtures-only";
 process.env.NEXT_PUBLIC_WORKOS_REDIRECT_URI = "http://localhost:3142/callback";
 process.env.NODE_ENV = "development";
 process.env.NEXT_PUBLIC_CONVEX_URL = "https://callback-tests.convex.cloud";
-const { serveRoute } = await import("./helpers/serveRoute");
-const signIn = serveRoute(await import("../app/sign-in/route"), "/sign-in");
-const callback = serveRoute(await import("../app/callback/route"), "/callback");
+const { getAuthkit } = await import("@workos/authkit-tanstack-react-start");
+const { configureWorkos } = await import("../server/workos");
+const { Route } = await import("../routes/callback");
+
+type Handler = (ctx: { request: Request }) => Promise<Response>;
+const callback = (url: string, cookie?: string) =>
+  (
+    Route.options as unknown as { server: { handlers: { GET: Handler } } }
+  ).server.handlers.GET({
+    request: new Request(url, { headers: cookie ? { cookie } : {} }),
+  });
 
 // AuthKit verifies the access token against the client's JWKS on callback, so
 // the fake WorkOS signs a real one.
@@ -72,19 +79,20 @@ const ACCESS_TOKEN = `${signedPart}.${base64url(
     )
   )
 )}`;
-let convexCalls: { path: unknown; authorization: string | null }[] = [];
-let createdAt = new Date().toISOString();
+let reached: string[] = [];
+let authenticationMethod: string | undefined = "Password";
 
-// WorkOS's code exchange and JWKS and Convex's HTTP action endpoint are the
-// only network this flow may reach. One function for the whole file: the WorkOS
-// client keeps the fetch it first sees.
-const network = ((input: RequestInfo | URL, init?: RequestInit) => {
+// WorkOS's code exchange and JWKS are the only network this flow may reach.
+const network = ((input: RequestInfo | URL) => {
   const url = String(input instanceof Request ? input.url : input);
+  reached.push(url);
+  const now = new Date().toISOString();
   if (url === "https://api.workos.com/user_management/authenticate") {
     return Promise.resolve(
       Response.json({
         access_token: ACCESS_TOKEN,
         refresh_token: "refresh_test",
+        authentication_method: authenticationMethod,
         user: {
           object: "user",
           id: "user_test",
@@ -96,8 +104,8 @@ const network = ((input: RequestInfo | URL, init?: RequestInit) => {
           last_sign_in_at: null,
           external_id: null,
           metadata: {},
-          created_at: createdAt,
-          updated_at: createdAt,
+          created_at: now,
+          updated_at: now,
         },
       })
     );
@@ -105,44 +113,32 @@ const network = ((input: RequestInfo | URL, init?: RequestInit) => {
   if (url === "https://api.workos.com/sso/jwks/client_web123") {
     return Promise.resolve(Response.json({ keys: [publicJwk] }));
   }
-  if (url === "https://callback-tests.convex.cloud/api/action") {
-    const headers = new Headers(init?.headers);
-    convexCalls.push({
-      path: JSON.parse(String(init?.body)).path,
-      authorization: headers.get("authorization"),
-    });
-    return Promise.resolve(
-      Response.json({
-        status: "success",
-        value: { status: "ok", teakUserId: "teak_new" },
-        logLines: [],
-      })
-    );
-  }
   return Promise.reject(new Error(`Callback must not reach ${url}`));
 }) as typeof fetch;
 
-// Starts a real sign-in so the callback gets a state bound to its PKCE cookie.
+// Starts a real AuthKit sign-in, as /sign-in does, so the callback gets a
+// state bound to its PKCE cookie.
 async function startedSignIn() {
-  const started = await signIn(
-    "http://localhost:3142/sign-in?next=%2Fsettings"
-  );
-  const state = new URL(started.headers.get("location") ?? "").searchParams.get(
-    "state"
-  );
-  const pkce = started.headers
-    .getSetCookie()
-    .find((value) => value.startsWith("wos-auth-verifier-"))
-    ?.split(";")[0];
-  return { state: state ?? "", cookie: pkce ?? "" };
+  const { redirectUri } = configureWorkos();
+  const authkit = await getAuthkit();
+  const started = await authkit.createSignIn(undefined, {
+    redirectUri,
+    returnPathname: "/settings",
+  });
+  const state = new URL(started.url).searchParams.get("state") ?? "";
+  const cookie =
+    started.response?.headers
+      .getSetCookie()
+      .find((value) => value.startsWith("wos-auth-verifier-"))
+      ?.split(";")[0] ?? "";
+  return { state, cookie };
 }
 
-const finishSignIn = async (accountCreatedAt: string) => {
-  createdAt = accountCreatedAt;
+const finishSignIn = async () => {
   const { state, cookie } = await startedSignIn();
   return callback(
     `http://localhost:3142/callback?code=code_test&state=${encodeURIComponent(state)}`,
-    { cookie }
+    cookie
   );
 };
 
@@ -151,35 +147,82 @@ const setCookie = (response: Response, name: string) =>
 
 beforeEach(() => {
   globalThis.fetch = network;
-  convexCalls = [];
+  reached = [];
+  authenticationMethod = "Password";
 });
 afterEach(() => {
   globalThis.fetch = originalFetch;
 });
 
 describe("sign-in callback", () => {
-  test.each([
-    ["a brand-new", () => new Date().toISOString()],
-    ["a returning", () => "2025-01-01T00:00:00.000Z"],
-  ])(
-    "signs %s account in and leaves its Teak user to the app",
-    async (_label, createdAt) => {
-      const response = await finishSignIn(createdAt());
-      expect(response.status).toBe(307);
-      expect(response.headers.get("location")).toBe(
-        "http://localhost:3142/settings"
-      );
-      expect(setCookie(response, "wos-session")).toBeTruthy();
-      expect(convexCalls).toEqual([]);
-    }
-  );
+  test("signs the account in and returns to the page it started from", async () => {
+    const response = await finishSignIn();
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe(
+      "http://localhost:3142/settings"
+    );
+    expect(setCookie(response, "wos-session")).toBeTruthy();
+    expect(reached).not.toContain(
+      "https://callback-tests.convex.cloud/api/action"
+    );
+  });
+
   test("tells teakvault.com this browser is signed in", async () => {
-    const response = await finishSignIn("2025-01-01T00:00:00.000Z");
-    const hint = setCookie(response, "teak_session_hint");
+    const hint = setCookie(await finishSignIn(), "teak_session_hint");
     expect(hint).toStartWith("teak_session_hint=1;");
     expect(hint).not.toContain("HttpOnly");
     expect(hint).not.toContain("Domain=");
   });
+
+  test("remembers how the account signed in, for its first ensureUser", async () => {
+    authenticationMethod = "GoogleOAuth";
+    const method = setCookie(await finishSignIn(), "teak_auth_method");
+    expect(method).toStartWith("teak_auth_method=GoogleOAuth;");
+    expect(method).toContain("Max-Age=600");
+  });
+
+  test.each([
+    ["no state (reset email return)", "?code=reset", undefined],
+    ["no PKCE cookie", "?code=reset&state=sealed", undefined],
+    [
+      "state not bound to the PKCE cookie",
+      "?code=reset&state=forged",
+      "wos-auth-verifier=other",
+    ],
+  ])(
+    "restarts sign-in without redeeming the code: %s",
+    async (_name, query, cookie) => {
+      const error = spyOn(console, "error").mockImplementation(() => undefined);
+      try {
+        const response = await callback(
+          `http://localhost:3142/callback${query}`,
+          cookie
+        );
+        // The SDK catches upstream failures, so this checks the calls: no
+        // code exchange may reach WorkOS.
+        expect(reached).toEqual([]);
+        expect(response.status).toBe(302);
+        expect(response.headers.get("location")).toBe(
+          "http://localhost:3142/sign-in?reauth=1"
+        );
+        expect(setCookie(response, "wos-session")).toBeUndefined();
+        expect(setCookie(response, "teak_session_hint")).toBeUndefined();
+        if (query.includes("state=")) {
+          expect(
+            response.headers
+              .getSetCookie()
+              .some(
+                (value) =>
+                  value.startsWith("wos-auth-verifier-") &&
+                  value.includes("Max-Age=0")
+              )
+          ).toBe(true);
+        }
+      } finally {
+        error.mockRestore();
+      }
+    }
+  );
 });
 
 afterAll(() => {

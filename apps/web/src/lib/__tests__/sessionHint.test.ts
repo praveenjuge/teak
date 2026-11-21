@@ -1,13 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { syncSessionHint } from "@/lib/session-hint";
+import { sessionHintHeader } from "@/server/session";
 
 const written = (origin: string, hinted: boolean, signedIn: boolean) => {
-  const headers = new Headers();
-  const cookies = new Map(
-    hinted ? [["teak_session_hint", { value: "1" }]] : []
-  );
-  syncSessionHint(cookies, headers, origin, signedIn);
-  return headers.getSetCookie();
+  const request = new Request(origin, {
+    headers: hinted ? { cookie: "teak_session_hint=1" } : {},
+  });
+  const header = sessionHintHeader(request, origin, signedIn);
+  return header ? [header] : [];
 };
 
 describe("session hint cookie", () => {

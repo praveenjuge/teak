@@ -1,6 +1,6 @@
 {
   "$schema": "https://turborepo.dev/schema.v2.json",
-  "globalEnv": ["NODE_ENV", "VERCEL_ENV"],
+  "globalEnv": ["NODE_ENV"],
   "globalPassThroughEnv": ["CI", "GITHUB_ACTIONS"],
   "ui": "tui",
   "futureFlags": {
@@ -10,14 +10,7 @@
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$"],
-      "outputs": [
-        ".next/**",
-        "!.next/cache/**",
-        "dist/**",
-        "out/**",
-        ".output/**",
-        ".vite/**"
-      ]
+      "outputs": ["dist/**", "out/**", ".output/**", ".vite/**"]
     },
     "dev": {
       "cache": false,
