@@ -16,7 +16,14 @@ const notify = () => {
   }
 };
 
+// The choice made in this page, kept even when storage refuses to save it
+// (some privacy settings block localStorage). Unset, the saved one applies.
+let chosen: ThemePreference | undefined;
+
 const readPreference = (): ThemePreference => {
+  if (chosen) {
+    return chosen;
+  }
   try {
     return parseThemePreference(localStorage.getItem(THEME_STORAGE_KEY));
   } catch {
@@ -56,6 +63,7 @@ function subscribe(listener: () => void) {
   };
   const onStorage = (event: StorageEvent) => {
     if (event.key === THEME_STORAGE_KEY) {
+      chosen = parseThemePreference(event.newValue);
       onSystemChange();
     }
   };
@@ -71,10 +79,11 @@ function subscribe(listener: () => void) {
 }
 
 export function setThemePreference(preference: ThemePreference) {
+  chosen = preference;
   try {
     localStorage.setItem(THEME_STORAGE_KEY, preference);
   } catch {
-    // Private browsing can refuse storage; the theme still applies here.
+    // Storage can be refused; `chosen` keeps the theme for this page.
   }
   withoutTransitions(() =>
     applyTheme(resolveTheme(preference, systemPrefersDark()))
