@@ -9,8 +9,6 @@ import packageJson from "./package.json" with { type: "json" };
 import { resolveCommitSha } from "./scripts/build-env.ts";
 import { resolvePostHogToken } from "./src/lib/analyticsGate.ts";
 
-const workspaceRoot = path.resolve(import.meta.dirname, "../..");
-
 // One copy each of React and Convex: a second copy breaks hooks and the
 // Convex client's shared cache.
 const singletons = ["convex", "convex-helpers", "react", "react-dom"] as const;
@@ -52,15 +50,10 @@ export default defineConfig(({ mode }) => {
       ])
     ),
     resolve: {
-      alias: [
-        { find: /^@\//, replacement: `${path.resolve("src")}/` },
-        ...singletons.map((name) => ({
-          // Built from the fixed package names above, never from input.
-          // nosemgrep: javascript_dos_rule-non-literal-regexp
-          find: new RegExp(`^${name}(/.*)?$`),
-          replacement: `${path.join(workspaceRoot, "node_modules", name)}$1`,
-        })),
-      ],
+      alias: [{ find: /^@\//, replacement: `${path.resolve("src")}/` }],
+      // Resolved from the app root through each package's exports map, so a
+      // package that moves its files (convex-helpers into dist/) still works.
+      dedupe: [...singletons],
     },
     build: {
       // Hidden maps are uploaded to PostHog after the build, then deleted.

@@ -3,7 +3,7 @@ import { useTranslations } from "@teak/i18n/react";
 import type { ReactNode } from "react";
 import {
   Archive,
-  ArchiveRestore,
+  ArchiveArrowUp,
   Ellipsis,
   FolderInput,
   FolderMinus,
@@ -62,7 +62,7 @@ const PRIMARY: Record<
   library: { action: "archive", icon: Archive, labelKey: "archive" },
   archive: {
     action: "unarchive",
-    icon: ArchiveRestore,
+    icon: ArchiveArrowUp,
     labelKey: "unarchive",
   },
   trash: { action: "restore", icon: RotateCcw, labelKey: "restore" },

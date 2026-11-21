@@ -49,7 +49,8 @@ export const loadAppSession = createServerFn({ method: "GET" })
   .validator((data: { path: string; seeds: boolean }) => {
     // The types hold for the app's own calls; a request built by hand gets
     // checked here. The path is always the page's own, never another origin.
-    const { path, seeds } = (data ?? {}) as Partial<Record<string, unknown>>;
+    const input: unknown = data;
+    const { path, seeds } = (input ?? {}) as Partial<Record<string, unknown>>;
     if (
       typeof path !== "string" ||
       !path.startsWith("/") ||

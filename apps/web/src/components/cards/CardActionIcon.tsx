@@ -1,7 +1,7 @@
 import type { ComponentType } from "react";
 import {
   Archive,
-  ArchiveRestore,
+  ArchiveArrowUp,
   Circle,
   CircleCheck,
   Copy,
@@ -31,7 +31,7 @@ export function cardActionIcon(
     case "addTags":
       return Tag;
     case "archive":
-      return card.isArchived ? ArchiveRestore : Archive;
+      return card.isArchived ? ArchiveArrowUp : Archive;
     case "moveToTrash":
     case "deleteForever":
       return Trash;

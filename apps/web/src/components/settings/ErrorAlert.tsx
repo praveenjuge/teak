@@ -1,6 +1,6 @@
 import { useTranslations } from "@teak/i18n/react";
 import type { VadivamIcon } from "vadivam-react";
-import { CircleAlert } from "vadivam-react";
+import { CircleExclamationPoint } from "vadivam-react";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 
 interface ErrorAlertProps {
@@ -12,7 +12,7 @@ interface ErrorAlertProps {
 export function ErrorAlert({
   message,
   title,
-  icon: Icon = CircleAlert,
+  icon: Icon = CircleExclamationPoint,
 }: ErrorAlertProps) {
   const t = useTranslations("settings.errorAlert");
   if (!message) {

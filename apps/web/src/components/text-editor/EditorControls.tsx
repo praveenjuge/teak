@@ -4,7 +4,7 @@ import type { Editor } from "@tiptap/core";
 import { useEditorState } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Bold, Code, Italic, Link, Strikethrough } from "vadivam-react";
+import { Code, Italic, LetterB, Link, Strikethrough } from "vadivam-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ariaKeyShortcut } from "../../lib/keyboardShortcuts";
@@ -44,7 +44,7 @@ export function EditorFormatting({ editor }: { editor: Editor }) {
     {
       id: "bold",
       name: t("bold"),
-      icon: Bold,
+      icon: LetterB,
       keys: ["Mod", "B"],
       active: active.bold,
       run: () => editor.chain().focus().toggleBold().run(),
