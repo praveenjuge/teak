@@ -1,6 +1,6 @@
 # Analytics and error reporting
 
-Last reviewed: 2026-11-19
+Last reviewed: 2026-11-21
 
 Teak sends product analytics, error reports, web session replays, feedback and AI cost to one PostHog project. Read this before adding an event, a surface, or an env var.
 
@@ -16,14 +16,14 @@ Teak sends product analytics, error reports, web session replays, feedback and A
 
 Split any insight by `$lib`.
 
-Versions: every surface sends the lockstep release version (such as `1.0.94`) as `$app_version`, so one insight compares versions across surfaces. The web app registers it, and the deploy's 12-character commit as `commit_sha`, as super properties on every event; the web server, Convex and Convex's queued events send the same two (Convex's commit is `CONVEX_GIT_COMMIT_SHA`). Before Nov 2026, Convex sent the commit as `$app_version` and web events had none. Web source maps upload bound to the release `teak-web` `<version>+<commit>` (`--release-mode symbol-set` in `apps/web/posthog-sourcemaps.ts`): the CLI's default `event` mode expects a release id injected into each chunk, which Teak's chunks don't carry.
+Versions: every surface sends the lockstep release version (such as `1.0.94`) as `$app_version`, so one insight compares versions across surfaces. The web app registers it, and the deploy's 12-character commit as `commit_sha`, as super properties on every event; the web server, Convex and Convex's queued events send the same two (Convex's commit is `CONVEX_GIT_COMMIT_SHA`). Before Nov 2026, Convex sent the commit as `$app_version` and web events had none. Web source maps upload bound to the release `teak-web` `<version>+<commit>` (`apps/web/scripts/posthog-sourcemaps.ts`): after `vite build` the CLI injects a chunk id into each browser chunk, uploads the maps, and the build deletes every `.map` file.
 
 Location: server-side captures (`createPostHogBatch`) send `$geoip_disable: true`, so the data center's IP never sets a person's location; only batches from the person's device (the extension, `geoip: true`) and the client SDKs are geolocated. Before Nov 2026, Convex and Core Worker events wrote a United States location onto most persons.
 
 | Surface | `$lib` | What it sends | Code |
 | --- | --- | --- | --- |
 | Web app | `web` | Pageviews, web vitals, exceptions, client events, masked replay, feedback survey | `apps/web/src/lib/posthog-client.ts`, `posthog-config.ts` |
-| Web server | `teak-web-server` | Render, route and action errors | `apps/web/src/instrumentation.ts` |
+| Web server | `teak-web-server` | Requests the Worker failed to answer | `apps/web/src/server.ts` |
 | Convex backend | `teak-backend` | Server events, `$ai_generation`, non-retryable exceptions, cron failures. Events from mutations reach PostHog through the Core Worker | `packages/convex/telemetry/posthog.ts`, `telemetry/schedule.ts` |
 | Core worker | `teak-files-worker` | Op failures, uncaught errors, non-retryable background (workflow, queue) failures, and card processing's `$ai_generation` and `card_processing_completed` | `apps/core-worker/src/telemetry.ts`, `src/workflows/telemetry.ts` |
 | Browser extension | `teak-extension` | Errors, `extension_card_saved`, `extension_omnibox_used`, `signed_in` (background and popup only) | `apps/extension/lib/telemetry.ts` |
@@ -94,23 +94,23 @@ Exceptions are `$exception` events built by `buildExceptionProperties` in `packa
 
 ## Performance rules
 
-- posthog-js never joins the web app's initial bundle. `instrumentation-client.ts` loads it with a dynamic `import()` when the page is idle (`requestIdleCallback`, 3 s timeout). A small queue holds early calls and early `error`/`unhandledrejection` events.
-- The SDK, recorder and surveys load from the same-origin `/ingest` proxy (`next.config.ts` rewrites; `src/proxy.ts` lets `/ingest/` through without auth). CSP needs no third-party hosts.
+- posthog-js never joins the web app's initial bundle. `src/lib/client-telemetry.ts`, which the client entry (`src/client.tsx`) imports first, has `posthog-client.ts` load it with a dynamic `import()` when the page is idle (`requestIdleCallback`, 3 s timeout). A small queue holds early calls and early `error`/`unhandledrejection` events.
+- The SDK, recorder and surveys load from the same-origin `/ingest` proxy (`src/server/analyticsProxy.ts`, the first request middleware in `src/start.ts`, ahead of sign-in; it drops the browser's cookies). CSP needs no third-party hosts.
 - The feedback survey's tab sits on the right edge, lowered toward the bottom by `lowerFeedbackTab` (`posthog-config.ts`) so it clears an open card's Next button. Keep the survey's tab position on the right; the override only applies there.
 - No click autocapture, heatmaps, dead clicks, console logs or network capture. Teak uses no feature flags, but `/flags` still loads after init because the feedback survey's targeting depends on it.
-- Server-side capture (Convex, worker, extension, Next.js `onRequestError`) uses the dependency-free `createPostHogBatch` and sends one `/batch/` request per unit of work. Convex actions flush once at the end (`withBackendTelemetryScope`). Mutations can't fetch, so they queue each event in the workflow dispatch outbox (`queueBackendEvent` in `packages/convex/telemetry/schedule.ts`) and the Core Worker sends a flush's events in one `/batch/` request, unchanged (`$lib: teak-backend`). Convex queues nothing without `POSTHOG_PROJECT_TOKEN`. Delivery is best effort: Convex drops the row when it hands it over.
+- Server-side capture (Convex, worker, extension, the web Worker's `src/server.ts`) uses the dependency-free `createPostHogBatch` and sends one `/batch/` request per unit of work. Convex actions flush once at the end (`withBackendTelemetryScope`). Mutations can't fetch, so they queue each event in the workflow dispatch outbox (`queueBackendEvent` in `packages/convex/telemetry/schedule.ts`) and the Core Worker sends a flush's events in one `/batch/` request, unchanged (`$lib: teak-backend`). Convex queues nothing without `POSTHOG_PROJECT_TOKEN`. Delivery is best effort: Convex drops the row when it hands it over.
 - Native SDKs flush in the background (`flushAt` 20, every 30 s) with screen views, replay and flag preloading off.
 
 ## Env vars
 
 | Name | Where | Notes |
 | --- | --- | --- |
-| `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN` | Vercel Production | Inlined only when `VERCEL_ENV=production`, or off Vercel when `TEAK_ANALYTICS_ENABLED=true` |
-| `TEAK_ANALYTICS_ENABLED` | Self-hosted web builds only | `true` lets a web build that isn't on Vercel report to its own token's project (`resolvePostHogToken`). Ignored on Vercel. Teak never sets it |
+| `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN` | The `teak-app` Worker's production build (Workers Builds) | Inlined only when `TEAK_ANALYTICS_ENABLED=true` (`apps/web/src/lib/analyticsGate.ts`) |
+| `TEAK_ANALYTICS_ENABLED` | The `teak-app` Worker's production build and runtime; self-hosted web builds that opt in | `true` lets a web build report to its own token's project (`resolvePostHogToken`). Local, preview and other builds leave it unset and send nothing |
 | `POSTHOG_PROJECT_TOKEN` | GitHub secret, Convex prod (set by Backend Deploy), worker `wrangler.jsonc` var | Also feeds the Apple archive and the extension release build |
 | `WXT_POSTHOG_PROJECT_TOKEN` | Extension Release workflow | From `POSTHOG_PROJECT_TOKEN` |
 | `POSTHOG_ANDROID_TOKEN` | Local Android release env or Gradle property | Release builds only |
-| `POSTHOG_CLI_API_KEY`, `POSTHOG_CLI_PROJECT_ID` | Vercel Production, GitHub secrets, local Android env | Personal API key with error-tracking write; uploads web source maps, Apple dSYMs, Android R8 mappings. Uploads are skipped when unset |
+| `POSTHOG_CLI_API_KEY`, `POSTHOG_CLI_PROJECT_ID` | The `teak-app` Worker's production build (Workers Builds), GitHub secrets, local Android env | Personal API key with error-tracking write; uploads web source maps, Apple dSYMs, Android R8 mappings. Uploads are skipped when unset |
 | `POSTHOG_CLI_HOST` | Workflows | `https://us.posthog.com` |
 | `POSTHOG_PROJECT_ID` | Self-hosted Convex only | The project the deletion and query keys act on (`posthogProjectId` in `packages/convex/shared/posthog.ts`). Unset is Teak's `660923`, so Teak's own deployments never set it |
 | `POSTHOG_INTERNAL_ACCOUNTS` | Convex prod (dashboard) | Comma-separated addresses and `@domain`s of the team's own and test accounts, for `is_internal`. Optional |

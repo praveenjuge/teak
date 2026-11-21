@@ -1,28 +1,21 @@
-import { afterAll, describe, expect, mock, test } from "bun:test";
+import { afterAll, describe, expect, test } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 
 GlobalRegistrator.register({ url: "http://localhost:3000/" });
 const { renderToStaticMarkup } = await import("react-dom/server");
 
-let pathname = "/";
-const realNavigation = await import("next/navigation");
-mock.module("next/navigation", () => ({
-  ...realNavigation,
-  usePathname: () => pathname,
-  useRouter: () => ({ prefetch: () => undefined, push: () => undefined }),
-}));
-
 const { AppShellSkeleton } = await import("../AppShellSkeleton");
+const { TestRouter, testRouter } = await import("@/__tests__/helpers/router");
 
-const render = (path: string, defaultOpen = true) => {
-  pathname = path;
-  return new DOMParser().parseFromString(
+const render = (path: string, defaultOpen = true) =>
+  new DOMParser().parseFromString(
     renderToStaticMarkup(
-      <AppShellSkeleton defaultOpen={defaultOpen} defaultWidth={256} />
+      <TestRouter router={testRouter(path)}>
+        <AppShellSkeleton defaultOpen={defaultOpen} defaultWidth={256} />
+      </TestRouter>
     ),
     "text/html"
   ).body;
-};
 
 afterAll(async () => {
   await GlobalRegistrator.unregister();

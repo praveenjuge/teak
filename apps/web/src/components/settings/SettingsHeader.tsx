@@ -1,10 +1,8 @@
-"use client";
-
+import { useLocation } from "@tanstack/react-router";
 import { SETTINGS_PATHS } from "@teak/convex/shared/webRoutes";
 import { useTranslations } from "@teak/i18n/react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { ChevronRight } from "vadivam-react";
+import { AppLink } from "@/components/AppLink";
 import { PageHeader, PageTitle } from "@/components/app-shell/PageHeader";
 import { SidebarToggle } from "@/components/sidebar";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
@@ -12,7 +10,9 @@ import { settingsSectionForPath } from "@/lib/settingsSections";
 
 export function SettingsHeader() {
   const t = useTranslations("settings");
-  const section = settingsSectionForPath(usePathname());
+  const section = settingsSectionForPath(
+    useLocation({ select: (location) => location.pathname })
+  );
   const subpage = section && section.id !== "account" ? section : null;
   const pageName = subpage ? t(`nav.${subpage.id}`) : null;
   // Next.js's route announcer reads `document.title` after each navigation,
@@ -29,12 +29,12 @@ export function SettingsHeader() {
         // The sub-page's name is part of the heading, so a screen reader
         // reading headings hears "Settings, Appearance".
         <span className="flex min-w-0 items-center gap-2">
-          <Link
+          <AppLink
             className="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
             href={SETTINGS_PATHS.account}
           >
             {t("header.title")}
-          </Link>
+          </AppLink>
           <ChevronRight
             aria-hidden
             className="size-3.5 shrink-0 text-muted-foreground"

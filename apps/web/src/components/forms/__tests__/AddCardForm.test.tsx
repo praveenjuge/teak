@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
-import "@/__tests__/helpers/nextRouter";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { TestRouter } from "@/__tests__/helpers/router";
 
 let cardCreationStatusResult: { canCreateCard: boolean } | undefined;
 
@@ -158,9 +158,11 @@ const { AddCardForm } = await import("../AddCardForm");
 const { ComposerProvider } = await import("../ComposerProvider");
 
 const composer = () => (
-  <ComposerProvider>
-    <AddCardForm />
-  </ComposerProvider>
+  <TestRouter>
+    <ComposerProvider>
+      <AddCardForm />
+    </ComposerProvider>
+  </TestRouter>
 );
 
 describe("AddCardForm", () => {

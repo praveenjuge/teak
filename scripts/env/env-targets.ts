@@ -28,7 +28,7 @@ export const TARGET_SPECS: Record<SupportedTarget, TargetSpec> = {
     dotenvFiles: ["apps/web/.env.local"],
     needsConvex: true,
     defaultConvex: "cloud",
-    note: "Next.js app on the shared cloud dev deployment; signs in through WorkOS staging.",
+    note: "TanStack Start app on the shared cloud dev deployment; signs in through WorkOS staging.",
   },
   docs: {
     target: "docs",

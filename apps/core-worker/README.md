@@ -90,8 +90,8 @@ covers how Teak's own Workers behave and are operated.
 (`/.well-known/oauth-protected-resource`, `/.well-known/oauth-protected-resource/mcp`
 and `/.well-known/teak-oauth-clients.json`) reach Convex through this Worker
 (`src/edge/apiProxy.ts`). Zone routes in `wrangler.jsonc` catch those paths on
-`teakvault.com`, which Cloudflare already proxies, and the rest of the site
-stays on its own origin. The proxy forwards each request to the same Convex
+`teakvault.com` ahead of the `teak-site` Worker that serves the rest of the
+site. The proxy forwards each request to the same Convex
 HTTP path the docs site's Vercel rewrites used (`/api` → `/v1`,
 `/api/<path>` → `/<path>`, MCP and discovery paths unchanged), streams request
 and response bodies, does not follow redirects, and adds the site's security

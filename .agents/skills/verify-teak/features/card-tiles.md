@@ -31,5 +31,4 @@ Every card in the web grid that isn't an image or a video is a white tile with a
 
 - Link images load lazily: scroll the grid and wait before a screenshot, or tiles look blank.
 - The dev deployment rarely gets a price from a store page (one of five tried gave one); the badge's own cases are in `Card.test.tsx`.
-- Next.js's dev badge sits over the bottom right of the page; hide `nextjs-portal` before a screenshot.
 - Phones show one column (the grid's minimum column is 200 px), so every tile is full width there; text tiles still fit their text.

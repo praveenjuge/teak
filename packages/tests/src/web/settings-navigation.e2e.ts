@@ -2,7 +2,7 @@ import { expectVault, gotoApp } from "../helpers/app";
 import { expect, test } from "./fixtures";
 import { observeNavigation } from "./navigation-observer";
 
-test("keeps home, not a rebuilt copy, through settings round trips from sign-in", async ({
+test("keeps home's draft, search and scroll through settings round trips from sign-in", async ({
   browser,
   library,
   screen,
@@ -13,19 +13,6 @@ test("keeps home, not a rebuilt copy, through settings round trips from sign-in"
     .getByRole("textbox", "Markdown content", { exact: false });
   await draft.fill("Navigation draft — do not save");
   await expect(draft).toHaveText("Navigation draft — do not save");
-  await browser.evaluate(() => {
-    const composer = document.querySelector<HTMLElement>(
-      "form[data-card-creation-status]"
-    );
-    if (!composer) {
-      throw new Error("composer is missing");
-    }
-    composer.dataset.navigationProbe = "";
-    return null;
-  });
-  const sameComposer = browser.locator(
-    "form[data-card-creation-status][data-navigation-probe]"
-  );
   await screen.getByRole("link", "Settings").click();
   await expect(screen.getByRole("heading", "Settings")).toBeVisible();
   await expect(screen.getByText(email)).toBeVisible();
@@ -35,7 +22,7 @@ test("keeps home, not a rebuilt copy, through settings round trips from sign-in"
   await expect(
     screen.getByText("Saved while settings was open").first()
   ).toBeVisible();
-  await expect(sameComposer).toHaveCount(1);
+  // Home remounts on the way back; the composer restores its stored draft.
   await expect(draft).toHaveText("Navigation draft — do not save");
 
   for (let index = 0; index < 10; index++) {
@@ -67,8 +54,12 @@ test("keeps home, not a rebuilt copy, through settings round trips from sign-in"
   });
   await expect(screen.getByRole("heading", "Settings")).toBeVisible();
   await browser.back();
-  await expect(search).toHaveValue("navigation search");
-  await search.fill("");
+  // Home remounts and reads the search from its URL, which shows its words
+  // as chips.
+  await expect(screen.getByRole("button", "Remove navigation")).toBeVisible();
+  await expect(screen.getByRole("button", "Remove search")).toBeVisible();
+  await screen.getByRole("button", "Clear all").click();
+  await expect(screen.getByRole("button", "Remove navigation")).toBeHidden();
   await expect(draft).toHaveText("Navigation draft — do not save");
 
   await browser.evaluate(() => {

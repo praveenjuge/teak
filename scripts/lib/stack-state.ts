@@ -139,7 +139,7 @@ const STACK_OWNERS = [
   // The e2e suite runs the stack in its own process.
   "run-local-suite.ts",
 ];
-const STACK_MEMBERS = ["convex", "next"];
+const STACK_MEMBERS = ["convex", "vite", "workerd"];
 
 /**
  * The recorded owner is alive and is still a Teak stack process. Without
@@ -182,7 +182,7 @@ export const currentStack = (
 };
 
 // The backend and web app's process group, if any of its members is still a
-// Convex or Next.js process. Without `ps` membership can't be proven, and a
+// Convex, Vite or workerd process. Without `ps` membership can't be proven, and a
 // group ID may have been reused, so the group is never signaled.
 const groupAlive = (group: number): boolean => {
   if (!(validPid(group) && exists(-group))) {

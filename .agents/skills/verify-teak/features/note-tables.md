@@ -46,4 +46,3 @@ Steps:
 - The `[[` card-link menu doesn't open inside a cell; a link's `|` would need escaping there.
 - Native apps show tables read-only; editing one stays on the web, and their edit field shows the Markdown.
 - The web keeps a whole note literal when one table in it is aligned, ragged or nested, so that note has no checkboxes on the web ("Checklist with a table" in `checklists`). The native apps keep only that table literal and still show the note's other blocks and checkboxes.
-- A stale `apps/web/.next` can make the page reload in a loop on every load ("HMR hash mismatch" over the HMR socket); stop the stack, delete `apps/web/.next` and start it again.

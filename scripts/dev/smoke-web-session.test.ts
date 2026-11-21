@@ -34,7 +34,7 @@ describe("workos-test-session", () => {
     );
   });
 
-  test("the session cookie unseals the way authkit-nextjs reads it", async () => {
+  test("the session cookie unseals the way AuthKit reads it", async () => {
     const cookiePassword = "fixture-cookie-password-of-32-characters";
     const auth = {
       accessToken: "access-fixture",

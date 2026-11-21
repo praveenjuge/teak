@@ -88,9 +88,12 @@ test("organize a library across the web, API, CLI and MCP", {
       .toEqual(["inspiration"]);
 
     await gotoApp(browser, "/?q=tag%3Ainspiration");
-    await expect(screen.getByText(first, { exact: false })).toBeVisible({
-      timeout: 30_000,
-    });
+    // The grid's first paint keeps a hidden measuring copy of each card.
+    await expect(screen.getByText(first, { exact: false }).first()).toBeVisible(
+      {
+        timeout: 30_000,
+      }
+    );
     await screen.getByRole("button", /^View/).click();
     await screen.getByRole("menuitem", "Save as smart folder…").click();
     const save = screen.getByRole("dialog", "Save as smart folder");

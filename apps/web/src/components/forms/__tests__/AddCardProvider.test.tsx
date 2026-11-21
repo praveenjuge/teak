@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, expect, mock, test } from "bun:test";
-import "@/__tests__/helpers/nextRouter";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import type { ReactNode } from "react";
 import type { Root } from "react-dom/client";
@@ -9,6 +8,7 @@ if (!GlobalRegistrator.isRegistered) {
 }
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
+const { TestRouter } = await import("@/__tests__/helpers/router");
 const realConvexReact = await import("convex/react");
 
 mock.module("convex/react", () => ({
@@ -136,10 +136,12 @@ const render = async (node: ReactNode) => {
   root = createRoot(container);
   await act(() =>
     root?.render(
-      <LibraryCommandsProvider>
-        <CommandProbe />
-        {node}
-      </LibraryCommandsProvider>
+      <TestRouter>
+        <LibraryCommandsProvider>
+          <CommandProbe />
+          {node}
+        </LibraryCommandsProvider>
+      </TestRouter>
     )
   );
   return container;

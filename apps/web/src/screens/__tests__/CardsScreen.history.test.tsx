@@ -1,11 +1,11 @@
 import { afterAll, afterEach, expect, test } from "bun:test";
-import "@/__tests__/helpers/nextRouter";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import type { Root } from "react-dom/client";
 
 GlobalRegistrator.register({ url: "http://localhost:3000/" });
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
+const { TestRouter } = await import("@/__tests__/helpers/router");
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
 const { ConvexProviderWithAuth, useConvexAuth } = await import("convex/react");
@@ -116,13 +116,15 @@ test("Back right after a reshuffle shows the earlier order again", async () => {
   root = createRoot(container);
   await act(() =>
     root?.render(
-      <ConvexProviderWithAuth client={transport.client} useAuth={useAuth}>
-        <ConvexQueryCacheProvider>
-          <ComposerProvider>
-            <SignedInLibrary />
-          </ComposerProvider>
-        </ConvexQueryCacheProvider>
-      </ConvexProviderWithAuth>
+      <TestRouter>
+        <ConvexProviderWithAuth client={transport.client} useAuth={useAuth}>
+          <ConvexQueryCacheProvider>
+            <ComposerProvider>
+              <SignedInLibrary />
+            </ComposerProvider>
+          </ConvexQueryCacheProvider>
+        </ConvexProviderWithAuth>
+      </TestRouter>
     )
   );
   await act(replyAll);

@@ -1,7 +1,5 @@
-"use client";
-
+import { useLocation, useNavigate } from "@tanstack/react-router";
 import { TAGS_PATH } from "@teak/convex/shared/webRoutes";
-import { usePathname, useRouter } from "next/navigation";
 import { type ReactNode, useCallback, useEffect } from "react";
 import { preloadCardModal } from "@/components/card-modal/LazyCardModal";
 import { AddCardActions, AddCardProvider } from "@/components/forms";
@@ -34,8 +32,8 @@ export function AppShell({
   defaultOpen: boolean;
   defaultWidth: number;
 }) {
-  const pathname = usePathname();
-  const router = useRouter();
+  const pathname = useLocation({ select: (location) => location.pathname });
+  const navigate = useNavigate();
   const view = libraryViewForPath(pathname);
   const folderId = folderIdForPath(pathname);
 
@@ -50,9 +48,9 @@ export function AppShell({
 
   const handleGoToView = useCallback(
     (target: LibraryView, options?: GoToViewOptions) => {
-      router.push(libraryViewHref(target, options));
+      navigate({ href: libraryViewHref(target, options) });
     },
-    [router]
+    [navigate]
   );
 
   const handleNewNote = useCallback(
@@ -63,9 +61,9 @@ export function AppShell({
   const handleNavigate = useCallback(
     (href: string) => {
       const samePage = href.startsWith(`${pathname}?`);
-      router.push(href, samePage ? { scroll: false } : undefined);
+      navigate({ href, resetScroll: !samePage });
     },
-    [pathname, router]
+    [pathname, navigate]
   );
 
   const { signOut } = useSignOut();
@@ -94,7 +92,7 @@ export function AppShell({
                   activeFolderId={folderId}
                   LinkComponent={IntentLink}
                   onActiveFolderDeleted={() => {
-                    router.push("/");
+                    navigate({ href: "/" });
                   }}
                 />
               </SidebarFoldersBoundary>

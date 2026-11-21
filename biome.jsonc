@@ -3,7 +3,7 @@
   "extends": [
     "ultracite/biome/core",
     "ultracite/biome/react",
-    "ultracite/biome/next"
+    "ultracite/biome/tanstack"
   ],
   "plugins": [
     {
@@ -367,27 +367,6 @@
                 }
               }
             }
-          }
-        }
-      }
-    },
-    {
-      // Plain <img> on purpose: card media and favicons load straight from
-      // their source with Teak's own retry and sizing, the browser extension
-      // and the MCP App have no next/image, and OG images render through
-      // ImageResponse.
-      "includes": [
-        "apps/web/src/components/card-previews/**",
-        "apps/web/src/components/cards/**",
-        "apps/web/src/components/media/**",
-        "apps/extension/**",
-        "packages/mcp-app/**",
-        "apps/web/src/app/opengraph-image.tsx"
-      ],
-      "linter": {
-        "rules": {
-          "performance": {
-            "noImgElement": "off"
           }
         }
       }

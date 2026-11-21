@@ -1,11 +1,3 @@
-<!-- BEGIN:nextjs-agent-rules -->
-
-## This is NOT the Next.js you know
-
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
-
-This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
-
-<!-- END:nextjs-agent-rules -->
-
 Read "Web app" under "Working in each workspace" in `apps/docs/content/docs/(open-source)/architecture.mdx` before changing this workspace.
+
+The web app is TanStack Start on Cloudflare Workers, and its APIs move fast. Before you write routes, loaders, server functions or middleware, read the skills that ship with the installed packages, which match their versions: start at `node_modules/@tanstack/react-start/skills/react-start/SKILL.md` (from the repository root), then load only the one for the boundary you're changing, such as `node_modules/@tanstack/router-core/skills/router-core/` for routing, loaders and search params.

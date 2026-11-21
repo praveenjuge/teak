@@ -1,9 +1,7 @@
-"use client";
-
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Archive, Ellipsis } from "vadivam-react";
+import { AppLink } from "@/components/AppLink";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -67,7 +65,7 @@ export function ArchivedCopyBar({
           </a>
         </Button>
         <Button asChild size="sm" variant="outline">
-          <Link href={cardHref(cardId)}>{t("openInTeak")}</Link>
+          <AppLink href={cardHref(cardId)}>{t("openInTeak")}</AppLink>
         </Button>
       </div>
       <DropdownMenu>
@@ -88,7 +86,7 @@ export function ArchivedCopyBar({
             </a>
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
-            <Link href={cardHref(cardId)}>{t("openInTeak")}</Link>
+            <AppLink href={cardHref(cardId)}>{t("openInTeak")}</AppLink>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

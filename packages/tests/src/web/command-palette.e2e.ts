@@ -102,9 +102,6 @@ test("Export in the palette opens Settings at its Export section", async ({
   await expect(screen.getByRole("button", "Sign out")).toBeEnabled({
     timeout: 30_000,
   });
-  // Settings paints its shell before hydration wires the palette's key
-  // listener; the usage meter only renders with live account data, so it
-  // proves the app is interactive before the key press.
   await expect(screen.getByRole("progressbar", "Cards used")).toBeVisible({
     timeout: 30_000,
   });
@@ -112,14 +109,19 @@ test("Export in the palette opens Settings at its Export section", async ({
     "combobox",
     "Search commands, folders and cards"
   );
-  // The key listener can still be wiring up when the usage meter shows, so
-  // press again until the palette opens (the key toggles it, so stop at the
-  // first time it is open).
+  // Settings is server-rendered, so its key listener can still be wiring up.
+  // The key toggles the palette, so each press waits for it to open before
+  // pressing again; a quicker press would close the one just opening.
   await expect
     .poll(
       async () => {
         await browser.keyboard.press("ControlOrMeta+k");
-        return await input.isVisible().catch(() => false);
+        return await expect(input)
+          .toBeVisible({ timeout: 1000 })
+          .then(
+            () => true,
+            () => false
+          );
       },
       { timeout: 30_000 }
     )

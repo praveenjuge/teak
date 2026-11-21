@@ -33,8 +33,31 @@ export const clientFor = (apiKey: string) =>
 
 export const appPath = (path: string) => new URL(path, env.appUrl).toString();
 
-export const gotoApp = (browser: Browser, path: string) =>
-  browser.goto(appPath(path));
+/**
+ * Waits until the web app has hydrated, if the browser is on it: its pages
+ * are server-rendered, so buttons show before clicks on them do anything.
+ * A page on another origin (hosted sign-in) has nothing to wait for.
+ */
+export const expectHydrated = async (browser: Browser) => {
+  const appOrigin = new URL(env.appUrl).origin;
+  await expect
+    .poll(
+      () =>
+        browser.evaluate(
+          (origin) =>
+            location.origin !== origin ||
+            document.documentElement.hasAttribute("data-hydrated"),
+          appOrigin
+        ),
+      { timeout: 45_000 }
+    )
+    .toBe(true);
+};
+
+export const gotoApp = async (browser: Browser, path: string) => {
+  await browser.goto(appPath(path));
+  await expectHydrated(browser);
+};
 
 const isRetryableActionError = (error: unknown) =>
   error instanceof Error &&
@@ -89,8 +112,9 @@ export const fillAndSubmitTextCard = async (
   );
 };
 
-export const expectVault = async ({ screen }: Surface) => {
+export const expectVault = async ({ browser, screen }: Surface) => {
   await expect(composerOf(screen)).toBeVisible({ timeout: 45_000 });
+  await expectHydrated(browser);
 };
 
 const waitForAccount = async (email: string, password = E2E_PASSWORD) =>

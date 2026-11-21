@@ -1,9 +1,7 @@
-"use client";
-
+import { useLocation } from "@tanstack/react-router";
 import { TAGS_PATH } from "@teak/convex/shared/webRoutes";
 import { useTranslations } from "@teak/i18n/react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { AppLink } from "@/components/AppLink";
 import { NewMenuPlaceholder } from "@/components/forms";
 import { AppSidebar, SidebarFoldersSkeleton } from "@/components/sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
@@ -26,7 +24,7 @@ export function AppShellSkeleton({
 }) {
   const t = useTranslations("appShell.skeleton");
   const tViews = useTranslations("lib.libraryViews");
-  const pathname = usePathname();
+  const pathname = useLocation({ select: (location) => location.pathname });
   const view = libraryViewForPath(pathname);
   const isSettings = isSettingsPath(pathname);
   const isTags = pathname === TAGS_PATH;
@@ -57,7 +55,7 @@ export function AppShellSkeleton({
         foldersSlot={<SidebarFoldersSkeleton />}
         isSettingsActive={isSettings}
         isTagsActive={isTags}
-        LinkComponent={Link}
+        LinkComponent={AppLink}
       />
       <SidebarInset className="min-w-0">
         <div

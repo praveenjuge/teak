@@ -37,9 +37,10 @@ export const emulatorDeploymentVars = (ports: StackPorts) => ({
 });
 
 // The E2E web app's settings. The stack passes them as process environment,
-// which Next.js prefers over apps/web/.env.local, so the E2E stack never
-// rewrites the dev wiring in that file. authkit-nextjs reads WORKOS_API_* to
-// reach a WorkOS API other than api.workos.com.
+// which vite.config.ts and (with CLOUDFLARE_INCLUDE_PROCESS_ENV) the Worker
+// prefer over apps/web/.env.local, so the E2E stack never rewrites the dev
+// wiring in that file. AuthKit reads WORKOS_API_* to reach a WorkOS API other
+// than api.workos.com.
 export const emulatorWebEnv = (ports: StackPorts) => {
   const urls = stackUrls(ports);
   return {
@@ -52,6 +53,7 @@ export const emulatorWebEnv = (ports: StackPorts) => {
     WORKOS_API_HOSTNAME: "localhost",
     WORKOS_API_PORT: String(ports.emulator),
     WORKOS_API_HTTPS: "false",
+    CLOUDFLARE_INCLUDE_PROCESS_ENV: "true",
   };
 };
 

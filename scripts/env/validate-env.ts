@@ -90,7 +90,7 @@ export const validateWebEnvContent = (
       });
       continue;
     }
-    // Next.js expands $VARIABLE / ${VARIABLE} references before assigning
+    // Vite expands $VARIABLE / ${VARIABLE} references before assigning
     // process.env; validate the expanded value so indirection is accepted.
     const value = expandEnvReferences(raw, lookup);
     if (!isHttpUrl(value)) {

@@ -1,16 +1,6 @@
-import {
-  afterAll,
-  afterEach,
-  describe,
-  expect,
-  mock,
-  spyOn,
-  test,
-} from "bun:test";
-import { sealData } from "iron-session";
-import { NextRequest } from "next/server";
+import { afterAll, afterEach, describe, expect, test } from "bun:test";
+import { workosEntryRedirect } from "@/lib/auth-entry";
 
-mock.module("server-only", () => ({}));
 const originalFetch = globalThis.fetch;
 const keys = [
   "WORKOS_CLIENT_ID",
@@ -28,92 +18,117 @@ Reflect.deleteProperty(process.env, "WORKOS_API_KEY");
 process.env.WORKOS_COOKIE_PASSWORD = "test-session-password-for-fixtures-only";
 process.env.NEXT_PUBLIC_WORKOS_REDIRECT_URI = "http://localhost:3142/callback";
 process.env.NODE_ENV = "development";
-const { default: proxy } = await import("../proxy");
-const { serveRoute } = await import("./helpers/serveRoute");
-const callback = serveRoute(await import("../app/callback/route"), "/callback");
-
-const offline = ((input: RequestInfo | URL) => {
-  throw new Error(`Must not reach ${String(input)}`);
-}) as typeof fetch;
+const { sessionHintHeader, signInGuard } = await import("../server/session");
+const { proxyAnalytics } = await import("../server/analyticsProxy");
+const { withSecurityHeaders } = await import("../server/securityHeaders");
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
 });
 
-describe("web sign-in routing", () => {
-  test("sends signed-out visitors to sign-in with their destination", async () => {
-    globalThis.fetch = offline;
-    const response = await proxy(
-      new NextRequest("http://localhost:3142/settings?tab=account")
-    );
-    expect(response.status).toBe(307);
-    expect(response.headers.get("location")).toBe(
-      "http://localhost:3142/sign-in?next=%2Fsettings%3Ftab%3Daccount"
-    );
-    expect(response.headers.get("x-workos-session")).toBeNull();
+describe("the sign-in origin", () => {
+  test.each([
+    "https://evil.example/settings",
+    "https://evil.example/callback?code=old",
+    "http://localhost:9999/sign-in",
+  ])("denies %s, outside the configured deployment", (url) => {
+    const response = signInGuard(new Request(url));
+    expect(response?.status).toBe(400);
+    expect(response?.headers.get("location")).toBeNull();
   });
-  test("sends a signed-out page load straight to AuthKit", async () => {
-    globalThis.fetch = offline;
-    const response = await proxy(
-      new NextRequest("http://localhost:3142/settings?tab=account", {
-        headers: { accept: "text/html" },
-      })
-    );
-    expect(response.status).toBe(307);
-    const location = new URL(response.headers.get("location") ?? "");
-    expect(location.pathname).toBe("/user_management/authorize");
-    expect(location.searchParams.get("client_id")).toBe("client_web123");
-    expect(location.searchParams.get("redirect_uri")).toBe(
-      "http://localhost:3142/callback"
-    );
-    expect(location.searchParams.get("code_challenge_method")).toBe("S256");
-    expect(
-      response.headers
-        .getSetCookie()
-        .some((cookie) => cookie.startsWith("wos-auth-verifier"))
-    ).toBe(true);
-  });
-  test("sends a signed-out router fetch through sign-in", async () => {
-    globalThis.fetch = offline;
-    const response = await proxy(
-      new NextRequest("http://localhost:3142/settings", {
-        headers: { accept: "*/*", rsc: "1" },
-      })
-    );
-    expect(response.headers.get("location")).toBe(
-      "http://localhost:3142/sign-in?next=%2Fsettings"
-    );
-    expect(
-      response.headers
-        .getSetCookie()
-        .some((cookie) => cookie.startsWith("wos-auth-verifier"))
-    ).toBe(false);
-  });
-  test("clears a signed-in hint the session no longer backs", async () => {
-    globalThis.fetch = offline;
-    const response = await proxy(
-      new NextRequest("http://localhost:3142/", {
-        headers: { cookie: "teak_session_hint=1" },
-      })
-    );
-    expect(response.status).toBe(307);
-    const hint = response.headers
-      .getSetCookie()
-      .find((value) => value.startsWith("teak_session_hint="));
-    expect(hint).toStartWith("teak_session_hint=;");
-    expect(hint).toContain("Max-Age=0");
-  });
-  test.each(["/sign-in", "/sign-up", "/opengraph-image", "/share"])(
-    "lets signed-out visitors reach %s",
-    async (path) => {
-      globalThis.fetch = offline;
-      const response = await proxy(
-        new NextRequest(`http://localhost:3142${path}`)
+
+  test.each(["/", "/settings?tab=account", "/callback?code=a&state=b"])(
+    "lets the app's own origin reach %s",
+    (path) => {
+      expect(signInGuard(new Request(`http://localhost:3142${path}`))).toBe(
+        null
       );
-      expect(response.status).toBe(200);
-      expect(response.headers.get("location")).toBeNull();
     }
   );
+
+  test.each(["/share", "/sw.js", "/manifest.webmanifest"])(
+    "lets %s answer from any origin",
+    (path) => {
+      expect(signInGuard(new Request(`https://teak.test${path}`))).toBe(null);
+    }
+  );
+});
+
+describe("the session hint teakvault.com reads", () => {
+  const hint = (origin: string, cookie: string | null, signedIn: boolean) =>
+    sessionHintHeader(
+      new Request(`${origin}/`, { headers: cookie ? { cookie } : {} }),
+      origin,
+      signedIn
+    );
+
+  test("tells teakvault.com the browser is signed in, over HTTPS only", () => {
+    expect(hint("https://app.teakvault.com", "wos-session=x", true)).toBe(
+      "teak_session_hint=1; Path=/; Max-Age=2592000; Domain=teakvault.com; SameSite=Lax; Secure"
+    );
+  });
+
+  test("clears a signed-in hint the session no longer backs, on its domain", () => {
+    expect(
+      hint("https://app.teakvault.com", "a=b; teak_session_hint=1", false)
+    ).toBe(
+      "teak_session_hint=; Path=/; Max-Age=0; Domain=teakvault.com; SameSite=Lax; Secure"
+    );
+  });
+
+  test("leaves a hint that already matches the session alone", () => {
+    expect(
+      hint("https://app.teakvault.com", "teak_session_hint=1", true)
+    ).toBeNull();
+    expect(hint("https://app.teakvault.com", null, false)).toBeNull();
+  });
+
+  test("stays on the host, readable by script, off teakvault.com", () => {
+    const local = hint("http://localhost:3142", null, true);
+    expect(local).toStartWith("teak_session_hint=1;");
+    expect(local).not.toContain("Domain=");
+    expect(local).not.toContain("Secure");
+    expect(local).not.toContain("HttpOnly");
+  });
+});
+
+describe("signed-in visits to sign-in", () => {
+  test.each([
+    ["/sign-in?next=%2Fsettings", "http://localhost:3142/settings"],
+    ["/sign-in?next=https%3A%2F%2Fevil.example%2F", "http://localhost:3142/"],
+    ["/sign-up", "http://localhost:3142/"],
+  ])("send %s straight to %s", (path, target) => {
+    const redirect = workosEntryRedirect(
+      new URL(`http://localhost:3142${path}`),
+      true
+    );
+    expect(redirect?.toString()).toBe(target);
+  });
+
+  test.each([
+    ["a renewal", "/sign-in?renew=1&next=%2Fsettings", true],
+    ["a sign-in after a failed callback", "/sign-in?reauth=1", true],
+    ["a signed-out visit", "/sign-in?next=%2Fsettings", false],
+    ["any other page", "/settings", true],
+  ])("leave %s to AuthKit or the app", (_name, path, signedIn) => {
+    expect(
+      workosEntryRedirect(new URL(`http://localhost:3142${path}`), signedIn)
+    ).toBeNull();
+  });
+});
+
+describe("the /ingest analytics proxy", () => {
+  const forwarded: Request[] = [];
+  const posthog = ((input: RequestInfo | URL, init?: RequestInit) => {
+    forwarded.push(new Request(input, init));
+    return Promise.resolve(new Response("ok"));
+  }) as typeof fetch;
+  const proxy = (path: string, init?: RequestInit) => {
+    forwarded.length = 0;
+    globalThis.fetch = posthog;
+    return proxyAnalytics(new Request(`http://localhost:3142${path}`, init));
+  };
+
   test.each([
     ["/ingest/e/?ip=0", "https://us.i.posthog.com/e/?ip=0"],
     [
@@ -125,296 +140,92 @@ describe("web sign-in routing", () => {
       "https://us-assets.i.posthog.com/array/phc_x/config",
     ],
   ])(
-    "proxies %s to PostHog without the session cookie",
+    "forwards %s to PostHog without the session cookie",
     async (path, target) => {
-      globalThis.fetch = offline;
-      const response = await proxy(
-        new NextRequest(`http://localhost:3142${path}`, {
-          headers: { cookie: "wos-session=secret", "user-agent": "test" },
-        })
-      );
-      expect(response.headers.get("location")).toBeNull();
-      expect(response.headers.get("x-middleware-rewrite")).toBe(target);
-      const forwarded = response.headers
-        .get("x-middleware-override-headers")
-        ?.split(",");
-      expect(forwarded).toContain("user-agent");
-      expect(forwarded).not.toContain("cookie");
+      const response = await proxy(path, {
+        headers: { cookie: "wos-session=secret", "user-agent": "test" },
+      });
+      expect(await response?.text()).toBe("ok");
+      expect(forwarded.map((request) => request.url)).toEqual([target]);
+      expect(forwarded[0]?.headers.get("cookie")).toBeNull();
+      expect(forwarded[0]?.headers.get("user-agent")).toBe("test");
     }
   );
+
+  test("forwards an event's body", async () => {
+    await proxy("/ingest/e/", { method: "POST", body: '{"event":"x"}' });
+    expect(forwarded[0]?.method).toBe("POST");
+    expect(await forwarded[0]?.text()).toBe('{"event":"x"}');
+  });
+
   test.each([
     "/ingest//evil.example/steal",
     "/ingest//16909060/x",
     "/ingest/%5Cevil.example/x",
   ])("keeps %s on PostHog's host", async (path) => {
-    globalThis.fetch = offline;
-    const response = await proxy(
-      new NextRequest(`http://localhost:3142${path}`)
-    );
-    const rewrite = response.headers.get("x-middleware-rewrite");
-    expect(rewrite && new URL(rewrite).origin).toBe("https://us.i.posthog.com");
+    await proxy(path);
+    expect(forwarded.map((request) => new URL(request.url).origin)).toEqual([
+      "https://us.i.posthog.com",
+    ]);
   });
-  test("strips forged AuthKit session headers", async () => {
-    globalThis.fetch = offline;
-    const response = await proxy(
-      new NextRequest("http://localhost:3142/sign-in", {
+
+  test.each(["/", "/settings", "/ingestion", "/ingest"])(
+    "leaves %s to the app",
+    async (path) => {
+      expect(await proxy(path)).toBeNull();
+      expect(forwarded).toEqual([]);
+    }
+  );
+});
+
+describe("response headers", () => {
+  test("every page carries the CSP and is never cached", () => {
+    const page = withSecurityHeaders(
+      new Response("<html></html>", {
         headers: {
-          "x-workos-session": "forged",
-          "x-workos-middleware": "true",
-          "x-redirect-uri": "https://evil.example/callback",
-          "x-url": "https://evil.example/",
+          "Cache-Control": "public, max-age=60",
+          "Content-Type": "text/html; charset=utf-8",
         },
       })
     );
-    // Next forwards only the headers listed here, so the forged session is dropped.
-    expect(
-      response.headers.get("x-middleware-override-headers")?.split(",")
-    ).not.toContain("x-workos-session");
-    expect(response.headers.get("x-middleware-request-x-redirect-uri")).toBe(
-      "http://localhost:3142/callback"
+    expect(page.headers.get("content-security-policy")).toContain(
+      "frame-ancestors 'none'"
     );
-    expect(response.headers.get("x-middleware-request-x-url")).toBe(
+    expect(page.headers.get("x-frame-options")).toBe("DENY");
+    expect(page.headers.get("cache-control")).toBe("private, no-store");
+  });
+
+  test("other responses keep their own caching and headers", () => {
+    const manifest = withSecurityHeaders(
+      new Response("{}", {
+        headers: {
+          "Cache-Control": "public, max-age=0, must-revalidate",
+          "Content-Type": "application/manifest+json",
+          "Referrer-Policy": "no-referrer",
+        },
+      })
+    );
+    expect(manifest.headers.get("content-security-policy")).toContain(
+      "default-src 'self'"
+    );
+    expect(manifest.headers.get("cache-control")).toBe(
+      "public, max-age=0, must-revalidate"
+    );
+    expect(manifest.headers.get("referrer-policy")).toBe("no-referrer");
+  });
+
+  test("a redirect's immutable headers still get them", () => {
+    const redirect = withSecurityHeaders(
+      Response.redirect("http://localhost:3142/sign-in", 303)
+    );
+    expect(redirect.status).toBe(303);
+    expect(redirect.headers.get("location")).toBe(
       "http://localhost:3142/sign-in"
     );
-  });
-  test("denies requests outside the configured sign-in origin", async () => {
-    globalThis.fetch = offline;
-    const response = await proxy(
-      new NextRequest("https://evil.example/sign-in")
-    );
-    expect(response.status).toBe(400);
-    expect(response.headers.get("location")).toBeNull();
-  });
-  test("fails closed when sign-in is not configured", async () => {
-    globalThis.fetch = offline;
-    const password = process.env.WORKOS_COOKIE_PASSWORD;
-    process.env.WORKOS_COOKIE_PASSWORD = "short";
-    try {
-      const response = await proxy(
-        new NextRequest("http://localhost:3142/settings")
-      );
-      expect(response.status).toBe(503);
-      expect(response.headers.get("location")).toBeNull();
-      expect(response.headers.get("cache-control")).toBe("no-store");
-    } finally {
-      process.env.WORKOS_COOKIE_PASSWORD = password;
-    }
-  });
-  test("denies callback origins outside the configured deployment", async () => {
-    globalThis.fetch = offline;
-    const response = await callback("https://evil.example/callback?code=old");
-    expect(response.status).toBe(400);
-  });
-  // Node follows the Fetch spec (`Response.redirect` headers are immutable);
-  // Bun does not, so the spec guard is restored for this boundary only.
-  class ImmutableHeaders extends Headers {
-    override append(): never {
-      throw new TypeError("immutable");
-    }
-    override delete(): never {
-      throw new TypeError("immutable");
-    }
-    override set(): never {
-      throw new TypeError("immutable");
-    }
-  }
-  const nativeRedirect = Response.redirect.bind(Response);
-  test.each([
-    ["no state (reset email return)", "?code=reset", undefined],
-    ["no PKCE cookie", "?code=reset&state=sealed", undefined],
-    [
-      "state not bound to the PKCE cookie",
-      "?code=reset&state=forged",
-      "wos-auth-verifier=other",
-    ],
-  ])(
-    "restarts sign-in without redeeming the code: %s",
-    async (_name, query, cookie) => {
-      // The SDK catches upstream failures, so record calls instead of
-      // relying on a throw: no code exchange may reach WorkOS.
-      const reached: string[] = [];
-      globalThis.fetch = ((input: RequestInfo | URL) => {
-        reached.push(String(input));
-        throw new Error(`Callback must not reach ${String(input)}`);
-      }) as typeof fetch;
-      const error = spyOn(console, "error").mockImplementation(() => undefined);
-      const redirect = spyOn(Response, "redirect").mockImplementation(
-        (url, status) => {
-          const response = nativeRedirect(url, status);
-          const headers = new ImmutableHeaders(response.headers);
-          Object.defineProperty(response, "headers", { value: headers });
-          return response;
-        }
-      );
-      try {
-        const response = await callback(
-          `http://localhost:3142/callback${query}`,
-          cookie ? { cookie } : {}
-        );
-        expect(reached).toEqual([]);
-        expect(response.status).toBe(303);
-        expect(response.headers.get("location")).toBe(
-          "http://localhost:3142/sign-in?reauth=1"
-        );
-        expect(response.headers.get("cache-control")).toContain("no-store");
-        const setCookies = response.headers.getSetCookie();
-        expect(
-          setCookies.some((value) => value.startsWith("wos-session="))
-        ).toBe(false);
-        if (query.includes("state=")) {
-          expect(
-            setCookies.some(
-              (value) =>
-                value.startsWith("wos-auth-verifier-") &&
-                value.includes("Max-Age=0")
-            )
-          ).toBe(true);
-        }
-      } finally {
-        redirect.mockRestore();
-        error.mockRestore();
-      }
-    }
-  );
-});
-
-const base64url = (bytes: ArrayBuffer | Uint8Array | string) =>
-  Buffer.from(
-    typeof bytes === "string" ? bytes : new Uint8Array(bytes)
-  ).toString("base64url");
-// One key for the file: the SDK caches the JWKS it first fetches.
-const signingKey = crypto.subtle.generateKey(
-  {
-    name: "RSASSA-PKCS1-v1_5",
-    modulusLength: 2048,
-    publicExponent: new Uint8Array([1, 0, 1]),
-    hash: "SHA-256",
-  },
-  true,
-  ["sign", "verify"]
-);
-async function signedInSession() {
-  const { privateKey, publicKey } = await signingKey;
-  const jwk = await crypto.subtle.exportKey("jwk", publicKey);
-  const now = Math.floor(Date.now() / 1000);
-  const header = base64url(JSON.stringify({ alg: "RS256", kid: "test" }));
-  const payload = base64url(
-    JSON.stringify({
-      sid: "session_test",
-      sub: "user_test",
-      iat: now,
-      exp: now + 3600,
-    })
-  );
-  const signature = await crypto.subtle.sign(
-    "RSASSA-PKCS1-v1_5",
-    privateKey,
-    new TextEncoder().encode(`${header}.${payload}`)
-  );
-  const accessToken = `${header}.${payload}.${base64url(signature)}`;
-  const cookie = await sealData(
-    {
-      accessToken,
-      refreshToken: "refresh_test",
-      user: { id: "user_test", email: "test@example.org", object: "user" },
-    },
-    { password: process.env.WORKOS_COOKIE_PASSWORD as string }
-  );
-  const jwks = ((input: RequestInfo | URL) => {
-    if (String(input).includes("/jwks/")) {
-      return Promise.resolve(
-        Response.json({
-          keys: [{ ...jwk, alg: "RS256", kid: "test", use: "sig" }],
-        })
-      );
-    }
-    throw new Error(`Must not reach ${String(input)}`);
-  }) as typeof fetch;
-  return { accessToken, cookie: `wos-session=${cookie}`, jwks };
-}
-
-describe("signed-in page loads", () => {
-  test("hand the browser its access token in a short-lived cookie", async () => {
-    const session = await signedInSession();
-    globalThis.fetch = session.jwks;
-    const response = await proxy(
-      new NextRequest("http://localhost:3142/", {
-        headers: { accept: "text/html", cookie: session.cookie },
-      })
-    );
-    expect(response.headers.get("location")).toBeNull();
-    const tokenCookie = response.headers
-      .getSetCookie()
-      .find((value) => value.startsWith("workos-access-token="));
-    expect(tokenCookie).toStartWith(
-      `workos-access-token=${session.accessToken};`
-    );
-    expect(tokenCookie).toContain("Max-Age=30");
-  });
-  test.each([
-    ["/sign-in?next=%2Fsettings", "http://localhost:3142/settings"],
-    ["/sign-up", "http://localhost:3142/"],
-  ])("send a signed-in visit to %s straight to %s", async (path, target) => {
-    const session = await signedInSession();
-    globalThis.fetch = session.jwks;
-    const response = await proxy(
-      new NextRequest(`http://localhost:3142${path}`, {
-        headers: { accept: "text/html", cookie: session.cookie },
-      })
-    );
-    expect(response.status).toBe(307);
-    expect(response.headers.get("location")).toBe(target);
-  });
-  test.each(["/sign-in?renew=1&next=%2Fsettings", "/sign-in?reauth=1"])(
-    "let a signed-in visit to %s start AuthKit",
-    async (path) => {
-      const session = await signedInSession();
-      globalThis.fetch = session.jwks;
-      const response = await proxy(
-        new NextRequest(`http://localhost:3142${path}`, {
-          headers: { accept: "text/html", cookie: session.cookie },
-        })
-      );
-      expect(response.status).toBe(200);
-      expect(response.headers.get("location")).toBeNull();
-    }
-  );
-  test("tell teakvault.com the browser is signed in, once", async () => {
-    const session = await signedInSession();
-    globalThis.fetch = session.jwks;
-    const hint = (cookie: string) =>
-      proxy(
-        new NextRequest("http://localhost:3142/", {
-          headers: { accept: "text/html", cookie },
-        })
-      ).then((response) =>
-        response.headers
-          .getSetCookie()
-          .find((value) => value.startsWith("teak_session_hint="))
-      );
-    expect(await hint(session.cookie)).toStartWith("teak_session_hint=1;");
-    expect(
-      await hint(`${session.cookie}; teak_session_hint=1`)
-    ).toBeUndefined();
-  });
-  test("leave in-app navigations without it", async () => {
-    const session = await signedInSession();
-    globalThis.fetch = session.jwks;
-    const response = await proxy(
-      new NextRequest("http://localhost:3142/favorites", {
-        headers: { accept: "*/*", cookie: session.cookie, rsc: "1" },
-      })
-    );
-    expect(response.headers.get("location")).toBeNull();
-    expect(
-      response.headers
-        .getSetCookie()
-        .some((value) => value.startsWith("workos-access-token="))
-    ).toBe(false);
+    expect(redirect.headers.get("content-security-policy")).toBeTruthy();
   });
 });
 
-// SDK env values are captured at import. Restore after this module's tests.
 afterAll(() => {
   for (const key of keys) {
     const value = originalEnvironment[key];

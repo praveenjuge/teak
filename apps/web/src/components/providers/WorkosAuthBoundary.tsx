@@ -2,7 +2,10 @@
 
 import { api } from "@teak/convex";
 import { useTranslations } from "@teak/i18n/react";
-import { useAccessToken, useAuth } from "@workos-inc/authkit-nextjs/components";
+import {
+  useAccessToken,
+  useAuth,
+} from "@workos/authkit-tanstack-react-start/client";
 import { useConvexAuth, useMutation } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
 import { ConvexQueryCacheProvider } from "convex-helpers/react/cache/provider";

@@ -132,9 +132,17 @@ describe("getCardDetailSections", () => {
         { createdAt, savedAt, updatedAt: savedAt },
         { locale: "en-US" }
       );
+      // Newer ICU joins the date and time with " at ", older ICU with ", ";
+      // macOS's system ICU and the one bundled on Linux differ.
       expect(sections.details).toEqual([
-        { label: "Added", value: "May 6, 2025, 7:08 AM" },
-        { label: "Saved again", value: "Oct 20, 2026, 9:30 AM" },
+        {
+          label: "Added",
+          value: expect.stringMatching(/^May 6, 2025(,| at) 7:08\sAM$/u),
+        },
+        {
+          label: "Saved again",
+          value: expect.stringMatching(/^Oct 20, 2026(,| at) 9:30\sAM$/u),
+        },
       ]);
     } finally {
       if (originalTz === undefined) {
