@@ -1,4 +1,4 @@
-import { waitUntil } from "cloudflare:workers";
+import { env, waitUntil } from "cloudflare:workers";
 import {
   createServerEntry,
   createStartHandler,
@@ -38,6 +38,8 @@ function reportRequestError(error: unknown, request: Request) {
       method: request.method,
       route: new URL(request.url).pathname,
       surface: "web",
+      // The Worker version that failed, as Workers Issues and traces show it.
+      worker_version: env.CF_VERSION_METADATA?.id,
     },
   });
   waitUntil(batch.flush());

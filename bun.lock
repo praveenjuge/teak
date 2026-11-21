@@ -177,7 +177,6 @@
         "react-markdown": "10.1.0",
         "rehype-sanitize": "^6.0.0",
         "remark-gfm": "^4.0.1",
-        "schema-dts": "^2.1.0",
         "sonner": "^2.0.8",
         "tailwind-merge": "catalog:",
         "vadivam-react": "catalog:",
@@ -3034,10 +3033,6 @@
     "sax": ["sax@1.5.0", "", {}, "sha512-21IYA3Q5cQf089Z6tgaUTr7lDAyzoTPx5HRtbhsME8Udispad8dC/+sziTNugOEx54ilvatQ9YCzl4KQLPcRHA=="],
 
     "scheduler": ["scheduler@0.28.0", "", {}, "sha512-juorfCmIkIw8tT+p5BXSm6PJjQF/ycEYmKyzURCIt/RaZIhL+PulbQ9Yu2z1HdOJDdqDTlxA1+xKBmHXJsczAw=="],
-
-    "schema-dts": ["schema-dts@2.1.0", "", { "dependencies": { "schema-dts-lib": "^1.1.0" } }, "sha512-Y/NvOvuJUZwrm+EmNqJF3M+bRufERJs1h5GJPLilUuK5D5b53ttU+XZgIjEFaAVRToh+ib+cQawFmxKC5Jt9ow=="],
-
-    "schema-dts-lib": ["schema-dts-lib@1.1.0", "", {}, "sha512-Nx00FDPHDimSENMznVpADeYUJDsqlMiO9wcs2S+giggNTm5+ruNkM4m9z9qCk6xUJT+ThDM3NxxpwfHfFk1G+Q=="],
 
     "scroll-into-view-if-needed": ["scroll-into-view-if-needed@3.1.0", "", { "dependencies": { "compute-scroll-into-view": "^3.0.2" } }, "sha512-49oNpRjWRvnU8NyGVmUaYG4jtTkNonFZI86MmGRDqBphEK2EXT9gdEUoQPZhuBM8yWHxCWbobltqYO5M4XrUvQ=="],
 

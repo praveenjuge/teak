@@ -10,7 +10,6 @@ import { LOCALE_COOKIE, SUPPORTED_LOCALES } from "@teak/i18n";
 import { useTranslations } from "@teak/i18n/react";
 import { type ReactNode, useEffect } from "react";
 import { NotFoundContent } from "@/components/feedback/NotFoundContent";
-import { JsonLd } from "@/components/JsonLd";
 import { CookieLocaleProvider } from "@/components/providers/CookieLocaleProvider";
 import { ShareWorkerRegistration } from "@/components/providers/ShareWorkerRegistration";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
@@ -18,12 +17,6 @@ import { RouteAnnouncer } from "@/components/RouteAnnouncer";
 import { StatusScreen } from "@/components/StatusScreen";
 import { Toaster } from "@/components/ui/sonner";
 import { APP_BACKGROUND_COLOR } from "@/lib/appTheme";
-import {
-  APP_URL,
-  organizationSchema,
-  softwareApplicationSchema,
-  websiteSchema,
-} from "@/lib/jsonld";
 import { pageTitle } from "@/lib/pageTitle";
 import { filesOrigin } from "@/lib/public-env";
 import {
@@ -37,6 +30,8 @@ import alloFont from "@/styles/fonts/AlloVariableFriendly.woff2?url";
 import appCss from "@/styles/globals.css?url";
 
 const FILES_ORIGIN = filesOrigin();
+// Link previews need an absolute image URL.
+const APP_URL = "https://app.teakvault.com";
 const DESCRIPTION =
   "Teak is a personal knowledge hub designed to help creative minds effortlessly collect, remember, and rediscover their most important ideas and inspirations";
 
@@ -110,13 +105,6 @@ function RootDocument({ children }: { children: ReactNode }) {
     <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
-        <JsonLd
-          schema={[
-            organizationSchema,
-            websiteSchema,
-            softwareApplicationSchema,
-          ]}
-        />
       </head>
       <body className='touch-manipulation font-features-["ss01"] font-sans text-sm antialiased caret-primary accent-primary [text-rendering:optimizeLegibility] selection:bg-primary selection:text-primary-foreground'>
         <ThemeProvider
