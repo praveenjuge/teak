@@ -18,6 +18,7 @@ import { StatusScreen } from "@/components/StatusScreen";
 import { Toaster } from "@/components/ui/sonner";
 import { APP_BACKGROUND_COLOR } from "@/lib/appTheme";
 import {
+  APP_URL,
   organizationSchema,
   softwareApplicationSchema,
   websiteSchema,
@@ -60,7 +61,7 @@ export const Route = createRootRoute({
         property: "og:description",
         content: "A personal knowledge hub for creative minds",
       },
-      { property: "og:image", content: "/opengraph-image.png" },
+      { property: "og:image", content: `${APP_URL}/opengraph-image.png` },
       { property: "og:image:width", content: "1500" },
       { property: "og:image:height", content: "788" },
       {

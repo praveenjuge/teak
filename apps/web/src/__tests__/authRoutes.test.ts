@@ -214,6 +214,15 @@ describe("response headers", () => {
     expect(manifest.headers.get("referrer-policy")).toBe("no-referrer");
   });
 
+  test("a server function's answer without its own caching is never cached", () => {
+    const answer = withSecurityHeaders(
+      new Response('{"accessToken":"token"}', {
+        headers: { "Content-Type": "application/json" },
+      })
+    );
+    expect(answer.headers.get("cache-control")).toBe("private, no-store");
+  });
+
   test("a redirect's immutable headers still get them", () => {
     const redirect = withSecurityHeaders(
       Response.redirect("http://localhost:3142/sign-in", 303)

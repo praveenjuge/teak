@@ -60,6 +60,7 @@ test("keeps home's draft, search and scroll through settings round trips from si
   await expect(screen.getByRole("button", "Remove search")).toBeVisible();
   await screen.getByRole("button", "Clear all").click();
   await expect(screen.getByRole("button", "Remove navigation")).toBeHidden();
+  await expect(screen.getByRole("button", "Remove search")).toBeHidden();
   await expect(draft).toHaveText("Navigation draft — do not save");
 
   await browser.evaluate(() => {

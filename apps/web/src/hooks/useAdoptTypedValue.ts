@@ -13,7 +13,7 @@ export function useAdoptTypedValue(
   // biome-ignore lint/correctness/useExhaustiveDependencies: it reads the field once, at hydration
   useLayoutEffect(() => {
     const typed = ref.current?.value;
-    if (typed && typed !== value) {
+    if (typed !== undefined && typed !== value) {
       onChange(typed);
     }
   }, []);

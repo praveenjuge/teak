@@ -11,7 +11,7 @@ import {
   SITE_URL,
 } from "@teak/convex/shared/organization";
 
-const APP_URL = "https://app.teakvault.com";
+export const APP_URL = "https://app.teakvault.com";
 
 export const organizationSchema = {
   "@context": "https://schema.org",

@@ -45,14 +45,17 @@ const PUBLIC_PATHS = new Set(["/share", "/sw.js", "/manifest.webmanifest"]);
  * response that refuses it, or null to go on.
  */
 export function signInGuard(request: Request): Response | null {
+  const url = new URL(request.url);
+  if (PUBLIC_PATHS.has(url.pathname)) {
+    return null;
+  }
   let origin: string;
   try {
     ({ origin } = configureWorkos());
   } catch {
     return signInUnavailable();
   }
-  const url = new URL(request.url);
-  if (!PUBLIC_PATHS.has(url.pathname) && url.origin !== origin) {
+  if (url.origin !== origin) {
     return new Response("Invalid sign-in origin.", { status: 400 });
   }
   return null;

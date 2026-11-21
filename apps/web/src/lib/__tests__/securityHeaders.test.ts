@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
 import {
   buildContentSecurityPolicy,
   staticSecurityHeaders,
@@ -338,4 +339,21 @@ describe("configured local backend security policy", () => {
       }
     }
   });
+});
+
+test("static files carry the same headers as pages", () => {
+  const rules = readFileSync(
+    new URL("../../../public/_headers", import.meta.url),
+    "utf8"
+  );
+  const allFiles = rules.split(/^\/\*$/m)[1]?.split(/^\S/m)[0] ?? "";
+  const declared = allFiles
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.includes(": "));
+  expect(declared.length).toBeGreaterThan(0);
+  for (const line of declared) {
+    const [key, ...value] = line.split(": ");
+    expect(headers.get(key ?? "")).toBe(value.join(": "));
+  }
 });

@@ -45,6 +45,10 @@ export default function ConvexClientProvider({
   );
 }
 
+// The page load's token goes to Convex once per page: a layout that mounts
+// again later reads the same loader data, whose token may have expired.
+let handedOutPageToken: string | undefined;
+
 function useAuthFromAuthKit() {
   const { user, loading } = useAuth();
   const { getAccessToken, refresh } = useAccessToken();
@@ -64,7 +68,8 @@ function useAuthFromAuthKit() {
       }
       const pageToken = unusedInitialToken.current;
       unusedInitialToken.current = undefined;
-      if (pageToken && !forceRefreshToken) {
+      if (pageToken && pageToken !== handedOutPageToken && !forceRefreshToken) {
+        handedOutPageToken = pageToken;
         handedOut.current = pageToken;
         return pageToken;
       }
