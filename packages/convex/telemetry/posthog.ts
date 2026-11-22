@@ -132,7 +132,7 @@ export const captureBackendEvent = <Name extends ServerEventName>(
   event: Name,
   distinctId: string | undefined,
   properties: ServerEventCatalog[Name],
-  options: { set?: PostHogProperties } = {}
+  options: { set?: PostHogProperties; timestamp?: string } = {}
 ): Promise<void> =>
   enqueue((batch) =>
     batch.capture({
@@ -140,6 +140,7 @@ export const captureBackendEvent = <Name extends ServerEventName>(
       event,
       properties: { ...baseProperties(), ...properties },
       set: options.set,
+      timestamp: options.timestamp,
     })
   );
 

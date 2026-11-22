@@ -223,6 +223,17 @@ export interface ServerEventCatalog {
     outcome: "article" | "none" | "failed";
     words_bucket: string;
   };
+  /**
+   * One sign-in WorkOS recorded as failed, read from its event log by the
+   * `workos-auth-failures` cron (`workos/authFailures.ts`).
+   */
+  auth_failed: {
+    error_code: string;
+    error_message: string;
+    method: SignupMethod;
+    os: string;
+    workos_event_id: string;
+  };
   billing_portal_opened: NoProperties;
   card_archived: { source: CardChangeSource };
   card_create_failed: {

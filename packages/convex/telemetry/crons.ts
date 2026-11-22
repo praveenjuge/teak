@@ -4,7 +4,13 @@ import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { type ActionCtx, internalAction } from "../_generated/server";
 import { CRONS } from "../cronSchedules";
-import { captureBackendException } from "./posthog";
+import { listWorkosAuthFailures } from "../workos/authFailures";
+import { isWorkosApiConfigured } from "../workos/client";
+import {
+  captureBackendEvent,
+  captureBackendException,
+  withBackendTelemetryScope,
+} from "./posthog";
 
 const recordHeartbeat = async (
   ctx: Pick<ActionCtx, "runMutation">,
@@ -68,6 +74,40 @@ export const workflowDispatchWatchdog = internalAction({
           },
         });
       }
+    }),
+});
+
+// Each run reads the previous whole hour, so every failure is sent once
+// while the cron keeps its schedule. Deployments without a WorkOS API key
+// (local and self-hosted ones that don't use it) skip it.
+export const workosAuthFailures = internalAction({
+  args: {},
+  returns: v.null(),
+  handler: (ctx: ActionCtx): Promise<null> =>
+    monitored(ctx, CRONS.workosAuthFailures.name, async () => {
+      if (!isWorkosApiConfigured()) {
+        return;
+      }
+      const { everyMs } = CRONS.workosAuthFailures;
+      const end = new Date(Math.floor(Date.now() / everyMs) * everyMs);
+      const start = new Date(end.getTime() - everyMs);
+      const failures = await listWorkosAuthFailures(start, end);
+      await withBackendTelemetryScope({}, async () => {
+        for (const failure of failures) {
+          await captureBackendEvent(
+            "auth_failed",
+            undefined,
+            {
+              error_code: failure.errorCode,
+              error_message: failure.errorMessage,
+              method: failure.method,
+              os: failure.os,
+              workos_event_id: failure.eventId,
+            },
+            { timestamp: failure.createdAt }
+          );
+        }
+      });
     }),
 });
 

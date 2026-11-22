@@ -20,6 +20,14 @@ export const CRONS = {
     everyMs: HOUR_MS,
     runsOn: "convex",
   },
+  // Sends the previous hour's failed WorkOS sign-ins to PostHog as
+  // `auth_failed` (workos/authFailures.ts). Convex holds the WorkOS API key.
+  workosAuthFailures: {
+    name: "workos-auth-failures",
+    schedule: "20 * * * *",
+    everyMs: HOUR_MS,
+    runsOn: "convex",
+  },
   // Pasted link jobs a week after they finish (card/pasteLinks.ts). Shares
   // export cleanup's Cron Trigger.
   cleanupFinishedLinkPastes: {

@@ -8,12 +8,17 @@ describe("crons.ts", () => {
     expect(new Set(slugs).size).toBe(slugs.length);
   });
 
-  test("schedules only the dispatch watchdog on Convex, through its monitored Node action", () => {
+  test("schedules the dispatch watchdog and WorkOS auth failures on Convex, through monitored Node actions", () => {
     expect(crons.crons).toEqual({
       "workflow-dispatch-watchdog": {
         name: "telemetry/crons:workflowDispatchWatchdog",
         args: [{}],
         schedule: { cron: "35 * * * *", type: "cron" },
+      },
+      "workos-auth-failures": {
+        name: "telemetry/crons:workosAuthFailures",
+        args: [{}],
+        schedule: { cron: "20 * * * *", type: "cron" },
       },
     });
   });
