@@ -46,6 +46,21 @@ export function checkableUrl(url?: string): string | null {
   }
 }
 
+/** The address the badge asks Teak about. A fragment never changes the
+ * answer (`urlKey` ignores it, except `#/` and `#!` routes), so it isn't
+ * sent: in-page links cost no request, and a token in a fragment stays put. */
+const badgeUrl = (url?: string): string | null => {
+  const checkable = checkableUrl(url);
+  if (!checkable) {
+    return null;
+  }
+  const parsed = new URL(checkable);
+  if (!(parsed.hash.startsWith("#/") || parsed.hash.startsWith("#!"))) {
+    parsed.hash = "";
+  }
+  return parsed.toString();
+};
+
 export function createSavedPageCheck({
   owner,
   paint,
@@ -174,7 +189,7 @@ export function createSavedPageCheck({
       clock.clearTimeout(pending);
       timers.delete(tabId);
     }
-    const url = tab.incognito ? null : checkableUrl(tab.url);
+    const url = tab.incognito ? null : badgeUrl(tab.url);
     const previous = shownUrls.get(tabId);
     if (url) {
       shownUrls.set(tabId, url);
@@ -199,7 +214,7 @@ export function createSavedPageCheck({
   return {
     check,
     markSaved: async (url: string, account: string | undefined) => {
-      const key = checkableUrl(url);
+      const key = badgeUrl(url);
       if (key && account) {
         await writeCache(account, key, true);
       }

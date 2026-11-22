@@ -136,6 +136,18 @@ describe("the saved-page badge", () => {
     expect(badges.get(1)).toBe(true);
   });
 
+  test("asks once per page, without its fragment, but keeps hash routes", async () => {
+    const { advance, badges, checker, requested } = setup();
+    await checker.check({ id: 1, url: `${SAVED_URL}#access_token=secret` });
+    await advance(CHECK_DEBOUNCE_MS);
+    await checker.check({ id: 1, url: `${SAVED_URL}#section-2` });
+    await advance(CHECK_DEBOUNCE_MS);
+    expect(badges.get(1)).toBe(true);
+    await checker.check({ id: 1, url: `${SAVED_URL}#/inbox` });
+    await advance(CHECK_DEBOUNCE_MS);
+    expect(requested).toEqual([SAVED_URL, `${SAVED_URL}#/inbox`]);
+  });
+
   test("reuses an answer for five minutes, then asks again", async () => {
     const { advance, checker, requested } = setup();
     await checker.check({ id: 1, url: SAVED_URL });
