@@ -225,7 +225,8 @@ function Sidebar({
 
   if (collapsible === "none") {
     return (
-      <div
+      <nav
+        aria-label={t("menu")}
         className={cn(
           "flex h-full w-(--sidebar-width) flex-col bg-sidebar text-sidebar-foreground",
           className
@@ -234,7 +235,7 @@ function Sidebar({
         {...props}
       >
         {children}
-      </div>
+      </nav>
     );
   }
 

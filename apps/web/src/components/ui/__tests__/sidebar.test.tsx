@@ -7,9 +7,8 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
-const { Sidebar, SidebarMenuButton, SidebarProvider } = await import(
-  "../sidebar"
-);
+const { Sidebar, SidebarMenuButton, SidebarProvider, SidebarTrigger } =
+  await import("../sidebar");
 
 let root: Root | undefined;
 
@@ -63,20 +62,54 @@ test("a menu button shows its tooltip only while the sidebar is collapsed, witho
   }
 });
 
-test("the sidebar is a navigation landmark named Menu", async () => {
+const menuLandmark = () => {
+  const nav = document.querySelector('nav[aria-label="Menu"]');
+  return nav?.textContent?.includes("Trash") ? nav : null;
+};
+
+const renderSidebar = async (
+  sidebarProps: { collapsible: "icon" | "none" },
+  open = true
+) => {
   const container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
   await act(() =>
     root?.render(
-      <SidebarProvider open>
-        <Sidebar collapsible="icon">
+      <SidebarProvider open={open}>
+        <SidebarTrigger />
+        <Sidebar {...sidebarProps}>
           <SidebarMenuButton>Trash</SidebarMenuButton>
         </Sidebar>
       </SidebarProvider>
     )
   );
-  const nav = container.querySelector("nav");
-  expect(nav?.getAttribute("aria-label")).toBe("Menu");
-  expect(nav?.textContent).toContain("Trash");
+};
+
+for (const [layout, props, open] of [
+  ["open", { collapsible: "icon" }, true],
+  ["collapsed to the rail", { collapsible: "icon" }, false],
+  ["not collapsible", { collapsible: "none" }, true],
+] as const) {
+  test(`the sidebar is a navigation landmark named Menu when ${layout}`, async () => {
+    await renderSidebar(props, open);
+    expect(menuLandmark()).not.toBeNull();
+  });
+}
+
+test("the phone's sidebar drawer is a navigation landmark named Menu", async () => {
+  const width = window.innerWidth;
+  window.happyDOM.setInnerWidth(390);
+  try {
+    await renderSidebar({ collapsible: "icon" });
+    expect(menuLandmark()).toBeNull();
+    await act(() =>
+      document
+        .querySelector<HTMLButtonElement>('[data-sidebar="trigger"]')
+        ?.click()
+    );
+    expect(menuLandmark()).not.toBeNull();
+  } finally {
+    window.happyDOM.setInnerWidth(width);
+  }
 });
