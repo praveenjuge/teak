@@ -7,7 +7,9 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
-const { SidebarMenuButton, SidebarProvider } = await import("../sidebar");
+const { Sidebar, SidebarMenuButton, SidebarProvider } = await import(
+  "../sidebar"
+);
 
 let root: Root | undefined;
 
@@ -59,4 +61,22 @@ test("a menu button shows its tooltip only while the sidebar is collapsed, witho
     warn.mockRestore();
     error.mockRestore();
   }
+});
+
+test("the sidebar is a navigation landmark named Menu", async () => {
+  const container = document.createElement("div");
+  document.body.append(container);
+  root = createRoot(container);
+  await act(() =>
+    root?.render(
+      <SidebarProvider open>
+        <Sidebar collapsible="icon">
+          <SidebarMenuButton>Trash</SidebarMenuButton>
+        </Sidebar>
+      </SidebarProvider>
+    )
+  );
+  const nav = container.querySelector("nav");
+  expect(nav?.getAttribute("aria-label")).toBe("Menu");
+  expect(nav?.textContent).toContain("Trash");
 });

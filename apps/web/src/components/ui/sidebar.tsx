@@ -265,7 +265,9 @@ function Sidebar({
             <SheetTitle>{t("menu")}</SheetTitle>
             <SheetDescription>{t("menuDescription")}</SheetDescription>
           </SheetHeader>
-          <div className="flex h-full w-full flex-col">{children}</div>
+          <nav aria-label={t("menu")} className="flex h-full w-full flex-col">
+            {children}
+          </nav>
         </SheetContent>
       </Sheet>
     );
@@ -309,13 +311,15 @@ function Sidebar({
         data-slot="sidebar-container"
         {...props}
       >
-        <div
+        {/* A navigation landmark, so screen readers can jump to the views. */}
+        <nav
+          aria-label={t("menu")}
           className="flex h-full w-full flex-col bg-sidebar group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:border-sidebar-border group-data-[variant=floating]:shadow-sm"
           data-sidebar="sidebar"
           data-slot="sidebar-inner"
         >
           {children}
-        </div>
+        </nav>
       </div>
     </div>
   );

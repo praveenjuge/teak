@@ -34,7 +34,8 @@ export function ThemeToggle({ onThemeChange }: ThemeToggleProps) {
               "inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[13px] outline-none transition-colors focus-visible:ring-[3px] focus-visible:ring-ring",
               selected
                 ? "bg-background font-medium text-foreground shadow-xs dark:bg-input"
-                : "text-muted-foreground hover:text-foreground"
+                : // Muted text on the muted track is under 4.5:1.
+                  "text-foreground/70 hover:text-foreground [&>svg]:text-foreground [&>svg]:opacity-70 hover:[&>svg]:opacity-100"
             )}
             key={value}
             onClick={() => {
