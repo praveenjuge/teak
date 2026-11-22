@@ -333,56 +333,74 @@ describe("Cloudflare image transformations", () => {
     }
   });
 
-  test("transforms eligible sources directly through the Images binding", async () => {
-    const transforms: Record<string, unknown>[] = [];
-    const outputs: Record<string, unknown>[] = [];
-    const env = {
-      ...makeEnv(),
-      IMAGES: {
-        input: (stream: ReadableStream<Uint8Array>) => ({
-          transform: (options: Record<string, unknown>) => {
-            transforms.push(options);
-            return {
-              output: async (outputOptions: Record<string, unknown>) => {
-                outputs.push(outputOptions);
-                await stream.cancel();
-                return {
-                  contentType: () => "image/webp",
-                  response: () =>
-                    new Response(makePng(4, 4), {
-                      headers: { "content-type": "image/webp" },
-                    }),
-                };
-              },
-            };
-          },
-        }),
-      },
-    } as unknown as Env;
+  test.each([
+    ["image/png", { anim: false, format: "image/avif", quality: 80 }],
+    ["image/jpeg", { anim: false, format: "image/avif", quality: 80 }],
+    ["image/avif", { anim: false, format: "image/avif", quality: 80 }],
+    ["image/gif", { anim: true, format: "image/webp", quality: 80 }],
+    ["image/webp", { anim: true, format: "image/webp", quality: 80 }],
+  ])(
+    "transforms %s directly through the Images binding",
+    async (contentType, expectedOutput) => {
+      const transforms: Record<string, unknown>[] = [];
+      const outputs: Record<string, unknown>[] = [];
+      const env = {
+        ...makeEnv(contentType),
+        IMAGES: {
+          input: (stream: ReadableStream<Uint8Array>) => ({
+            transform: (options: Record<string, unknown>) => {
+              transforms.push(options);
+              return {
+                output: async (outputOptions: Record<string, unknown>) => {
+                  outputs.push(outputOptions);
+                  await stream.cancel();
+                  // The real binding rejects animated output in any format but
+                  // GIF or WebP, whatever the source.
+                  if (
+                    outputOptions.anim !== false &&
+                    outputOptions.format !== "image/webp"
+                  ) {
+                    throw new Error(
+                      "ERROR 9401: Could not resize the image: Animated output is only supported for GIF or WebP"
+                    );
+                  }
+                  const format = String(outputOptions.format);
+                  return {
+                    contentType: () => format,
+                    response: () =>
+                      new Response(makePng(4, 4), {
+                        headers: { "content-type": format },
+                      }),
+                  };
+                },
+              };
+            },
+          }),
+        },
+      } as unknown as Env;
 
-    let fetchCalled = false;
-    const response = await handleImageRequest(
-      await signedImageRequest("grid"),
-      env,
-      () => {
-        fetchCalled = true;
-        return Promise.resolve(new Response(null, { status: 500 }));
-      },
-      NOW
-    );
+      let fetchCalled = false;
+      const response = await handleImageRequest(
+        await signedImageRequest("grid"),
+        env,
+        () => {
+          fetchCalled = true;
+          return Promise.resolve(new Response(null, { status: 500 }));
+        },
+        NOW
+      );
 
-    expect(response.status).toBe(200);
-    expect(response.headers.get("content-type")).toBe("image/webp");
-    expect(response.headers.get("cache-control")).toContain("private");
-    expect(response.headers.get("etag")).toMatch(/-grid"$/u);
-    expect(transforms).toEqual([
-      { fit: "scale-down", height: 4096, sharpen: 1, width: 512 },
-    ]);
-    expect(outputs).toEqual([
-      { anim: true, format: "image/avif", quality: 80 },
-    ]);
-    expect(fetchCalled).toBe(false);
-  });
+      expect(response.status).toBe(200);
+      expect(response.headers.get("content-type")).toBe(expectedOutput.format);
+      expect(response.headers.get("cache-control")).toContain("private");
+      expect(response.headers.get("etag")).toMatch(/-grid"$/u);
+      expect(transforms).toEqual([
+        { fit: "scale-down", height: 4096, sharpen: 1, width: 512 },
+      ]);
+      expect(outputs).toEqual([expectedOutput]);
+      expect(fetchCalled).toBe(false);
+    }
+  );
 
   test("stores binding renditions with public edge-cache headers", async () => {
     const env = {

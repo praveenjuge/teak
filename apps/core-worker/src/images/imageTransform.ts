@@ -111,28 +111,42 @@ export const preferredFormat = (
   return normalized.includes("image/webp") ? "webp" : undefined;
 };
 
-const bindingOutputFormat = (
-  format: "avif" | "webp" | undefined
-): "image/avif" | "image/webp" | null => {
-  if (format === "avif") {
-    return "image/avif";
+const ANIMATED_SOURCE_TYPES = new Set(["image/gif", "image/webp"]);
+
+// The binding encodes animation only as GIF or WebP, and rejects AVIF output
+// with anim: true even for a still source (ERROR 9401). Sources that can
+// animate keep their frames as WebP, which every AVIF-capable browser decodes;
+// everything else is encoded still in the negotiated format.
+const bindingOutput = (
+  accept: string | null,
+  contentType: string
+): { anim: boolean; format: "image/avif" | "image/webp" } | null => {
+  const format = preferredFormat(accept);
+  if (!format) {
+    return null;
   }
-  return format === "webp" ? "image/webp" : null;
+  if (ANIMATED_SOURCE_TYPES.has(contentType)) {
+    return { anim: true, format: "image/webp" };
+  }
+  return {
+    anim: false,
+    format: format === "avif" ? "image/avif" : "image/webp",
+  };
 };
 
 const BINDING_TRANSFORM = { fit: "scale-down", sharpen: 1 } as const;
-const BINDING_OUTPUT = { anim: true } as const;
 
 export const transformViaBinding = (
   env: Env,
   key: string,
   rendition: FilesImageRendition,
   accept: string | null,
+  contentType: string,
   sourceSize: number,
   bucket: R2Bucket = env.BUCKET
 ): Promise<Response | null> => {
-  const outputFormat = bindingOutputFormat(preferredFormat(accept));
-  if (!outputFormat) {
+  const output = bindingOutput(accept, contentType);
+  if (!output) {
     return Promise.resolve(null);
   }
   return throughImagesBinding(
@@ -147,11 +161,7 @@ export const transformViaBinding = (
           ...BINDING_TRANSFORM,
           ...renditionBounds(rendition),
         })
-        .output({
-          ...BINDING_OUTPUT,
-          format: outputFormat,
-          quality: preset.quality,
-        });
+        .output({ ...output, quality: preset.quality });
       const response = result.response();
       const headers = new Headers(response.headers);
       headers.set("Content-Type", result.contentType());
@@ -170,7 +180,7 @@ const BINDING_CACHE_VERSION = [
     ({ edge, quality }) => `${String(edge)}q${String(quality)}`
   ),
   `a${String(MAX_RENDITION_ASPECT)}`,
-  `${BINDING_TRANSFORM.fit}s${String(BINDING_TRANSFORM.sharpen)}anim${String(BINDING_OUTPUT.anim)}`,
+  `${BINDING_TRANSFORM.fit}s${String(BINDING_TRANSFORM.sharpen)}animgifwebp`,
 ].join("-");
 
 export const buildBindingCacheKey = (
@@ -378,6 +388,7 @@ export const handleImageRequest = async (
       parsed.key,
       parsed.rendition,
       accept,
+      contentType,
       metadata.size
     );
     if (bound) {
