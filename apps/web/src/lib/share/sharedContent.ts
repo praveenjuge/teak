@@ -1,4 +1,4 @@
-import { FOCUS_COMPOSER_PARAM } from "@/lib/libraryViews";
+import { FOCUS_COMPOSER_PARAM } from "../libraryViews";
 
 /**
  * What the installed web app receives from the system share sheet. The service

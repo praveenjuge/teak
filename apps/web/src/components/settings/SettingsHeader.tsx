@@ -5,7 +5,6 @@ import { ChevronRight } from "vadivam-react";
 import { AppLink } from "@/components/AppLink";
 import { PageHeader, PageTitle } from "@/components/app-shell/PageHeader";
 import { SidebarToggle } from "@/components/sidebar";
-import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { settingsSectionForPath } from "@/lib/settingsSections";
 
 export function SettingsHeader() {
@@ -15,14 +14,6 @@ export function SettingsHeader() {
   );
   const subpage = section && section.id !== "account" ? section : null;
   const pageName = subpage ? t(`nav.${subpage.id}`) : null;
-  // The route announcer reads `document.title` after each navigation; a
-  // layout effect sets it first, in the UI's language, so
-  // "Appearance · Settings" is announced rather than the page before's. The
-  // route's English metadata title can land later (after a client-side
-  // navigation or a language switch), so the hook puts this one back.
-  useDocumentTitle(
-    pageName ? t("header.subpageTitle", { page: pageName }) : t("header.title")
-  );
   const heading = (
     <PageTitle>
       {subpage ? (

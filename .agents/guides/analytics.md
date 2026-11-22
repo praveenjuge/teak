@@ -106,7 +106,7 @@ Exceptions are `$exception` events built by `buildExceptionProperties` in `packa
 | Name | Where | Notes |
 | --- | --- | --- |
 | `VITE_PUBLIC_POSTHOG_PROJECT_TOKEN` | The `teak-app` Worker's production build (Workers Builds) | Inlined only when `TEAK_ANALYTICS_ENABLED=true` (`apps/web/src/lib/analyticsGate.ts`) |
-| `TEAK_ANALYTICS_ENABLED` | The `teak-app` Worker's production build and runtime; self-hosted web builds that opt in | `true` lets a web build report to its own token's project (`resolvePostHogToken`). Local, preview and other builds leave it unset and send nothing |
+| `TEAK_ANALYTICS_ENABLED` | The `teak-app` Worker's production build; self-hosted web builds that opt in | `true` lets a web build report to its own token's project (`resolvePostHogToken`). Local, preview and other builds leave it unset and send nothing |
 | `POSTHOG_PROJECT_TOKEN` | GitHub secret, Convex prod (set by Backend Deploy), worker `wrangler.jsonc` var | Also feeds the Apple archive and the extension release build |
 | `WXT_POSTHOG_PROJECT_TOKEN` | Extension Release workflow | From `POSTHOG_PROJECT_TOKEN` |
 | `POSTHOG_ANDROID_TOKEN` | Local Android release env or Gradle property | Release builds only |

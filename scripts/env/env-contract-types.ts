@@ -26,7 +26,6 @@ export type EnvValidation =
 export type EnvProvider =
   | "dotenv-local"
   | "convex-dashboard"
-  | "vercel"
   | "wrangler-secret"
   | "wrangler-var"
   | "cloudflare"

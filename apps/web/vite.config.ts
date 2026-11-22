@@ -7,6 +7,7 @@ import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import { defineConfig, loadEnv } from "vite";
 import packageJson from "./package.json" with { type: "json" };
 import { resolveCommitSha } from "./scripts/build-env.ts";
+import { installFilesPlugin } from "./scripts/installFilesPlugin.ts";
 import { resolvePostHogToken } from "./src/lib/analyticsGate.ts";
 
 // One copy each of React and Convex: a second copy breaks hooks and the
@@ -62,6 +63,7 @@ export default defineConfig(({ mode }) => {
       ssr: { build: { sourcemap: true } },
     },
     plugins: [
+      installFilesPlugin(),
       cloudflare({ viteEnvironment: { name: "ssr" } }),
       tailwindcss(),
       tanstackStart({

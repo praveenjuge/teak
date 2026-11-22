@@ -22,6 +22,7 @@ export default function AuthenticatedAppProvider({
   if ("unavailable" in session) {
     return <AuthUnavailable />;
   }
+  const loadingFrame = loading ?? <AppShellSkeleton {...session.sidebar} />;
   return (
     <LocaleProvider
       initialLocale={session.locale}
@@ -30,11 +31,10 @@ export default function AuthenticatedAppProvider({
       <ConvexClientProvider
         initialAuth={session.initialAuth}
         initialToken={session.accessToken}
+        loading={loadingFrame}
         seeds={session.seeds}
       >
-        <WorkosAuthBoundary
-          loading={loading ?? <AppShellSkeleton {...session.sidebar} />}
-        >
+        <WorkosAuthBoundary loading={loadingFrame}>
           <AccountLocaleSync />
           <WebMcpTools />
           <GlobalFileDropProvider>{children}</GlobalFileDropProvider>

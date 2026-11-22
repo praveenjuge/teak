@@ -2,10 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { sessionHintHeader } from "@/server/session";
 
 const written = (origin: string, hinted: boolean, signedIn: boolean) => {
-  const request = new Request(origin, {
-    headers: hinted ? { cookie: "teak_session_hint=1" } : {},
-  });
-  const header = sessionHintHeader(request, origin, signedIn);
+  const header = sessionHintHeader(hinted ? "1" : undefined, origin, signedIn);
   return header ? [header] : [];
 };
 

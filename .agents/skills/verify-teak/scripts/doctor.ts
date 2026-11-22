@@ -18,6 +18,10 @@ import {
   leaseStatus,
 } from "../../../../scripts/dev/convex-push-lease.ts";
 import { runCommand } from "../../../../scripts/dev/proc.ts";
+import {
+  startsSignIn,
+  WORKOS_API_ORIGIN,
+} from "../../../../scripts/dev/smoke-web-session.ts";
 import { currentStack } from "../../../../scripts/lib/stack-state.ts";
 
 const ROOT = join(import.meta.dir, "../../../..");
@@ -29,19 +33,17 @@ const report = (level: Level, detail: string) => {
   console.log(`${{ ok: "✓", warn: "!", fail: "✗" }[level]} ${detail}`);
 };
 
-const checkWeb = async (appOrigin: string) => {
+const checkWeb = async (appOrigin: string, authOrigin: string) => {
   try {
     const response = await fetch(`${appOrigin}/`, {
       redirect: "manual",
       signal: AbortSignal.timeout(30_000),
     });
     const location = response.headers.get("location") ?? "";
-    // No session is sent, so a healthy app redirects to its sign-in route.
-    if (
-      response.status >= 300 &&
-      response.status < 400 &&
-      new URL(location, appOrigin).pathname === "/sign-in"
-    ) {
+    // No session is sent, so a healthy app sends the page load straight to
+    // AuthKit's authorize endpoint, with this app's /callback, or to its own
+    // sign-in route.
+    if (startsSignIn(response.status, location, appOrigin, authOrigin)) {
       report(
         "ok",
         `web: ${appOrigin}/ answered ${response.status}, redirecting anonymous visitors to sign-in`
@@ -49,7 +51,7 @@ const checkWeb = async (appOrigin: string) => {
     } else {
       report(
         "fail",
-        `web: anonymous ${appOrigin}/ answered ${response.status}${location ? ` to ${location}` : ""}, not a redirect to /sign-in`
+        `web: anonymous ${appOrigin}/ answered ${response.status}${location ? ` to ${location}` : ""}, not a redirect to sign-in`
       );
     }
   } catch (error) {
@@ -245,7 +247,11 @@ const main = async () => {
       `account: ${state.account.email} (password in .agents/.state/stack.json)`
     );
   }
-  await checkWeb(state.urls.appOrigin);
+  // A local stack signs in through the WorkOS emulator it records.
+  await checkWeb(
+    state.urls.appOrigin,
+    state.urls.emulatorOrigin ?? WORKOS_API_ORIGIN
+  );
   if (state.mode === "dev") {
     await checkBackend(state.pushing ?? false);
   }

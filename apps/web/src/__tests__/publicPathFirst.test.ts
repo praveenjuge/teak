@@ -19,10 +19,10 @@ const { signInGuard } = await import("../server/session");
 const { validateConfig } = await import("@workos/authkit-session");
 
 test("a public path first in a Worker still configures AuthKit", () => {
-  expect(signInGuard(new Request("https://teak.test/sw.js"))).toBeNull();
+  expect(signInGuard(new Request("https://teak.test/share"))).toBeNull();
   // AuthKit's middleware runs next and checks its settings; before the fix
-  // this threw, and the Worker answered 503 to /share, /sw.js and the
-  // manifest until a page configured it.
+  // this threw, and the Worker answered 503 to /share until a page
+  // configured it.
   expect(() => validateConfig()).not.toThrow();
 });
 

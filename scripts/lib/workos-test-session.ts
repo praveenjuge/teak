@@ -5,14 +5,14 @@
  * Creates a throwaway, already-verified WorkOS user with a random password,
  * signs in with the password grant, and seals the tokens into the session
  * cookie the web app's AuthKit SDK (@workos/authkit-tanstack-react-start)
- * reads (iron-session `sealData` with the web's WORKOS_COOKIE_PASSWORD and
- * ttl 0, cookie `wos-session`; the SDK unseals the same Iron format). Callers must always run `cleanup()`, which deletes
- * the WorkOS user. Nothing here logs emails, passwords, tokens, or cookies.
+ * reads (the SDK's own `sessionEncryption.sealData` with the web's
+ * WORKOS_COOKIE_PASSWORD and ttl 0, cookie `wos-session`). Callers must
+ * always run `cleanup()`, which deletes the WorkOS user. Nothing here logs emails, passwords, tokens, or cookies.
  */
 
 import { randomBytes } from "node:crypto";
+import { sessionEncryption } from "@workos/authkit-session";
 import { type AuthenticationResponse, WorkOS } from "@workos-inc/node";
-import { sealData } from "iron-session";
 
 /** AuthKit's default; Teak does not set WORKOS_COOKIE_NAME. */
 export const WORKOS_SESSION_COOKIE_NAME = "wos-session";
@@ -95,7 +95,7 @@ export const sealSessionCookie = async (
   options: Pick<WorkosTestSessionOptions, "cookiePassword" | "redirectUri">
 ): Promise<WorkosTestSessionCookie> => ({
   name: WORKOS_SESSION_COOKIE_NAME,
-  value: await sealData(
+  value: await sessionEncryption.sealData(
     {
       accessToken: auth.accessToken,
       refreshToken: auth.refreshToken,

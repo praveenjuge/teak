@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, expect, jest, mock, test } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
-import type { ReactNode } from "react";
 import type { Root } from "react-dom/client";
 
 GlobalRegistrator.register({ url: "http://localhost:3000" });
@@ -32,23 +31,10 @@ mock.module("../../hooks/useTagOperations", () => ({
 
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
+const { TestRouter, testRouter } = await import("@/__tests__/helpers/router");
 const { TagsScreen } = await import("../TagsScreen");
 
 let root: Root | undefined;
-
-const Link = ({
-  children,
-  href,
-  ...props
-}: {
-  children: ReactNode;
-  href: string;
-  [key: string]: unknown;
-}) => (
-  <a href={href} {...props}>
-    {children}
-  </a>
-);
 
 const render = async (
   props: Partial<Parameters<typeof TagsScreen>[0]> = {}
@@ -56,7 +42,13 @@ const render = async (
   const container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
-  await act(() => root?.render(<TagsScreen LinkComponent={Link} {...props} />));
+  await act(() =>
+    root?.render(
+      <TestRouter router={testRouter("/tags")}>
+        <TagsScreen {...props} />
+      </TestRouter>
+    )
+  );
 };
 
 const rows = () =>
@@ -101,7 +93,6 @@ test("lists tags most-used first, each opening the library narrowed to it", asyn
   await render();
 
   expect(document.body.textContent).toContain("3 tags");
-  expect(document.title).toBe("Tags · Teak");
   expect(rows()).toEqual([
     ["design systems 12 cards", "/?tag=design+systems"],
     ["web 3 cards", "/?tag=web"],

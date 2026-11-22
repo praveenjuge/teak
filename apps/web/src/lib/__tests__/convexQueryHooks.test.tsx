@@ -5,7 +5,7 @@ import type { Root } from "react-dom/client";
 GlobalRegistrator.register({ url: "http://localhost:3000/" });
 
 const { api } = await import("@teak/convex");
-const { act } = await import("react");
+const { act, Suspense } = await import("react");
 const { createRoot } = await import("react-dom/client");
 const { renderToString } = await import("react-dom/server");
 const { ConvexProvider } = await import("convex/react");
@@ -100,6 +100,31 @@ const folderSeed = {
 test("renders the seed on the server", () => {
   transport = createConvexTransport();
   expect(renderToString(tree([folderSeed], <Folder />))).toContain("Reading");
+});
+
+test("deferred seeds show the loading frame until the page load's promise resolves", async () => {
+  transport = createConvexTransport();
+  let resolveSeeds: (seeds: (typeof folderSeed)[]) => void = () => undefined;
+  const pending = new Promise<(typeof folderSeed)[]>((resolve) => {
+    resolveSeeds = resolve;
+  });
+  container = document.createElement("div");
+  document.body.append(container);
+  root = createRoot(container);
+  await act(() =>
+    root?.render(
+      <Suspense fallback={<p>loading frame</p>}>
+        {tree(pending, <Folder />)}
+      </Suspense>
+    )
+  );
+  expect(text()).toBe("loading frame");
+
+  await act(async () => {
+    resolveSeeds([folderSeed]);
+    await pending;
+  });
+  expect(text()).toBe("Reading");
 });
 
 test("shows the seed while the live query loads, then the live result", async () => {

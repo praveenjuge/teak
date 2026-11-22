@@ -1,9 +1,11 @@
 /**
- * The article tree Teak's reader renders, and the text it shows. The web
- * reader runs `transformArticleTree` and `ARTICLE_SANITIZE_SCHEMA` as rehype
- * plugins; the server runs them on the same Markdown to get the text the
- * reader shows (`markdownToReaderText`), so highlights made on either side
- * point at the same characters.
+ * The article tree Teak's reader renders, and the text it shows. The server
+ * runs `transformArticleTree` and `ARTICLE_SANITIZE_SCHEMA` on an article's
+ * Markdown to get the text the reader shows (`markdownToReaderText`). The
+ * web reader renders the same Markdown with marked
+ * (apps/web/src/components/card-previews/MarkdownRenderer.tsx), and its
+ * ArticleHighlights tests check both give the same text, so highlights made
+ * on either side point at the same characters.
  */
 
 import { defaultSchema } from "hast-util-sanitize";

@@ -5,11 +5,7 @@ import { runCommand } from "../dev/proc.ts";
 
 const ROOT = join(import.meta.dir, "../..");
 
-export type ShaSource =
-  | "GIT_SHA"
-  | "GITHUB_SHA"
-  | "VERCEL_GIT_COMMIT_SHA"
-  | "git";
+export type ShaSource = "GIT_SHA" | "GITHUB_SHA" | "git";
 
 export interface CommitSha {
   sha: string;
@@ -26,10 +22,6 @@ export const resolveCommitShaFromEnv = (
   const github = env.GITHUB_SHA?.trim();
   if (github) {
     return { sha: github, source: "GITHUB_SHA" };
-  }
-  const vercel = env.VERCEL_GIT_COMMIT_SHA?.trim();
-  if (vercel) {
-    return { sha: vercel, source: "VERCEL_GIT_COMMIT_SHA" };
   }
   return null;
 };

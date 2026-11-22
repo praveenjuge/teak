@@ -13,6 +13,7 @@ import {
   Plus,
   Trash,
 } from "vadivam-react";
+import { AppLink } from "@/components/AppLink";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -59,7 +60,6 @@ import {
 import { cn } from "../../lib/utils";
 import { FolderDot } from "../folders/FolderDot";
 import { FolderNameDialog } from "../lazyDialogs";
-import type { SidebarLinkComponent } from "./AppSidebar";
 import { SidebarNewFolder } from "./SidebarNewFolder";
 
 const SKELETON_WIDTHS = ["62%", "48%", "70%"];
@@ -82,14 +82,12 @@ export function SidebarFoldersSkeleton() {
 
 interface SidebarFoldersProps {
   activeFolderId: string | null;
-  LinkComponent: SidebarLinkComponent;
   onActiveFolderDeleted?: () => void;
   onNavigate?: () => void;
 }
 
 export function SidebarFolders({
   activeFolderId,
-  LinkComponent,
   onActiveFolderDeleted,
   onNavigate,
 }: SidebarFoldersProps) {
@@ -283,7 +281,7 @@ export function SidebarFolders({
                 )}
                 isActive={isActive}
                 render={
-                  <LinkComponent
+                  <AppLink
                     aria-current={isActive ? "page" : undefined}
                     href={folderPath(folder._id)}
                     onClick={navigate}
@@ -305,7 +303,7 @@ export function SidebarFolders({
                     <span dir="auto" title={folder.name}>
                       {folder.name}
                     </span>
-                  </LinkComponent>
+                  </AppLink>
                 }
                 tooltip={
                   !isSmart && folder.activeCardCount > 0

@@ -1,10 +1,10 @@
-import { APP_BACKGROUND_COLOR } from "@/lib/appTheme";
+import { APP_BACKGROUND_COLOR } from "./appTheme";
 import {
   SHARE_ACTION_PATH,
   SHARE_FILES_FIELD,
   SHARE_TEXT_FIELDS,
   type ShareTextField,
-} from "@/lib/share/sharedContent";
+} from "./share/sharedContent";
 
 const shareTextParams = Object.fromEntries(
   SHARE_TEXT_FIELDS.map((field) => [field, field])

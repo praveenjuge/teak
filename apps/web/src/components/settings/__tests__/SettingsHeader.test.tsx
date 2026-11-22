@@ -40,7 +40,7 @@ const render = async (path: string) => {
   return container;
 };
 
-test("a sub-page's name is part of the heading and the document title", async () => {
+test("a sub-page's name is part of the heading", async () => {
   const container = await render("/settings/appearance");
   const heading = container.querySelector("h1");
   expect(heading?.textContent).toBe("SettingsAppearance");
@@ -48,23 +48,9 @@ test("a sub-page's name is part of the heading and the document title", async ()
     "Appearance"
   );
   expect(heading?.querySelector('a[href="/settings"]')).not.toBeNull();
-  expect(document.title).toBe("Appearance · Settings · Teak");
 });
 
-test("the account page is titled Settings", async () => {
+test("the account page is headed Settings", async () => {
   const container = await render("/settings");
   expect(container.querySelector("h1")?.textContent).toBe("Settings");
-  expect(document.title).toBe("Settings · Teak");
-});
-
-test("keeps its title when the route's metadata title lands later", async () => {
-  await render("/settings/security");
-  expect(document.title).toBe("Security · Settings · Teak");
-  // The route's (English) head title can be written after a client-side
-  // navigation or a language switch; the header's title is put back.
-  await act(async () => {
-    document.title = "Metadata title · Teak";
-    await new Promise((resolve) => setTimeout(resolve, 0));
-  });
-  expect(document.title).toBe("Security · Settings · Teak");
 });

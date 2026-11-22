@@ -160,9 +160,9 @@ export const SURFACE_ENTRIES: EnvVarSpec[] = [
     profiles: ["production"],
     secret: false,
     validation: "string",
-    providers: ["cloudflare", "wrangler-var", "shell"],
+    providers: ["cloudflare", "shell"],
     required: false,
-    note: "Set to true, at build time and at runtime, to let a web build report to VITE_PUBLIC_POSTHOG_PROJECT_TOKEN's project. Teak's production Worker sets it; every other build sends nothing unless its owner opts in.",
+    note: "Set to true at build time to let a web build report to VITE_PUBLIC_POSTHOG_PROJECT_TOKEN's project. Teak's production Worker sets it; every other build sends nothing unless its owner opts in.",
   }),
   spec("VITE_PUBLIC_APP_VERSION", {
     derivedFrom: "package.json version",

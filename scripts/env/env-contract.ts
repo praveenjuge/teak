@@ -117,14 +117,6 @@ export const PLATFORM_EXACT = [
   "TMPDIR",
   "TZ",
   "USER",
-  "VERCEL",
-  "VERCEL_ENV",
-  "VERCEL_GIT_COMMIT_REF",
-  "VERCEL_GIT_COMMIT_SHA",
-  "VERCEL_OIDC_TOKEN",
-  "VERCEL_PROJECT_PRODUCTION_URL",
-  "VERCEL_REGION",
-  "VERCEL_URL",
   // Workers Builds sets it on the web app's build.
   "WORKERS_CI_COMMIT_SHA",
   "XDG_CONFIG_HOME",
@@ -138,7 +130,6 @@ export const PLATFORM_PATTERNS = [
   /^npm_/,
   /^PLAYWRIGHT_/,
   /^RUNNER_/,
-  /^VERCEL_/,
 ] as const;
 
 export const ENV_VAR_NAMES = new Set(ENV_CONTRACT.map((entry) => entry.name));

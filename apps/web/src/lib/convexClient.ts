@@ -17,7 +17,8 @@ export const convex = new ConvexReactClient(getConvexUrl(), {
 });
 
 const FIRST_LOAD_QUERY_HOLD_MS = 30_000;
-const INTENT_QUERY_HOLD_MS = 15_000;
+// As long as the router keeps a preloaded route (its default preloadStaleTime).
+const INTENT_QUERY_HOLD_MS = 30_000;
 
 // Starts the page's own queries as the client is created, before React renders.
 if (typeof window !== "undefined") {
@@ -32,7 +33,7 @@ if (typeof window !== "undefined") {
   }
 }
 
-/** Starts the queries a link's page loads first, when someone heads for it. */
+/** Starts the queries a page loads first, before it renders. */
 export function prewarmRouteQueries(href: string) {
   const url = new URL(href, window.location.href);
   if (url.origin !== window.location.origin) {
@@ -54,5 +55,21 @@ function loadedFolders() {
     return convex.watchQuery(api.folders.listFolders, {}).localQueryResult();
   } catch {
     return [];
+  }
+}
+
+/**
+ * A page route's loader. The router runs it when someone heads for a link
+ * (`defaultPreload: "intent"`) and when they navigate, so the page's first
+ * queries are already on their way. A page load's server render has run
+ * them already (the layout's seeds).
+ */
+export function prewarmPageLoader({
+  location,
+}: {
+  location: { href: string };
+}) {
+  if (typeof window !== "undefined") {
+    prewarmRouteQueries(location.href);
   }
 }

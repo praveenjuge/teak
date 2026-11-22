@@ -5,7 +5,7 @@ import type { Root } from "react-dom/client";
 GlobalRegistrator.register({ url: "http://localhost:3000/" });
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
-const { TestRouter } = await import("@/__tests__/helpers/router");
+const { TestRouter, testRouter } = await import("@/__tests__/helpers/router");
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
 const { ConvexProviderWithAuth, useConvexAuth } = await import("convex/react");
@@ -116,7 +116,8 @@ test("Back right after a reshuffle shows the earlier order again", async () => {
   root = createRoot(container);
   await act(() =>
     root?.render(
-      <TestRouter>
+      // On the window's history, so Back below is a real history step.
+      <TestRouter router={testRouter("/", { browser: true })}>
         <ConvexProviderWithAuth client={transport.client} useAuth={useAuth}>
           <ConvexQueryCacheProvider>
             <ComposerProvider>
@@ -141,10 +142,11 @@ test("Back right after a reshuffle shows the earlier order again", async () => {
   expect(shownOrder(container)).toEqual(["card_b", "card_a"]);
   expect(window.location.search).not.toBe(`?sort=shuffle&seed=${FIRST_SEED}`);
 
-  await act(() => {
-    window.history.replaceState(null, "", firstEntry);
-    window.dispatchEvent(new PopStateEvent("popstate"));
+  await act(async () => {
+    window.history.back();
+    await new Promise((resolve) => setTimeout(resolve, 0));
   });
+  expect(window.location.search).toBe(`?sort=shuffle&seed=${FIRST_SEED}`);
   await act(replyAll);
   expect(shownOrder(container)).toEqual(["card_a", "card_b"]);
 });

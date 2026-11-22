@@ -68,7 +68,6 @@ const SCAN_EXTENSIONS = new Set([
 const SKIP_DIRS = new Set([
   ".git",
   ".turbo",
-  ".vercel",
   "node_modules",
   "dist",
   "build",

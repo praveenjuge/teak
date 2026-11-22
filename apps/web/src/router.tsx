@@ -1,12 +1,12 @@
 import { createRouter, type ErrorComponentProps } from "@tanstack/react-router";
 import { getGlobalStartContext } from "@tanstack/react-start";
-import { SegmentErrorScreen } from "@/components/feedback/SegmentErrorScreen";
+import { PageErrorScreen } from "@/components/feedback/PageErrorScreen";
 import { parseSearch, stringifySearch } from "@/lib/routerSearch";
 import { routeTree } from "./routeTree.gen";
 
 // A page that fails renders inside the app shell, so the sidebar still works.
 function PageError({ error }: ErrorComponentProps) {
-  return <SegmentErrorScreen boundary="app" error={error as Error} />;
+  return <PageErrorScreen boundary="app" error={error as Error} />;
 }
 
 export function getRouter() {

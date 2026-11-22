@@ -125,14 +125,6 @@ export interface LinkPreviewLinkState {
 
 interface LinkPreviewProps {
   card: ClientCard;
-  LinkComponent?: React.ComponentType<{
-    href: string;
-    className?: string;
-    target?: string;
-    rel?: string;
-    onClick?: (event: React.MouseEvent<HTMLAnchorElement>) => void;
-    children: React.ReactNode;
-  }>;
   linkState?: LinkPreviewLinkState | null;
   showScreenshot?: boolean;
   thumbnail?: LinkPreviewThumbnail;
@@ -166,7 +158,6 @@ export function LinkPreview({
   card,
   linkState,
   showScreenshot = false,
-  LinkComponent,
   thumbnail,
 }: LinkPreviewProps) {
   const t = useTranslations("cardPreviews.link");
@@ -370,57 +361,6 @@ export function LinkPreview({
       ) : null}
     </>
   );
-
-  if (LinkComponent) {
-    return (
-      <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col justify-center gap-6">
-        {emptyDropArea}
-        {safeUrl ? (
-          <LinkComponent
-            className="group block"
-            href={safeUrl}
-            onClick={openThroughCheck}
-            rel="noopener noreferrer"
-            target="_blank"
-          >
-            {linkContent}
-          </LinkComponent>
-        ) : (
-          <div className="block">{linkContent}</div>
-        )}
-        {noteText}
-        {linkMedia.length ? (
-          <div className="flex flex-col gap-4">
-            {linkMedia.map((media, index) =>
-              media.type === "video" ? (
-                <video
-                  aria-label={t("attachedVideo", { number: index + 1 })}
-                  className="w-full rounded-xl border bg-black"
-                  controls
-                  key={`${media.type}-${media.url}`}
-                  playsInline
-                  poster={media.posterUrl}
-                  preload="metadata"
-                >
-                  <source src={media.url} type={media.contentType} />
-                  <track kind="captions" />
-                </video>
-              ) : (
-                <img
-                  alt={t("attachedMedia", { number: index + 1 })}
-                  className="w-full rounded-xl border object-contain"
-                  height={media.height}
-                  key={`${media.type}-${media.url}`}
-                  src={media.url}
-                  width={media.width}
-                />
-              )
-            )}
-          </div>
-        ) : null}
-      </div>
-    );
-  }
 
   return (
     <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col justify-center gap-6">

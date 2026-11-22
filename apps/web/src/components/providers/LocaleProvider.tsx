@@ -1,3 +1,4 @@
+import { useLocation } from "@tanstack/react-router";
 import {
   htmlLang,
   loadMessages,
@@ -42,6 +43,10 @@ export function LocaleProvider({
     messages: initialMessages,
   });
 
+  const requestedLocale = useLocation({
+    select: (location) => location.search[PSEUDO_LOCALE_PARAM],
+  });
+
   const switchLocale = useCallback(async (next: UiLocale) => {
     const messages = await loadMessages(next);
     writeLocaleCookie(next);
@@ -56,13 +61,10 @@ export function LocaleProvider({
     if (!allowPseudoLocale) {
       return;
     }
-    const requested = new URLSearchParams(window.location.search).get(
-      PSEUDO_LOCALE_PARAM
-    );
-    if (requested === PSEUDO_LOCALE) {
+    if (requestedLocale === PSEUDO_LOCALE) {
       switchLocale(PSEUDO_LOCALE).catch(() => undefined);
     }
-  }, [switchLocale]);
+  }, [requestedLocale, switchLocale]);
 
   const value = useMemo(
     () => ({ locale: state.locale, switchLocale }),

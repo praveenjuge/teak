@@ -1,3 +1,4 @@
+import { useRouter } from "@tanstack/react-router";
 import { api } from "@teak/convex";
 import type { Doc, Id } from "@teak/convex/_generated/dataModel";
 import {
@@ -224,19 +225,25 @@ export function CardsScreen({
   useEffect(() => {
     pagePathRef.current = window.location.pathname;
   });
-  useEffect(() => {
-    const handlePopState = () => {
-      if (window.location.pathname === pagePathRef.current) {
-        showSearchFromUrl(
-          urlSync.historyLanded(
-            parseSearchUrlState(new URLSearchParams(window.location.search))
-          )
-        );
-      }
-    };
-    window.addEventListener("popstate", handlePopState);
-    return () => window.removeEventListener("popstate", handlePopState);
-  }, [showSearchFromUrl, urlSync]);
+  const router = useRouter();
+  // Back, Forward and history jumps on this page show the search they land
+  // on; the page's own pushes and replaces already did.
+  useEffect(
+    () =>
+      router.history.subscribe(({ action, location }) => {
+        if (action.type === "PUSH" || action.type === "REPLACE") {
+          return;
+        }
+        if (location.pathname === pagePathRef.current) {
+          showSearchFromUrl(
+            urlSync.historyLanded(
+              parseSearchUrlState(new URLSearchParams(location.search))
+            )
+          );
+        }
+      }),
+    [router, showSearchFromUrl, urlSync]
+  );
   useEffect(() => {
     const change = urlSync.searchSettled(urlState);
     if (!change) {
@@ -621,18 +628,16 @@ export function CardsScreen({
     [composerHandlers]
   );
 
-  // Everything keeps the plain "Teak" title; every other view names the tab
-  // in the UI language, which the route's static English metadata can't.
-  let tabTitle: string | undefined;
+  // The routes name each view's tab; a folder's tab takes the folder's name
+  // once it loads, which the route can't know.
+  let folderTabTitle: string | undefined;
   if (isFolderView) {
-    tabTitle =
+    folderTabTitle =
       folder === null
         ? t("folderNotFound")
         : (folder?.name ?? t("folderTitle"));
-  } else if (view && view !== "all") {
-    tabTitle = libraryViewLabel(view, tv);
   }
-  useDocumentTitle(tabTitle);
+  useDocumentTitle(folderTabTitle);
 
   const allFolderNames = useMemo(
     () => allFolders?.map((item) => item.name),

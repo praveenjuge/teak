@@ -1,7 +1,6 @@
 import { useLocation } from "@tanstack/react-router";
 import { TAGS_PATH } from "@teak/convex/shared/webRoutes";
 import { useTranslations } from "@teak/i18n/react";
-import { AppLink } from "@/components/AppLink";
 import { NewMenuPlaceholder } from "@/components/forms";
 import { AppSidebar, SidebarFoldersSkeleton } from "@/components/sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
@@ -55,7 +54,6 @@ export function AppShellSkeleton({
         foldersSlot={<SidebarFoldersSkeleton />}
         isSettingsActive={isSettings}
         isTagsActive={isTags}
-        LinkComponent={AppLink}
       />
       <SidebarInset className="min-w-0">
         <div

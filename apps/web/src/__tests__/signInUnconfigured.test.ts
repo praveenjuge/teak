@@ -25,7 +25,7 @@ test("fails closed when sign-in is not configured", async () => {
 });
 
 test("pages that answer without a session still work", () => {
-  for (const path of ["/share", "/sw.js", "/manifest.webmanifest"]) {
+  for (const path of ["/share"]) {
     expect(signInGuard(new Request(`http://localhost:3142${path}`))).toBeNull();
   }
 });

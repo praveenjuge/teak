@@ -8,22 +8,19 @@ import { Button } from "@/components/ui/button";
  * A page that failed to render, shown inside the app shell so the sidebar
  * (or, on phones, its toggle) still works.
  */
-export function SegmentErrorScreen({
+export function PageErrorScreen({
   boundary,
   error,
   withSidebarToggle = true,
 }: {
   boundary: string;
-  error: Error & { digest?: string };
+  error: Error;
   /** Off where the page around it already has the phone's sidebar toggle. */
   withSidebarToggle?: boolean;
 }) {
   const t = useTranslations();
   useEffect(() => {
-    captureClientException(error, {
-      digest: error.digest,
-      "ui.boundary": boundary,
-    });
+    captureClientException(error, { "ui.boundary": boundary });
   }, [boundary, error]);
   return (
     <>

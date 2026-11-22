@@ -37,6 +37,53 @@ export const redirectsTo = (
   return target.origin === new URL(baseUrl).origin && target.pathname === path;
 };
 
+/** Hosted AuthKit's authorize endpoint lives on the WorkOS API. */
+export const WORKOS_API_ORIGIN = "https://api.workos.com";
+
+/**
+ * The WorkOS API the web app's AuthKit calls: api.workos.com, or the host
+ * WORKOS_API_HOSTNAME, WORKOS_API_PORT and WORKOS_API_HTTPS name (the local
+ * stack's emulator).
+ */
+export const workosApiOrigin = (values: {
+  get: (name: string) => string | undefined;
+}): string => {
+  const host = values.get("WORKOS_API_HOSTNAME");
+  if (!host) {
+    return WORKOS_API_ORIGIN;
+  }
+  const protocol =
+    values.get("WORKOS_API_HTTPS") === "false" ? "http" : "https";
+  const port = values.get("WORKOS_API_PORT");
+  return new URL(`${protocol}://${host}${port ? `:${port}` : ""}`).origin;
+};
+
+/**
+ * Whether an anonymous page load was sent to sign in: to the app's own
+ * /sign-in, or straight to AuthKit's authorize endpoint on `authOrigin` with
+ * this app's /callback.
+ */
+export const startsSignIn = (
+  status: number,
+  location: string | null,
+  baseUrl: string,
+  authOrigin: string = WORKOS_API_ORIGIN
+): boolean => {
+  if (redirectsTo(status, location, baseUrl, "/sign-in")) {
+    return true;
+  }
+  if (!(REDIRECT_STATUSES.has(status) && location)) {
+    return false;
+  }
+  const target = new URL(location, baseUrl);
+  return (
+    target.origin === new URL(authOrigin).origin &&
+    target.pathname === "/user_management/authorize" &&
+    target.searchParams.get("redirect_uri") ===
+      `${new URL(baseUrl).origin}/callback`
+  );
+};
+
 const fetchStatus = async (
   url: string,
   init: RequestInit = {}
@@ -160,16 +207,21 @@ export const runSmoke = async (baseUrl: string): Promise<SmokeReport> => {
 
   const anonymous = await fetchStatus(`${baseUrl}/`);
   steps.push(
-    redirectsTo(anonymous.status, anonymous.location, baseUrl, "/sign-in")
+    startsSignIn(
+      anonymous.status,
+      anonymous.location,
+      baseUrl,
+      workosApiOrigin(values)
+    )
       ? {
           id: "smoke-auth-gate",
           ok: true,
-          detail: "anonymous / redirects to /sign-in",
+          detail: "anonymous / redirects to sign-in",
         }
       : {
           id: "smoke-auth-gate",
           ok: false,
-          detail: `anonymous GET / returned ${anonymous.status} (expected a /sign-in redirect)`,
+          detail: `anonymous GET / returned ${anonymous.status} (expected a sign-in redirect)`,
         }
   );
 

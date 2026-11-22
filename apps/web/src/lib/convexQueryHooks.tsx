@@ -20,6 +20,7 @@ import {
 import {
   createContext,
   type ReactNode,
+  use,
   useContext,
   useEffect,
   useState,
@@ -63,14 +64,20 @@ class QuerySeeds {
 
 const QuerySeedsContext = createContext<QuerySeeds | null>(null);
 
+/**
+ * Gives the screens below the page load's seeds. On a page load they arrive
+ * as a promise the server streams, so this suspends until they're in; wrap
+ * it in a Suspense boundary.
+ */
 export function QuerySeedsProvider({
   children,
   seeds,
 }: {
   children: ReactNode;
-  seeds: readonly QuerySeed[];
+  seeds: readonly QuerySeed[] | Promise<readonly QuerySeed[]>;
 }) {
-  const [store] = useState(() => new QuerySeeds(seeds));
+  const loaded = seeds instanceof Promise ? use(seeds) : seeds;
+  const [store] = useState(() => new QuerySeeds(loaded));
   return (
     <QuerySeedsContext.Provider value={store}>
       {children}

@@ -48,18 +48,15 @@ describe("the sign-in origin", () => {
     }
   );
 
-  test.each(["/share", "/sw.js", "/manifest.webmanifest"])(
-    "lets %s answer from any origin",
-    (path) => {
-      expect(signInGuard(new Request(`https://teak.test${path}`))).toBe(null);
-    }
-  );
+  test.each(["/share"])("lets %s answer from any origin", (path) => {
+    expect(signInGuard(new Request(`https://teak.test${path}`))).toBe(null);
+  });
 });
 
 describe("the session hint teakvault.com reads", () => {
   const hint = (origin: string, cookie: string | null, signedIn: boolean) =>
     sessionHintHeader(
-      new Request(`${origin}/`, { headers: cookie ? { cookie } : {} }),
+      cookie?.match(/(?:^|; )teak_session_hint=([^;]*)/)?.[1],
       origin,
       signedIn
     );
