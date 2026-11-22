@@ -1,4 +1,6 @@
+import { decodeNamedCharacterReference } from "decode-named-character-reference";
 import { Marked, type Token, type Tokens } from "marked";
+import { decodeNumericCharacterReference } from "micromark-util-decode-numeric-character-reference";
 import { Children, type ReactNode } from "react";
 import {
   type FootnoteDefToken,
@@ -46,42 +48,21 @@ const BACK_LABEL = "Back to reference ";
 const BACK_ARROW = "\u21a9";
 const SCHEME = /^([^/?#:]*):/u;
 const WHITESPACE = /\s+/gu;
-const NAMED_ENTITIES: Record<string, string> = {
-  amp: "&",
-  apos: "'",
-  copy: "©",
-  gt: ">",
-  hellip: "…",
-  ldquo: "“",
-  lsquo: "‘",
-  lt: "<",
-  mdash: "—",
-  nbsp: " ",
-  ndash: "–",
-  quot: '"',
-  rdquo: "”",
-  reg: "®",
-  rsquo: "’",
-  trade: "™",
-};
-const ENTITY = /&(?:#(\d{1,7})|#[xX]([0-9a-fA-F]{1,6})|([a-zA-Z]+));/gu;
-
-const codePoint = (value: number): string =>
-  value > 0 && value <= 0x10_ff_ff && !(value >= 0xd8_00 && value <= 0xdf_ff)
-    ? String.fromCodePoint(value)
-    : "�";
+// The character references CommonMark decodes, as micromark (and so the
+// server's markdownToReaderText) finds them: every HTML5 named entity and
+// decimal or hex references, with the same rules for invalid code points.
+const ENTITY = /&(#(?:\d{1,7}|x[\da-f]{1,6})|[\da-z]{1,31});/giu;
 
 const decodeEntities = (text: string): string =>
-  text.replace(ENTITY, (match, dec?: string, hex?: string, name?: string) => {
-    if (dec !== undefined) {
-      return codePoint(Number(dec));
+  text.replace(ENTITY, (match, reference: string) => {
+    if (reference.startsWith("#")) {
+      const hex = reference[1] === "x" || reference[1] === "X";
+      return decodeNumericCharacterReference(
+        reference.slice(hex ? 2 : 1),
+        hex ? 16 : 10
+      );
     }
-    if (hex !== undefined) {
-      return codePoint(Number.parseInt(hex, 16));
-    }
-    return name && Object.hasOwn(NAMED_ENTITIES, name)
-      ? NAMED_ENTITIES[name]
-      : match;
+    return decodeNamedCharacterReference(reference) || match;
   });
 
 const hasScheme = (url: string, allowed: readonly string[]): boolean => {
@@ -99,6 +80,15 @@ interface Context {
   options: MarkdownRenderOptions;
   referenceCounts: Map<string, number>;
 }
+
+// GFM matches a footnote reference to its definition ignoring case and runs
+// of whitespace, as micromark-util-normalize-identifier does on the server.
+const footnoteKey = (label: string) =>
+  label
+    .replace(/[\t\n\r ]+/gu, " ")
+    .trim()
+    .toLowerCase()
+    .toUpperCase();
 
 const footnoteId = (label: string) => encodeURIComponent(label.toLowerCase());
 
@@ -151,9 +141,9 @@ const defaultCodeBlock = ({
 );
 
 function footnoteReference(token: FootnoteRefToken, context: Context) {
-  const { label } = token;
+  const label = footnoteKey(token.label);
   if (!context.definitions.has(label)) {
-    return `[^${label}]`;
+    return `[^${token.label}]`;
   }
   let index = context.footnoteOrder.indexOf(label);
   if (index < 0) {
@@ -304,11 +294,15 @@ function renderTable(table: Tokens.Table, context: Context): ReactNode {
     index: number
   ): ReactNode => {
     const children = renderInline(tokens, context);
-    const props = { align: align ?? undefined, key: index };
+    const cellAlign = align ?? undefined;
     return header ? (
-      <th {...props}>{children}</th>
+      <th align={cellAlign} key={index}>
+        {children}
+      </th>
     ) : (
-      <td {...props}>{children}</td>
+      <td align={cellAlign} key={index}>
+        {children}
+      </td>
     );
   };
   const element = (
@@ -476,8 +470,9 @@ export function renderMarkdown(
   const tokens = marked.lexer(source);
   const definitions = new Map<string, FootnoteDefToken>();
   for (const token of tokens) {
-    if (token.type === "footnoteDef" && !definitions.has(token.label)) {
-      definitions.set(token.label, token as FootnoteDefToken);
+    const key = token.type === "footnoteDef" ? footnoteKey(token.label) : null;
+    if (key !== null && !definitions.has(key)) {
+      definitions.set(key, token as FootnoteDefToken);
     }
   }
   const context: Context = {
@@ -491,6 +486,8 @@ export function renderMarkdown(
   const blocks =
     options.openingTitle &&
     opening?.type === "heading" &&
+    // A heading compared with the card's title, not a secret.
+    // nosemgrep
     normalizeTitle(plainText(opening.tokens)) ===
       normalizeTitle(options.openingTitle)
       ? tokens.filter((token) => token !== opening)

@@ -107,6 +107,13 @@ const FIXTURES: Record<string, string> = {
     "",
     "[^1]: The source.",
   ].join("\n"),
+  "character references and footnote labels in any case": [
+    "A caf&eacute; serves &frac12; a pie &times; 2 &#169; &#x1F600; &#0; &nope; &amp;hearts;.",
+    "",
+    "A note[^Note] and one that isn't[^missing], then `&eacute; in code`.",
+    "",
+    "[^note]: Its definition, in lower case.",
+  ].join("\n"),
   "right-to-left and Japanese": [
     "## الحديقة",
     "",
