@@ -1,20 +1,16 @@
 import {
   createRootRoute,
-  type ErrorComponentProps,
   HeadContent,
   Outlet,
   Scripts,
-  useRouter,
 } from "@tanstack/react-router";
-import { captureClientException } from "@teak/convex/shared/clientTelemetry";
 import { LOCALE_COOKIE, SUPPORTED_LOCALES } from "@teak/i18n";
-import { useTranslations } from "@teak/i18n/react";
 import { type ReactNode, useEffect } from "react";
 import { NotFoundContent } from "@/components/feedback/NotFoundContent";
+import { RootError } from "@/components/feedback/RootError";
 import { CookieLocaleProvider } from "@/components/providers/CookieLocaleProvider";
 import { ShareWorkerRegistration } from "@/components/providers/ShareWorkerRegistration";
 import { RouteAnnouncer } from "@/components/RouteAnnouncer";
-import { StatusScreen } from "@/components/StatusScreen";
 import { Toaster } from "@/components/ui/sonner";
 import { APP_BACKGROUND_COLOR } from "@/lib/appTheme";
 import { pageTitle } from "@/lib/pageTitle";
@@ -145,30 +141,5 @@ function NotFound() {
         <NotFoundContent />
       </CookieLocaleProvider>
     </main>
-  );
-}
-
-function RootErrorScreen({ retry }: { retry: () => void }) {
-  const t = useTranslations();
-  return (
-    <StatusScreen
-      action={t("common.tryAgain")}
-      message={t("app.globalError.message")}
-      onAction={retry}
-    />
-  );
-}
-
-function RootError({ error }: ErrorComponentProps) {
-  const router = useRouter();
-  useEffect(() => {
-    captureClientException(error);
-  }, [error]);
-  return (
-    <CookieLocaleProvider>
-      {/* Invalidating re-runs the loaders that failed and clears the error;
-          a reset alone would show the same failed load again. */}
-      <RootErrorScreen retry={() => router.invalidate()} />
-    </CookieLocaleProvider>
   );
 }

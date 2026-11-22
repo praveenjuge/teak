@@ -5,7 +5,11 @@ import {
   sealSessionCookie,
   testSessionEmail,
 } from "../lib/workos-test-session.ts";
-import { redirectsTo, startsSignIn } from "./smoke-web-session.ts";
+import {
+  redirectsTo,
+  startsSignIn,
+  workosApiOrigin,
+} from "./smoke-web-session.ts";
 
 const base = "http://localhost:3000";
 
@@ -32,6 +36,29 @@ describe("the anonymous auth gate", () => {
     const authorize = `https://api.workos.com/user_management/authorize?client_id=client_1&redirect_uri=${encodeURIComponent(`${base}/callback`)}`;
     expect(startsSignIn(307, authorize, base)).toBe(true);
     expect(startsSignIn(307, "/sign-in?next=%2F", base)).toBe(true);
+  });
+
+  test("accepts a base URL with a trailing slash", () => {
+    const authorize = `https://api.workos.com/user_management/authorize?redirect_uri=${encodeURIComponent(`${base}/callback`)}`;
+    expect(startsSignIn(307, authorize, `${base}/`)).toBe(true);
+  });
+
+  test("rejects an authorize endpoint on a host that isn't the WorkOS API", () => {
+    const authorize = `https://evil.example/user_management/authorize?redirect_uri=${encodeURIComponent(`${base}/callback`)}`;
+    expect(startsSignIn(307, authorize, base)).toBe(false);
+  });
+
+  test("accepts the local emulator when the web app's AuthKit calls it", () => {
+    const values = new Map([
+      ["WORKOS_API_HOSTNAME", "localhost"],
+      ["WORKOS_API_PORT", "4100"],
+      ["WORKOS_API_HTTPS", "false"],
+    ]);
+    const origin = workosApiOrigin(values);
+    expect(origin).toBe("http://localhost:4100");
+    const authorize = `${origin}/user_management/authorize?redirect_uri=${encodeURIComponent(`${base}/callback`)}`;
+    expect(startsSignIn(307, authorize, base, origin)).toBe(true);
+    expect(startsSignIn(307, authorize, base)).toBe(false);
   });
 
   test("rejects AuthKit sending the session to another app", () => {

@@ -463,18 +463,36 @@ const openingBlock = (tokens: Token[]): Token | undefined =>
       token.type !== "footnoteDef"
   );
 
+// Definitions count wherever they are, inside a quote or a list too, as GFM
+// and the server's parse have them; the first of a label wins.
+function collectDefinitions(
+  tokens: readonly Token[],
+  definitions: Map<string, FootnoteDefToken>
+) {
+  for (const token of tokens) {
+    if (token.type === "footnoteDef") {
+      const key = footnoteKey(token.label);
+      if (!definitions.has(key)) {
+        definitions.set(key, token as FootnoteDefToken);
+      }
+    }
+    const nested = token as Tokens.Generic;
+    if (Array.isArray(nested.tokens)) {
+      collectDefinitions(nested.tokens, definitions);
+    }
+    if (Array.isArray(nested.items)) {
+      collectDefinitions(nested.items, definitions);
+    }
+  }
+}
+
 export function renderMarkdown(
   source: string,
   options: MarkdownRenderOptions = {}
 ): ReactNode {
   const tokens = marked.lexer(source);
   const definitions = new Map<string, FootnoteDefToken>();
-  for (const token of tokens) {
-    const key = token.type === "footnoteDef" ? footnoteKey(token.label) : null;
-    if (key !== null && !definitions.has(key)) {
-      definitions.set(key, token as FootnoteDefToken);
-    }
-  }
+  collectDefinitions(tokens, definitions);
   const context: Context = {
     definitions,
     footnoteOrder: [],

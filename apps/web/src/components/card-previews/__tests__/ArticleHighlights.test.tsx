@@ -114,6 +114,15 @@ const FIXTURES: Record<string, string> = {
     "",
     "[^note]: Its definition, in lower case.",
   ].join("\n"),
+  "footnote definitions indented or inside a quote": [
+    "One[^a], two[^b].",
+    "",
+    "   [^a]: Indented three spaces.",
+    "",
+    "> A quote.",
+    ">",
+    "> [^b]: Defined inside the quote.",
+  ].join("\n"),
   "right-to-left and Japanese": [
     "## الحديقة",
     "",

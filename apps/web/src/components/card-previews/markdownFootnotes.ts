@@ -14,8 +14,9 @@ export interface FootnoteDefToken extends Tokens.Generic {
   type: "footnoteDef";
 }
 
+// A definition may be indented up to three spaces, as GFM allows.
 const DEFINITION =
-  /^\[\^([^\]\s]+)\]:[ \t]*([^\n]*(?:\n(?:[ \t]*\n)*(?:[ \t]{4}|\t)[^\n]*)*)(?:\n|$)/u;
+  /^ {0,3}\[\^([^\]\s]+)\]:[ \t]*([^\n]*(?:\n(?:[ \t]*\n)*(?:[ \t]{4}|\t)[^\n]*)*)(?:\n|$)/u;
 const REFERENCE = /^\[\^([^\]\s]+)\]/u;
 const CONTINUATION_INDENT = /\n(?:[ \t]{4}|\t)/gu;
 
@@ -23,7 +24,7 @@ export const footnoteExtensions: TokenizerAndRendererExtension[] = [
   {
     level: "block",
     name: "footnoteDef",
-    start: (src) => src.match(/^\[\^[^\]\s]+\]:/mu)?.index,
+    start: (src) => src.match(/^ {0,3}\[\^[^\]\s]+\]:/mu)?.index,
     tokenizer(src) {
       const match = DEFINITION.exec(src);
       if (!match) {

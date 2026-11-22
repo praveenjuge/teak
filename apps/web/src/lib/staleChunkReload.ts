@@ -16,19 +16,17 @@ export function reloadOnStaleChunk(
   now: () => number = Date.now
 ) {
   target.addEventListener("vite:preloadError", (event) => {
-    let last: number | null = null;
+    // The reload is only safe when its time can be kept: without it, a chunk
+    // that is really gone would reload the tab forever. Blocked storage
+    // leaves Vite's error to the page's error screen instead.
     try {
-      last = Number(target.sessionStorage.getItem(RELOADED_AT_KEY)) || null;
-    } catch {
-      // Storage can be blocked; a reload is still the best answer.
-    }
-    if (last !== null && now() - last < RELOAD_COOLDOWN_MS) {
-      return;
-    }
-    try {
+      const last = Number(target.sessionStorage.getItem(RELOADED_AT_KEY));
+      if (last && now() - last < RELOAD_COOLDOWN_MS) {
+        return;
+      }
       target.sessionStorage.setItem(RELOADED_AT_KEY, String(now()));
     } catch {
-      // As above.
+      return;
     }
     event.preventDefault();
     target.location.reload();

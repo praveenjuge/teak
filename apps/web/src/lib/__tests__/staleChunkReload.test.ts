@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { reloadOnStaleChunk } from "../staleChunkReload";
 
-function fakeWindow() {
+function fakeWindow({ storageBlocked = false } = {}) {
   const events = new EventTarget();
   const stored = new Map<string, string>();
   let reloads = 0;
@@ -9,8 +9,18 @@ function fakeWindow() {
     addEventListener: events.addEventListener.bind(events),
     location: { reload: () => reloads++ },
     sessionStorage: {
-      getItem: (key: string) => stored.get(key) ?? null,
-      setItem: (key: string, value: string) => stored.set(key, value),
+      getItem: (key: string) => {
+        if (storageBlocked) {
+          throw new DOMException("blocked", "SecurityError");
+        }
+        return stored.get(key) ?? null;
+      },
+      setItem: (key: string, value: string) => {
+        if (storageBlocked) {
+          throw new DOMException("blocked", "SecurityError");
+        }
+        stored.set(key, value);
+      },
     },
   } as unknown as Window;
   const failChunk = () => {
@@ -40,5 +50,12 @@ describe("a code-split file missing after a deploy", () => {
     time += 20_000;
     page.failChunk();
     expect(page.reloads()).toBe(2);
+  });
+
+  test("leaves the error to the page when storage is blocked, so it can't loop", () => {
+    const page = fakeWindow({ storageBlocked: true });
+    reloadOnStaleChunk(page.target, () => 1000);
+    expect(page.failChunk()).toBe(false);
+    expect(page.reloads()).toBe(0);
   });
 });

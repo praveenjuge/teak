@@ -18,6 +18,10 @@ import {
   leaseStatus,
 } from "../../../../scripts/dev/convex-push-lease.ts";
 import { runCommand } from "../../../../scripts/dev/proc.ts";
+import {
+  startsSignIn,
+  WORKOS_API_ORIGIN,
+} from "../../../../scripts/dev/smoke-web-session.ts";
 import { currentStack } from "../../../../scripts/lib/stack-state.ts";
 
 const ROOT = join(import.meta.dir, "../../../..");
@@ -29,7 +33,7 @@ const report = (level: Level, detail: string) => {
   console.log(`${{ ok: "✓", warn: "!", fail: "✗" }[level]} ${detail}`);
 };
 
-const checkWeb = async (appOrigin: string) => {
+const checkWeb = async (appOrigin: string, authOrigin: string) => {
   try {
     const response = await fetch(`${appOrigin}/`, {
       redirect: "manual",
@@ -37,13 +41,9 @@ const checkWeb = async (appOrigin: string) => {
     });
     const location = response.headers.get("location") ?? "";
     // No session is sent, so a healthy app sends the page load straight to
-    // hosted AuthKit, with this app's /callback, or to its own sign-in route.
-    const target = location ? new URL(location, appOrigin) : null;
-    const signsIn =
-      target?.pathname === "/sign-in" ||
-      (target?.pathname === "/user_management/authorize" &&
-        target.searchParams.get("redirect_uri") === `${appOrigin}/callback`);
-    if (response.status >= 300 && response.status < 400 && signsIn) {
+    // AuthKit's authorize endpoint, with this app's /callback, or to its own
+    // sign-in route.
+    if (startsSignIn(response.status, location, appOrigin, authOrigin)) {
       report(
         "ok",
         `web: ${appOrigin}/ answered ${response.status}, redirecting anonymous visitors to sign-in`
@@ -247,7 +247,11 @@ const main = async () => {
       `account: ${state.account.email} (password in .agents/.state/stack.json)`
     );
   }
-  await checkWeb(state.urls.appOrigin);
+  // A local stack signs in through the WorkOS emulator it records.
+  await checkWeb(
+    state.urls.appOrigin,
+    state.urls.emulatorOrigin ?? WORKOS_API_ORIGIN
+  );
   if (state.mode === "dev") {
     await checkBackend(state.pushing ?? false);
   }
