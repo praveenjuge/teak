@@ -183,6 +183,8 @@ export interface ClientEventCatalog {
   search_operator_used: { groups: boolean; negation: boolean; or: boolean };
   search_performed: {
     qualifiers?: SearchQualifierKey[];
+    /** Cards in the first page of results, so it stops at the page size. */
+    result_count: number;
     zero_result: boolean;
   };
   signed_in: NoProperties;

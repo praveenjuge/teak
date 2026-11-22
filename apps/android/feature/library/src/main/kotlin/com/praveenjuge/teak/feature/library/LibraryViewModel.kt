@@ -322,7 +322,7 @@ class LibraryViewModel @AssistedInject constructor(
         val waitingForMeaning = paged.cards.isEmpty() && meaningSettledFor != _state.value.search
         if (query == reportedSearch || paged.isLoading || paged.error != null || waitingForMeaning) return
         reportedSearch = query
-        Analytics.capture("search_performed", mapOf("zero_result" to paged.cards.isEmpty()))
+        Analytics.capture("search_performed", mapOf("zero_result" to paged.cards.isEmpty(), "result_count" to paged.cards.size))
     }
 
     /** Follows `cards:trashCount` while this view is Trash, for Empty Trash. */

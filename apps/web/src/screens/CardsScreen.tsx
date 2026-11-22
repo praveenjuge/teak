@@ -444,6 +444,7 @@ export function CardsScreen({
     );
     captureEvent("search_performed", {
       ...(qualifiers.length > 0 ? { qualifiers } : {}),
+      result_count: cards.length,
       zero_result: cards.length === 0,
     });
     if (parsed.expression) {

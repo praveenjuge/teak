@@ -56,7 +56,7 @@ describe("product analytics catalog", () => {
       },
     });
     expect(() =>
-      captureEvent("search_performed", { zero_result: true })
+      captureEvent("search_performed", { result_count: 0, zero_result: true })
     ).not.toThrow();
   });
 

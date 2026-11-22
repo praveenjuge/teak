@@ -154,7 +154,7 @@ final class LibraryModel {
               !(cards.isEmpty && isSemanticPending)
         else { return }
         reportedSearch = search
-        PostHogReporting.capture(event: "search_performed", ["zero_result": cards.isEmpty])
+        PostHogReporting.capture(event: "search_performed", ["zero_result": cards.isEmpty, "result_count": cards.count])
     }
 
     func checkHiddenCards() {
