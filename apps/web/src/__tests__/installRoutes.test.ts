@@ -1,16 +1,40 @@
 import { describe, expect, test } from "bun:test";
+import { installFiles } from "../lib/installFiles";
 import {
   handleShareAction,
   handleShareVisit,
 } from "../lib/share/shareActionRoute";
 import { webManifest } from "../lib/webManifest";
 
-type Handler = () => Response;
-const serverGet = async (path: string) => {
-  const { Route } = await import(path);
-  return (
-    Route.options as { server: { handlers: { GET: Handler } } }
-  ).server.handlers.GET();
+const installFile = (path: string) => {
+  const file = installFiles.find((entry) => entry.path === path);
+  if (!file) {
+    throw new Error(`${path} is not an install file`);
+  }
+  return file;
+};
+
+// The headers public/_headers gives one exact path.
+const staticHeaders = async (path: string) => {
+  const rules = await Bun.file(
+    new URL("../../public/_headers", import.meta.url)
+  ).text();
+  const block = rules
+    .split(/\n\s*\n/)
+    .find((chunk) =>
+      chunk
+        .split("\n")
+        .some((line) => line.trim() === path && !line.startsWith(" "))
+    );
+  return new Headers(
+    (block ?? "")
+      .split("\n")
+      .filter((line) => line.startsWith("  "))
+      .map((line) => {
+        const [name, ...value] = line.trim().split(":");
+        return [name, value.join(":").trim()] as [string, string];
+      })
+  );
 };
 
 describe("the installed web app", () => {
@@ -38,19 +62,20 @@ describe("the installed web app", () => {
     expect(location.searchParams.get("share")).toBe("missing");
   });
 
-  test("/manifest.webmanifest serves the manifest as a web app manifest", async () => {
-    const response = await serverGet("../routes/manifest[.]webmanifest");
-    expect(response.headers.get("content-type")).toBe(
-      "application/manifest+json"
-    );
-    expect(await response.json()).toEqual(webManifest());
+  test("/manifest.webmanifest is served as a web app manifest", async () => {
+    const file = installFile("/manifest.webmanifest");
+    expect(JSON.parse(file.source)).toEqual(webManifest());
+    const headers = await staticHeaders("/manifest.webmanifest");
+    expect(headers.get("content-type")).toBe("application/manifest+json");
   });
 
   test("/sw.js is a worker allowed to control the whole app", async () => {
-    const response = await serverGet("../routes/sw[.]js");
-    expect(response.headers.get("content-type")).toContain("text/javascript");
-    expect(response.headers.get("service-worker-allowed")).toBe("/");
-    expect(await response.text()).toContain('addEventListener("fetch"');
+    const file = installFile("/sw.js");
+    expect(file.contentType).toContain("text/javascript");
+    expect(file.source).toContain('addEventListener("fetch"');
+    const headers = await staticHeaders("/sw.js");
+    expect(headers.get("service-worker-allowed")).toBe("/");
+    expect(headers.get("cache-control")).toBe("no-cache");
   });
 });
 

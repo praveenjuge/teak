@@ -58,7 +58,7 @@ describe("getSafeNextPath", () => {
     "/sign-in/?next=%2Fsettings",
     "/sign-up/#hash",
   ])(
-    "rejects trailing-slash auth route %s that Next redirects back to auth",
+    "rejects trailing-slash auth route %s that would redirect back to auth",
     (next) => {
       expect(getSafeNextPath(next)).toBeNull();
     }

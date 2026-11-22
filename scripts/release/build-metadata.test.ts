@@ -6,26 +6,20 @@ import {
 } from "./build-metadata.ts";
 
 describe("build-metadata", () => {
-  test("explicit GIT_SHA wins over provider metadata", () => {
+  test("explicit GIT_SHA wins over GITHUB_SHA", () => {
     expect(
       resolveCommitShaFromEnv({
         GIT_SHA: "a".repeat(40),
         GITHUB_SHA: "b".repeat(40),
-        VERCEL_GIT_COMMIT_SHA: "c".repeat(40),
       })
     ).toEqual({ sha: "a".repeat(40), source: "GIT_SHA" });
   });
 
-  test("github precedes vercel metadata", () => {
-    expect(
-      resolveCommitShaFromEnv({
-        GITHUB_SHA: "b".repeat(40),
-        VERCEL_GIT_COMMIT_SHA: "c".repeat(40),
-      })
-    ).toEqual({ sha: "b".repeat(40), source: "GITHUB_SHA" });
-    expect(
-      resolveCommitShaFromEnv({ VERCEL_GIT_COMMIT_SHA: "c".repeat(40) })
-    ).toEqual({ sha: "c".repeat(40), source: "VERCEL_GIT_COMMIT_SHA" });
+  test("GITHUB_SHA resolves when no override is set", () => {
+    expect(resolveCommitShaFromEnv({ GITHUB_SHA: "b".repeat(40) })).toEqual({
+      sha: "b".repeat(40),
+      source: "GITHUB_SHA",
+    });
   });
 
   test("empty env resolves nothing without git", () => {

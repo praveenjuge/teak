@@ -4,14 +4,46 @@ import babel from "@rolldown/plugin-babel";
 import tailwindcss from "@tailwindcss/vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
-import { defineConfig, loadEnv } from "vite";
+import { defineConfig, loadEnv, type Plugin } from "vite";
 import packageJson from "./package.json" with { type: "json" };
 import { resolveCommitSha } from "./scripts/build-env.ts";
 import { resolvePostHogToken } from "./src/lib/analyticsGate.ts";
+import { installFiles } from "./src/lib/installFiles.ts";
 
 // One copy each of React and Convex: a second copy breaks hooks and the
 // Convex client's shared cache.
 const singletons = ["convex", "convex-helpers", "react", "react-dom"] as const;
+
+// The web app manifest and the share service worker, written as static files
+// so they are served from the edge without running the Worker.
+function installFilesPlugin(): Plugin {
+  return {
+    name: "teak:install-files",
+    configureServer(server) {
+      server.middlewares.use((request, response, next) => {
+        const file = installFiles.find(
+          ({ path }) => path === request.url?.split("?")[0]
+        );
+        if (!file) {
+          next();
+          return;
+        }
+        response.setHeader("Content-Type", file.contentType);
+        response.setHeader("Cache-Control", "no-cache");
+        response.setHeader("Service-Worker-Allowed", "/");
+        response.end(file.source);
+      });
+    },
+    generateBundle() {
+      if (this.environment.name !== "client") {
+        return;
+      }
+      for (const { path, source } of installFiles) {
+        this.emitFile({ type: "asset", fileName: path.slice(1), source });
+      }
+    },
+  };
+}
 
 export default defineConfig(({ mode }) => {
   // The env files `bun run setup` writes, plus the build's own environment.
@@ -62,6 +94,7 @@ export default defineConfig(({ mode }) => {
       ssr: { build: { sourcemap: true } },
     },
     plugins: [
+      installFilesPlugin(),
       cloudflare({ viteEnvironment: { name: "ssr" } }),
       tailwindcss(),
       tanstackStart({

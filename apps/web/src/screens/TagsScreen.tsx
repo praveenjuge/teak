@@ -20,6 +20,7 @@ import {
   Search,
   Trash,
 } from "vadivam-react";
+import { AppLink } from "@/components/AppLink";
 import { PageHeader, PageTitle } from "@/components/app-shell/PageHeader";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,12 +39,10 @@ import { useQuery } from "@/lib/convexQueryHooks";
 import { LIBRARY_SEARCH_ATTRIBUTE } from "@/lib/keyboardShortcuts";
 import { cn } from "@/lib/utils";
 import { searchFieldClassName } from "../components/search/SearchBar";
-import type { SidebarLinkComponent } from "../components/sidebar/AppSidebar";
 import {
   TagManagerDialog,
   type TagManagerMode,
 } from "../components/tags/TagManagerDialog";
-import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import { useTagOperations } from "../hooks/useTagOperations";
 import { LIBRARY_VIEW_PATHS } from "../lib/libraryViews";
 import { librarySearchHref } from "../lib/searchUrlState";
@@ -74,7 +73,6 @@ export interface TagsScreenProps {
   headerLeading?: ReactNode;
   /** The Find a tag text to start with, such as the URL's `q`. */
   initialQuery?: string;
-  LinkComponent: SidebarLinkComponent;
   /** Called as the Find a tag text changes, so the page can keep it. */
   onQueryChange?: (query: string) => void;
   tagHref?: (name: string) => string;
@@ -84,7 +82,6 @@ interface TagRowProps {
   href: string;
   isMenuOpen: boolean;
   item: TagSummaryItem;
-  LinkComponent: SidebarLinkComponent;
   onAction: (mode: TagManagerMode, item: TagSummaryItem) => void;
   onMenuOpenChange: (name: string | null) => void;
 }
@@ -93,7 +90,6 @@ const TagRow = memo(function TagRow({
   href,
   isMenuOpen,
   item,
-  LinkComponent,
   onAction,
   onMenuOpenChange,
 }: TagRowProps) {
@@ -135,7 +131,7 @@ const TagRow = memo(function TagRow({
         isMenuOpen && "bg-muted/40"
       )}
     >
-      <LinkComponent
+      <AppLink
         aria-label={t("rowLabel", {
           tag: tagDisplayName(item),
           count: item.count,
@@ -153,7 +149,7 @@ const TagRow = memo(function TagRow({
         <span className="ml-auto shrink-0 pl-3 text-muted-foreground text-sm tabular-nums">
           {item.count.toLocaleString(intlLocale)}
         </span>
-      </LinkComponent>
+      </AppLink>
       {isMenuOpen ? (
         <DropdownMenu
           onOpenChange={(open, details) => {
@@ -245,14 +241,12 @@ function TagSortMenu({
 export function TagsScreen({
   headerLeading,
   initialQuery = "",
-  LinkComponent,
   onQueryChange,
   tagHref = libraryTagHref,
 }: TagsScreenProps) {
   const t = useTranslations("screens.tags");
   const tc = useTranslations("common");
   const tCards = useTranslations("screens.cards");
-  useDocumentTitle(t("title"));
   const intlLocale = useIntlLocale();
   const summary = useQuery(api.tags.listTagSummary, {});
   const requestSummary = useMutation(api.tags.requestTagSummary);
@@ -469,7 +463,6 @@ export function TagsScreen({
                 isMenuOpen={menuTag === item.name}
                 item={item}
                 key={item.name}
-                LinkComponent={LinkComponent}
                 onAction={openAction}
                 onMenuOpenChange={setMenuTag}
               />

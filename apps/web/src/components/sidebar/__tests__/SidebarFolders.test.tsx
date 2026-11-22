@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, expect, mock, test } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import { getFunctionName } from "convex/server";
-import type { ReactNode } from "react";
 import type { Root } from "react-dom/client";
 
 GlobalRegistrator.register({
@@ -58,23 +57,10 @@ mock.module("sonner", () => ({
 
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
+const { TestRouter, testRouter } = await import("@/__tests__/helpers/router");
 const { SidebarProvider } = await import("../../ui/sidebar");
 const { SidebarFolders } = await import("../SidebarFolders");
 const { FolderNameDialog } = await import("../../lazyDialogs");
-
-const Link = ({
-  children,
-  href,
-  ...props
-}: {
-  children: ReactNode;
-  href: string;
-  [key: string]: unknown;
-}) => (
-  <a href={href} {...props}>
-    {children}
-  </a>
-);
 
 let root: Root | undefined;
 
@@ -102,13 +88,14 @@ const render = async (
   }
   await act(() =>
     root?.render(
-      <SidebarProvider defaultOpen={open}>
-        <SidebarFolders
-          activeFolderId={activeFolderId}
-          LinkComponent={Link}
-          onActiveFolderDeleted={onActiveFolderDeleted}
-        />
-      </SidebarProvider>
+      <TestRouter router={testRouter("/elsewhere")}>
+        <SidebarProvider defaultOpen={open}>
+          <SidebarFolders
+            activeFolderId={activeFolderId}
+            onActiveFolderDeleted={onActiveFolderDeleted}
+          />
+        </SidebarProvider>
+      </TestRouter>
     )
   );
 };

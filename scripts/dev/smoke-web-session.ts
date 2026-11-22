@@ -37,6 +37,28 @@ export const redirectsTo = (
   return target.origin === new URL(baseUrl).origin && target.pathname === path;
 };
 
+/**
+ * Whether an anonymous page load was sent to sign in: to the app's own
+ * /sign-in, or straight to hosted AuthKit with this app's /callback.
+ */
+export const startsSignIn = (
+  status: number,
+  location: string | null,
+  baseUrl: string
+): boolean => {
+  if (redirectsTo(status, location, baseUrl, "/sign-in")) {
+    return true;
+  }
+  if (!(REDIRECT_STATUSES.has(status) && location)) {
+    return false;
+  }
+  const target = new URL(location, baseUrl);
+  return (
+    target.pathname === "/user_management/authorize" &&
+    target.searchParams.get("redirect_uri") === `${baseUrl}/callback`
+  );
+};
+
 const fetchStatus = async (
   url: string,
   init: RequestInit = {}
@@ -160,16 +182,16 @@ export const runSmoke = async (baseUrl: string): Promise<SmokeReport> => {
 
   const anonymous = await fetchStatus(`${baseUrl}/`);
   steps.push(
-    redirectsTo(anonymous.status, anonymous.location, baseUrl, "/sign-in")
+    startsSignIn(anonymous.status, anonymous.location, baseUrl)
       ? {
           id: "smoke-auth-gate",
           ok: true,
-          detail: "anonymous / redirects to /sign-in",
+          detail: "anonymous / redirects to sign-in",
         }
       : {
           id: "smoke-auth-gate",
           ok: false,
-          detail: `anonymous GET / returned ${anonymous.status} (expected a /sign-in redirect)`,
+          detail: `anonymous GET / returned ${anonymous.status} (expected a sign-in redirect)`,
         }
   );
 

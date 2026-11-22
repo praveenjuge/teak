@@ -1,4 +1,4 @@
-// Draws the installed web app's icons from src/app/icon.svg into public/icons.
+// Draws the installed web app's icons from public/icon.svg into public/icons.
 // Run after the logo changes: bun --no-env-file run apps/web/scripts/app-icons.ts
 // `any` icons keep the logo large; `maskable` ones keep it inside the 80% safe
 // zone, since Android crops them to a circle or squircle.
@@ -6,7 +6,7 @@ import { mkdir } from "node:fs/promises";
 import sharp from "sharp";
 
 const web = new URL("../", import.meta.url);
-const logo = new URL("src/app/icon.svg", web);
+const logo = new URL("public/icon.svg", web);
 const out = new URL("public/icons/", web);
 
 const icons = [

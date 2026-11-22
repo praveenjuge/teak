@@ -1,10 +1,10 @@
 import type { ErrorComponentProps } from "@tanstack/react-router";
-import { SegmentErrorScreen } from "@/components/feedback/SegmentErrorScreen";
+import { PageErrorScreen } from "@/components/feedback/PageErrorScreen";
 
 /** A settings page that failed, inside the settings shell. */
 export function SettingsError({ error }: ErrorComponentProps) {
   return (
-    <SegmentErrorScreen
+    <PageErrorScreen
       boundary="settings"
       error={error as Error}
       withSidebarToggle={false}

@@ -1,7 +1,8 @@
 /**
- * An article's Markdown as the text Teak's reader shows: the same GFM
- * parse, tree changes and sanitizing as the web reader, then its text with
- * whitespace collapsed. Highlights' offsets point into this text.
+ * An article's Markdown as the text Teak's reader shows: a GFM parse, the
+ * reader's tree changes and sanitizing, then its text with whitespace
+ * collapsed. Highlights' offsets point into this text; the web reader's
+ * tests keep what it renders in step with it.
  */
 
 import { sanitize } from "hast-util-sanitize";

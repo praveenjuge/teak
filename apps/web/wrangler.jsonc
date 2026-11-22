@@ -7,9 +7,11 @@
   // Node.js compatibility is on by default from 2026-08-04.
   "compatibility_date": "2026-11-19",
   "workers_dev": false,
-  // Page loads query Convex before they answer; running near it beats
-  // running near the visitor.
-  "placement": { "mode": "smart" },
+  // Page loads query Convex before they answer, so the Worker runs next to
+  // it rather than near the visitor. Production Convex is in AWS us-east-1
+  // (its URL names no other region). Smart placement can't find Convex
+  // behind Cloudflare's anycast addresses, so it's named here.
+  "placement": { "mode": "targeted", "region": "aws:us-east-1" },
   "upload_source_maps": true,
   // Error reports name the Worker version that failed.
   "version_metadata": { "binding": "CF_VERSION_METADATA" },

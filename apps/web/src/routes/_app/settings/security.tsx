@@ -1,10 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SettingsError } from "@/components/settings/SettingsError";
+import { prewarmPageLoader } from "@/lib/convexClient";
 import { titleHead } from "@/lib/pageTitle";
-import { SecurityPageClient } from "@/screens/SettingsScreen";
+import { SecurityPage } from "@/screens/SettingsScreen";
 
 export const Route = createFileRoute("/_app/settings/security")({
-  head: titleHead("Security · Settings"),
+  loader: prewarmPageLoader,
+  head: titleHead((t) =>
+    t("settings.header.subpageTitle", { page: t("settings.nav.security") })
+  ),
   errorComponent: SettingsError,
-  component: SecurityPageClient,
+  component: SecurityPage,
 });

@@ -36,12 +36,14 @@ const checkWeb = async (appOrigin: string) => {
       signal: AbortSignal.timeout(30_000),
     });
     const location = response.headers.get("location") ?? "";
-    // No session is sent, so a healthy app redirects to its sign-in route.
-    if (
-      response.status >= 300 &&
-      response.status < 400 &&
-      new URL(location, appOrigin).pathname === "/sign-in"
-    ) {
+    // No session is sent, so a healthy app sends the page load straight to
+    // hosted AuthKit, with this app's /callback, or to its own sign-in route.
+    const target = location ? new URL(location, appOrigin) : null;
+    const signsIn =
+      target?.pathname === "/sign-in" ||
+      (target?.pathname === "/user_management/authorize" &&
+        target.searchParams.get("redirect_uri") === `${appOrigin}/callback`);
+    if (response.status >= 300 && response.status < 400 && signsIn) {
       report(
         "ok",
         `web: ${appOrigin}/ answered ${response.status}, redirecting anonymous visitors to sign-in`
@@ -49,7 +51,7 @@ const checkWeb = async (appOrigin: string) => {
     } else {
       report(
         "fail",
-        `web: anonymous ${appOrigin}/ answered ${response.status}${location ? ` to ${location}` : ""}, not a redirect to /sign-in`
+        `web: anonymous ${appOrigin}/ answered ${response.status}${location ? ` to ${location}` : ""}, not a redirect to sign-in`
       );
     }
   } catch (error) {

@@ -4,6 +4,7 @@ import {
   HeadContent,
   Outlet,
   Scripts,
+  useRouter,
 } from "@tanstack/react-router";
 import { captureClientException } from "@teak/convex/shared/clientTelemetry";
 import { LOCALE_COOKIE, SUPPORTED_LOCALES } from "@teak/i18n";
@@ -158,13 +159,16 @@ function RootErrorScreen({ retry }: { retry: () => void }) {
   );
 }
 
-function RootError({ error, reset }: ErrorComponentProps) {
+function RootError({ error }: ErrorComponentProps) {
+  const router = useRouter();
   useEffect(() => {
     captureClientException(error);
   }, [error]);
   return (
     <CookieLocaleProvider>
-      <RootErrorScreen retry={reset} />
+      {/* Invalidating re-runs the loaders that failed and clears the error;
+          a reset alone would show the same failed load again. */}
+      <RootErrorScreen retry={() => router.invalidate()} />
     </CookieLocaleProvider>
   );
 }

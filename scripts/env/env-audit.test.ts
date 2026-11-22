@@ -240,7 +240,7 @@ describe("env-audit auditFiles", () => {
       new Map([
         [
           "apps/web/src/a.ts",
-          "const a = process.env.CI;\nconst b = process.env.VERCEL_ENV;\n",
+          "const a = process.env.CI;\nconst b = process.env.WORKERS_CI_COMMIT_SHA;\n",
         ],
       ])
     );

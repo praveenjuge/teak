@@ -19,7 +19,6 @@ import {
   libraryViewHref,
 } from "@/lib/libraryViews";
 import { isSettingsPath } from "@/lib/settingsSections";
-import { IntentLink } from "./IntentLink";
 import { OfflineNotice } from "./OfflineNotice";
 import { MAIN_CONTENT_ID, SkipToContent } from "./SkipToContent";
 
@@ -90,7 +89,6 @@ export function AppShell({
               <SidebarFoldersBoundary>
                 <SidebarFolders
                   activeFolderId={folderId}
-                  LinkComponent={IntentLink}
                   onActiveFolderDeleted={() => {
                     navigate({ href: "/" });
                   }}
@@ -99,7 +97,6 @@ export function AppShell({
             }
             isSettingsActive={isSettingsPath(pathname)}
             isTagsActive={pathname === TAGS_PATH}
-            LinkComponent={IntentLink}
           />
           <SidebarInset className="min-w-0 outline-none" id={MAIN_CONTENT_ID}>
             <div className="mx-auto w-full max-w-7xl px-4 pb-10">

@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
-import type { ReactNode } from "react";
 import type { Root } from "react-dom/client";
 
 GlobalRegistrator.register({
@@ -11,6 +10,7 @@ GlobalRegistrator.register({
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
+const { TestRouter, testRouter } = await import("@/__tests__/helpers/router");
 const { SidebarProvider } = await import("../../ui/sidebar");
 const { AppSidebar } = await import("../AppSidebar");
 
@@ -21,20 +21,6 @@ afterEach(async () => {
   root = undefined;
   document.body.innerHTML = "";
 });
-
-const Link = ({
-  children,
-  href,
-  ...props
-}: {
-  children: ReactNode;
-  href: string;
-  [key: string]: unknown;
-}) => (
-  <a href={href} {...props}>
-    {children}
-  </a>
-);
 
 async function renderSidebar(
   options: {
@@ -49,17 +35,18 @@ async function renderSidebar(
   root = createRoot(container);
   await act(() =>
     root?.render(
-      <SidebarProvider defaultOpen={options.defaultOpen ?? true}>
-        <AppSidebar
-          activeView={
-            options.activeView === undefined ? "all" : options.activeView
-          }
-          foldersSlot={<div data-testid="folders">Folders</div>}
-          isSettingsActive={options.isSettingsActive}
-          isTagsActive={options.isTagsActive}
-          LinkComponent={Link}
-        />
-      </SidebarProvider>
+      <TestRouter router={testRouter("/elsewhere")}>
+        <SidebarProvider defaultOpen={options.defaultOpen ?? true}>
+          <AppSidebar
+            activeView={
+              options.activeView === undefined ? "all" : options.activeView
+            }
+            foldersSlot={<div data-testid="folders">Folders</div>}
+            isSettingsActive={options.isSettingsActive}
+            isTagsActive={options.isTagsActive}
+          />
+        </SidebarProvider>
+      </TestRouter>
     )
   );
 }

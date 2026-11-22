@@ -53,7 +53,7 @@ describe("env-contract", () => {
     for (const name of [
       "GITHUB_SHA",
       "RUNNER_TEMP",
-      "VERCEL_ENV",
+      "WORKERS_CI_COMMIT_SHA",
       "PLAYWRIGHT_BASE_URL",
       "MAIN_WINDOW_VITE_DEV_SERVER_URL",
       "npm_package_version",
@@ -83,7 +83,6 @@ describe("env-contract", () => {
   test("multi-provider credentials document their single writer", () => {
     const credentialProviders = new Set([
       "convex-dashboard",
-      "vercel",
       "wrangler-secret",
       "cloudflare",
       "github-secrets",

@@ -168,6 +168,8 @@ Teak's `bun run setup`, `bun run dev` and `bun run doctor` work only against Tea
 
     Upgrading a deployment from before these names: the web app used to read `NEXT_PUBLIC_*`. Before you deploy this version, rename your build values to `VITE_PUBLIC_*` and put the `VITE_PUBLIC_WORKOS_REDIRECT_URI` secret as above, or sign-in answers "Sign-in is temporarily unavailable". Once the new deploy signs in, delete the old secret with `bunx wrangler secret delete NEXT_PUBLIC_WORKOS_REDIRECT_URI`.
 
+    The config runs the Worker in AWS `us-east-1`, next to Teak's own Convex deployment, because every page load queries Convex before it answers. If your Convex deployment is in another region (its URL names it, such as `<name>.eu-west-1.convex.cloud`), change `placement.region` in `apps/web/wrangler.jsonc` to match, such as `aws:eu-west-1`.
+
     The config has no routes and no `workers.dev` address, so attach your domain in the Cloudflare dashboard: open the `teak-app` Worker, then **Settings → Domains & Routes → Add → Custom Domain**, and enter `app.yourdomain.com` (its zone must be on Cloudflare). Later deploys keep it. There is no Node server to run: `bun run --cwd apps/web preview` previews a build locally only.
   </Step>
   <Step title="Turn billing off, or add it">
@@ -347,6 +349,6 @@ A self-hosted Teak sends no analytics or error reports, to Teak or anyone else, 
 | --- | --- | --- |
 | Convex backend | `POSTHOG_PROJECT_TOKEN`, `POSTHOG_PROJECT_ID` (the project's numeric ID, from its settings), and `POSTHOG_PERSON_DELETION_API_KEY` (a personal API key with `person:write` on that project) so deleting an account also deletes its analytics. Without the deletion key, account deletions stop at their last stage and retry until it's set | Convex env |
 | Core Worker | `POSTHOG_PROJECT_TOKEN` | `self-host/.env` |
-| Web app | `VITE_PUBLIC_POSTHOG_PROJECT_TOKEN` and `TEAK_ANALYTICS_ENABLED=true` | Both in the build environment, and `TEAK_ANALYTICS_ENABLED` also as a Worker secret (`bunx wrangler secret put TEAK_ANALYTICS_ENABLED` from `apps/web`) |
+| Web app | `VITE_PUBLIC_POSTHOG_PROJECT_TOKEN` and `TEAK_ANALYTICS_ENABLED=true` | Both in the build environment |
 
-The web app reports only while `TEAK_ANALYTICS_ENABLED` is `true`. The token and the browser's reporting are fixed when you build, so changing either value means building and deploying again; the Worker's error reports also check `TEAK_ANALYTICS_ENABLED` at runtime. Leave a part's token unset and that part sends nothing.
+The web app reports only while `TEAK_ANALYTICS_ENABLED` is `true`. The token, the browser's reporting and the Worker's error reports are all fixed when you build, so changing either value means building and deploying again. Leave a part's token unset and that part sends nothing.

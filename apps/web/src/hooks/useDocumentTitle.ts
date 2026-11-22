@@ -1,15 +1,13 @@
 import { useLayoutEffect } from "react";
-
-/** The tab title as the root layout writes it: `Name · Teak`. */
-export const documentTitle = (name: string) => `${name} · Teak`;
+import { pageTitle } from "@/lib/pageTitle";
 
 /**
- * Names the tab after what the page shows once it has loaded, and again
- * when it changes (a renamed folder), so the browser's tab and the route
- * announcer, which reads the title, never keep a generic or stale name.
- * Null leaves the title the route's metadata set.
+ * Names the tab after something only the page knows once it has loaded (a
+ * folder's name, a link that's gone), and again when it changes, so the
+ * browser's tab and the route announcer never keep a generic or stale name.
+ * Null leaves the title the route's `head` set.
  *
- * On a client-side navigation the route's metadata ("Folder") can arrive
+ * On a client-side navigation the route's `head` ("Folder") can be written
  * after the name is already known, so the title is held while the page is
  * shown: a later write to `<head>` is put back. A layout effect lets go
  * in the same commit that leaves the page, before the next route's title.
@@ -19,7 +17,7 @@ export function useDocumentTitle(name: string | null | undefined) {
     if (!name) {
       return;
     }
-    const title = documentTitle(name);
+    const title = pageTitle(name);
     const apply = () => {
       if (document.title !== title) {
         document.title = title;

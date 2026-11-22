@@ -1,10 +1,12 @@
 import { captureEvent } from "@teak/convex/shared/analytics";
-import { articleWordsBucket } from "@teak/convex/shared/article";
-import { ARTICLE_SANITIZE_SCHEMA } from "@teak/convex/shared/highlights/articleTree";
+import {
+  articleWordsBucket,
+  parseArticleImageToken,
+} from "@teak/convex/shared/article";
 import { sanitizeExternalUrl } from "@teak/convex/shared/utils/safeUrl";
 import { urlHostForDisplay } from "@teak/convex/shared/utils/urlHost";
 import { useIntlLocale, useTranslations } from "@teak/i18n/react";
-import type { ComponentProps, ReactNode, RefObject } from "react";
+import type { ReactNode, RefObject } from "react";
 import {
   createContext,
   useContext,
@@ -13,13 +15,6 @@ import {
   useRef,
   useState,
 } from "react";
-import Markdown, {
-  type Components,
-  type ExtraProps,
-  type Options as MarkdownOptions,
-} from "react-markdown";
-import rehypeSanitize from "rehype-sanitize";
-import remarkGfm from "remark-gfm";
 import { ResilientMediaImage, SiteFavicon } from "@/components/media";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -33,11 +28,15 @@ import {
   type HighlightJump,
   type ReaderHighlightControls,
 } from "./ArticleHighlights";
-import { rehypeArticle } from "./articleMarkdown";
 import {
   cachedFileTextPreview,
   requestFileTextPreview,
 } from "./fileTextPreviewCache";
+import {
+  type MarkdownImage,
+  type MarkdownRenderOptions,
+  renderMarkdown,
+} from "./MarkdownRenderer";
 
 /**
  * The attribute on the reader's root `<article>`. Phase 8's highlight layer
@@ -204,61 +203,45 @@ const ReaderImagesContext = createContext<ReaderImages>({
   imageUrls: NO_IMAGES,
 });
 
-function ReaderImage({
-  alt,
-  src,
-  title: caption,
-}: ComponentProps<"img"> & ExtraProps) {
+function ReaderImage({ alt, src, title: caption }: MarkdownImage) {
   const { cardId, imageKeys, imageUrls } = useContext(ReaderImagesContext);
-  const url = typeof src === "string" ? src : "";
-  if (!url) {
+  // Only the article's own images: a reference to an image it doesn't have,
+  // or any other address, renders nothing.
+  const index = parseArticleImageToken(src);
+  const url = index === null ? undefined : imageUrls[index];
+  if (!url || index === null) {
     return null;
   }
-  const index = imageUrls.indexOf(url);
   return (
     <span className="reader-figure">
       <ResilientMediaImage
-        alt={alt ?? ""}
+        alt={alt}
         cardId={cardId}
         className="h-auto w-full rounded-lg"
         loading="lazy"
         src={url}
-        storageKey={index >= 0 ? imageKeys[index] : undefined}
+        storageKey={imageKeys[index]}
       />
       {caption ? <span className="reader-caption">{caption}</span> : null}
     </span>
   );
 }
 
-/**
- * The reader's Markdown elements. They live outside the component so they
- * keep one identity: a component made during render is a new type each
- * time, and React would remount its links, images and tables on every
- * highlight change, leaving the highlight layer's text index pointing at
- * nodes no longer in the page.
- */
-const READER_COMPONENTS: Components = {
-  a: ({ children, href }) => (
+const READER_RENDER_OPTIONS: MarkdownRenderOptions = {
+  demoteH1: true,
+  image: (image) => <ReaderImage {...image} />,
+  link: ({ children, href }) => (
     <a href={href} rel="noopener noreferrer" target="_blank">
       {children}
     </a>
   ),
-  img: ReaderImage,
-  table: ({ children }) => (
-    <div className="reader-table">
-      <table>{children}</table>
-    </div>
-  ),
+  table: (table) => <div className="reader-table">{table}</div>,
 };
-
-const REMARK_PLUGINS: NonNullable<MarkdownOptions["remarkPlugins"]> = [
-  remarkGfm,
-];
 
 /**
  * The Read tab: a link's article in one typographic default. It renders
- * the extracted Markdown, never the page's HTML: GFM, then the article's own
- * images, then rehype-sanitize's schema.
+ * the extracted Markdown, never the page's HTML: GFM, the article's own
+ * images, and links only over http, https and mailto.
  */
 export function ArticleReader({
   card,
@@ -293,12 +276,16 @@ export function ArticleReader({
     }
   }, [opened, wordCount, category]);
 
-  const plugins = useMemo<NonNullable<MarkdownOptions["rehypePlugins"]>>(
-    () => [
-      rehypeArticle({ imageUrls, title }),
-      [rehypeSanitize, ARTICLE_SANITIZE_SCHEMA],
-    ],
-    [imageUrls, title]
+  const markdown = loaded.status === "ready" ? loaded.markdown : undefined;
+  const body = useMemo(
+    () =>
+      markdown === undefined
+        ? null
+        : renderMarkdown(markdown, {
+            ...READER_RENDER_OPTIONS,
+            openingTitle: title,
+          }),
+    [markdown, title]
   );
   const imageKeys = article?.imageKeys ?? NO_IMAGES;
   const images = useMemo<ReaderImages>(
@@ -401,14 +388,7 @@ export function ArticleReader({
         {...{ [ARTICLE_BODY_ATTRIBUTE]: "" }}
       >
         <ReaderImagesContext.Provider value={images}>
-          <Markdown
-            components={READER_COMPONENTS}
-            rehypePlugins={plugins}
-            remarkPlugins={REMARK_PLUGINS}
-            skipHtml
-          >
-            {loaded.markdown}
-          </Markdown>
+          {body}
         </ReaderImagesContext.Provider>
       </div>
       {highlights ? (

@@ -15,7 +15,7 @@ mock.module("@teak/convex/shared/clientTelemetry", () => ({
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
 const { SidebarProvider } = await import("@/components/ui/sidebar");
-const { SegmentErrorScreen } = await import("../SegmentErrorScreen");
+const { PageErrorScreen } = await import("../PageErrorScreen");
 const { SidebarFoldersBoundary } = await import(
   "@/components/sidebar/SidebarFoldersBoundary"
 );
@@ -47,17 +47,15 @@ test("a page that fails says so in place, reports it, and Try again reloads", as
     configurable: true,
     value: reload,
   });
-  const error = Object.assign(new Error("[CONVEX Q(tags:listTagSummary)]"), {
-    digest: "abc",
-  });
+  const error = new Error("[CONVEX Q(tags:listTagSummary)]");
   const container = await render(
-    <SegmentErrorScreen boundary="app" error={error} />
+    <PageErrorScreen boundary="app" error={error} />
   );
 
   expect(container.querySelector('[role="alert"]')?.textContent).toBe(
     "Something went wrong. Please try again.Try again"
   );
-  expect(captured).toEqual([[error, { digest: "abc", "ui.boundary": "app" }]]);
+  expect(captured).toEqual([[error, { "ui.boundary": "app" }]]);
   await act(async () => button("Try again")?.click());
   expect(reload).toHaveBeenCalledTimes(1);
 });

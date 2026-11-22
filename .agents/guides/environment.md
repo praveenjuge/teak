@@ -47,8 +47,9 @@ are the public `VITE_PUBLIC_*` values, `TEAK_ANALYTICS_ENABLED=true` and the
 `POSTHOG_CLI_*` source map upload pair; `vite.config.ts` inlines the public
 values. At runtime it holds `WORKOS_CLIENT_ID` and `WORKOS_COOKIE_PASSWORD`
 as secrets (`bunx wrangler secret put <NAME>` from `apps/web`), and reads
-`VITE_PUBLIC_WORKOS_REDIRECT_URI` and `TEAK_ANALYTICS_ENABLED` from its
-environment too. Its config has no `vars` and no `keep_vars`, and
+`VITE_PUBLIC_WORKOS_REDIRECT_URI` from its environment too (the analytics
+switch is build-time only; the old `TEAK_ANALYTICS_ENABLED` Worker secret is
+no longer read and can be deleted). Its config has no `vars` and no `keep_vars`, and
 `wrangler deploy` deletes plain variables set in the dashboard, so keep
 runtime values as secrets. The Vercel `teak` project stays for a week as a
 fallback, then is deleted.

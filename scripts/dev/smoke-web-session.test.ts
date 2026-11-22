@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { unsealData } from "iron-session";
+import { sessionEncryption } from "@workos/authkit-session";
 import {
   describeWorkosError,
   sealSessionCookie,
   testSessionEmail,
 } from "../lib/workos-test-session.ts";
-import { redirectsTo } from "./smoke-web-session.ts";
+import { redirectsTo, startsSignIn } from "./smoke-web-session.ts";
 
 const base = "http://localhost:3000";
 
@@ -24,6 +24,20 @@ describe("smoke-web-session", () => {
     ["a redirect to another origin", 307, "https://evil.example/sign-in"],
   ])("rejects %s as the auth gate", (_label, status, location) => {
     expect(redirectsTo(status, location, base, "/sign-in")).toBe(false);
+  });
+});
+
+describe("the anonymous auth gate", () => {
+  test("accepts a page load sent straight to hosted AuthKit with this app's callback", () => {
+    const authorize = `https://api.workos.com/user_management/authorize?client_id=client_1&redirect_uri=${encodeURIComponent(`${base}/callback`)}`;
+    expect(startsSignIn(307, authorize, base)).toBe(true);
+    expect(startsSignIn(307, "/sign-in?next=%2F", base)).toBe(true);
+  });
+
+  test("rejects AuthKit sending the session to another app", () => {
+    const authorize = `https://api.workos.com/user_management/authorize?redirect_uri=${encodeURIComponent("https://evil.example/callback")}`;
+    expect(startsSignIn(307, authorize, base)).toBe(false);
+    expect(startsSignIn(200, null, base)).toBe(false);
   });
 });
 
@@ -56,7 +70,9 @@ describe("workos-test-session", () => {
     });
     expect(cookie.value).not.toContain("access-fixture");
     expect(
-      await unsealData(cookie.value, { password: cookiePassword })
+      await sessionEncryption.unsealData(cookie.value, {
+        password: cookiePassword,
+      })
     ).toMatchObject({
       accessToken: "access-fixture",
       refreshToken: "refresh-fixture",

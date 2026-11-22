@@ -1,4 +1,4 @@
-import { FOCUS_COMPOSER_PARAM } from "@/lib/libraryViews";
+import { FOCUS_COMPOSER_PARAM } from "../libraryViews";
 import {
   SHARE_ACTION_PATH,
   SHARE_CACHE,

@@ -12,11 +12,9 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as StandaloneRouteImport } from './routes/_standalone'
 import { Route as CallbackRouteImport } from './routes/callback'
-import { Route as ManifestDotwebmanifestRouteImport } from './routes/manifest[.]webmanifest'
 import { Route as ShareRouteImport } from './routes/share'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as SignUpRouteImport } from './routes/sign-up'
-import { Route as SwDotjsRouteImport } from './routes/sw[.]js'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppArchiveRouteImport } from './routes/_app/archive'
 import { Route as AppFavoritesRouteImport } from './routes/_app/favorites'
@@ -45,11 +43,6 @@ const CallbackRoute = CallbackRouteImport.update({
   path: '/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ManifestDotwebmanifestRoute = ManifestDotwebmanifestRouteImport.update({
-  id: '/manifest.webmanifest',
-  path: '/manifest.webmanifest',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ShareRoute = ShareRouteImport.update({
   id: '/share',
   path: '/share',
@@ -63,11 +56,6 @@ const SignInRoute = SignInRouteImport.update({
 const SignUpRoute = SignUpRouteImport.update({
   id: '/sign-up',
   path: '/sign-up',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SwDotjsRoute = SwDotjsRouteImport.update({
-  id: '/sw.js',
-  path: '/sw.js',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppIndexRoute = AppIndexRouteImport.update({
@@ -144,11 +132,9 @@ const StandaloneOpenCardIdRoute = StandaloneOpenCardIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/callback': typeof CallbackRoute
-  '/manifest.webmanifest': typeof ManifestDotwebmanifestRoute
   '/share': typeof ShareRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
-  '/sw.js': typeof SwDotjsRoute
   '/archive': typeof AppArchiveRoute
   '/favorites': typeof AppFavoritesRoute
   '/settings': typeof AppSettingsRouteWithChildren
@@ -166,11 +152,9 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof AppIndexRoute
   '/callback': typeof CallbackRoute
-  '/manifest.webmanifest': typeof ManifestDotwebmanifestRoute
   '/share': typeof ShareRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
-  '/sw.js': typeof SwDotjsRoute
   '/archive': typeof AppArchiveRoute
   '/favorites': typeof AppFavoritesRoute
   '/tags': typeof AppTagsRoute
@@ -189,11 +173,9 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/_standalone': typeof StandaloneRouteWithChildren
   '/callback': typeof CallbackRoute
-  '/manifest.webmanifest': typeof ManifestDotwebmanifestRoute
   '/share': typeof ShareRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
-  '/sw.js': typeof SwDotjsRoute
   '/_app/archive': typeof AppArchiveRoute
   '/_app/favorites': typeof AppFavoritesRoute
   '/_app/settings': typeof AppSettingsRouteWithChildren
@@ -214,11 +196,9 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/callback'
-    | '/manifest.webmanifest'
     | '/share'
     | '/sign-in'
     | '/sign-up'
-    | '/sw.js'
     | '/archive'
     | '/favorites'
     | '/settings'
@@ -236,11 +216,9 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/callback'
-    | '/manifest.webmanifest'
     | '/share'
     | '/sign-in'
     | '/sign-up'
-    | '/sw.js'
     | '/archive'
     | '/favorites'
     | '/tags'
@@ -258,11 +236,9 @@ export interface FileRouteTypes {
     | '/_app'
     | '/_standalone'
     | '/callback'
-    | '/manifest.webmanifest'
     | '/share'
     | '/sign-in'
     | '/sign-up'
-    | '/sw.js'
     | '/_app/archive'
     | '/_app/favorites'
     | '/_app/settings'
@@ -283,11 +259,9 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   StandaloneRoute: typeof StandaloneRouteWithChildren
   CallbackRoute: typeof CallbackRoute
-  ManifestDotwebmanifestRoute: typeof ManifestDotwebmanifestRoute
   ShareRoute: typeof ShareRoute
   SignInRoute: typeof SignInRoute
   SignUpRoute: typeof SignUpRoute
-  SwDotjsRoute: typeof SwDotjsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -313,13 +287,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/manifest.webmanifest': {
-      id: '/manifest.webmanifest'
-      path: '/manifest.webmanifest'
-      fullPath: '/manifest.webmanifest'
-      preLoaderRoute: typeof ManifestDotwebmanifestRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/share': {
       id: '/share'
       path: '/share'
@@ -339,13 +306,6 @@ declare module '@tanstack/react-router' {
       path: '/sign-up'
       fullPath: '/sign-up'
       preLoaderRoute: typeof SignUpRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/sw.js': {
-      id: '/sw.js'
-      path: '/sw.js'
-      fullPath: '/sw.js'
-      preLoaderRoute: typeof SwDotjsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/': {
@@ -509,11 +469,9 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   StandaloneRoute: StandaloneRouteWithChildren,
   CallbackRoute: CallbackRoute,
-  ManifestDotwebmanifestRoute: ManifestDotwebmanifestRoute,
   ShareRoute: ShareRoute,
   SignInRoute: SignInRoute,
   SignUpRoute: SignUpRoute,
-  SwDotjsRoute: SwDotjsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

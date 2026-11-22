@@ -1,6 +1,7 @@
 import { useTranslations } from "@teak/i18n/react";
-import type { ComponentType, MouseEvent, ReactNode } from "react";
+import type { ReactNode } from "react";
 import { PanelLeft } from "vadivam-react";
+import { AppLink } from "@/components/AppLink";
 import { LogoMark } from "@/components/LogoMark";
 import {
   Sidebar,
@@ -29,22 +30,12 @@ const TagsIcon = GO_TO.tags.icon;
 const SettingsIcon = GO_TO.settings.icon;
 const SECONDARY_VIEWS = ["archive", "trash"] as const;
 
-export type SidebarLinkComponent = ComponentType<{
-  "aria-current"?: "page";
-  "aria-label"?: string;
-  children: ReactNode;
-  className?: string;
-  href: string;
-  onClick?: (event: MouseEvent<HTMLAnchorElement>) => void;
-}>;
-
 export interface AppSidebarProps {
   activeView: LibraryView | null;
   addActions?: ReactNode;
   foldersSlot?: ReactNode;
   isSettingsActive?: boolean;
   isTagsActive?: boolean;
-  LinkComponent: SidebarLinkComponent;
   onNavigate?: () => void;
 }
 
@@ -65,7 +56,6 @@ export function AppSidebar({
   foldersSlot,
   isSettingsActive = false,
   isTagsActive = false,
-  LinkComponent,
   onNavigate,
 }: AppSidebarProps) {
   const t = useTranslations("sidebar.nav");
@@ -92,14 +82,14 @@ export function AppSidebar({
         <SidebarMenuButton
           isActive={isActive}
           render={
-            <LinkComponent
+            <AppLink
               aria-current={isActive ? "page" : undefined}
               href={href}
               onClick={handleNavigate}
             >
               <Icon />
               <span>{label}</span>
-            </LinkComponent>
+            </AppLink>
           }
           tooltip={goToTooltip(view, label)}
         />
@@ -119,13 +109,13 @@ export function AppSidebar({
             <SidebarMenuButton
               className="h-8 w-auto px-[7px] hover:bg-transparent active:bg-transparent group-data-[collapsible=icon]:h-8! group-data-[collapsible=icon]:px-[7px]! [&>svg]:size-[18px] [&>svg]:opacity-100"
               render={
-                <LinkComponent
+                <AppLink
                   aria-label={t("home")}
                   href={GO_TO.all.href}
                   onClick={handleNavigate}
                 >
                   <LogoMark />
-                </LinkComponent>
+                </AppLink>
               }
               tooltip="Teak"
             />
@@ -160,14 +150,14 @@ export function AppSidebar({
               <SidebarMenuButton
                 isActive={isTagsActive}
                 render={
-                  <LinkComponent
+                  <AppLink
                     aria-current={isTagsActive ? "page" : undefined}
                     href={GO_TO.tags.href}
                     onClick={handleNavigate}
                   >
                     <TagsIcon />
                     <span>{t("tags")}</span>
-                  </LinkComponent>
+                  </AppLink>
                 }
                 tooltip={goToTooltip("tags", t("tags"))}
               />
@@ -187,7 +177,7 @@ export function AppSidebar({
             <SidebarMenuButton
               isActive={isSettingsActive}
               render={
-                <LinkComponent
+                <AppLink
                   aria-current={isSettingsActive ? "page" : undefined}
                   aria-label={t("settings")}
                   href={GO_TO.settings.href}
@@ -195,7 +185,7 @@ export function AppSidebar({
                 >
                   <SettingsIcon />
                   <span>{t("settings")}</span>
-                </LinkComponent>
+                </AppLink>
               }
               tooltip={goToTooltip("settings", t("settings"))}
             />

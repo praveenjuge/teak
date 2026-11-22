@@ -1,4 +1,4 @@
-import { useLocation, useNavigate } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { SETTINGS_PATHS } from "@teak/convex/shared/webRoutes";
 import { useEffect } from "react";
 import {
@@ -12,36 +12,8 @@ import {
 } from "@/components/settings";
 import { useSettings } from "@/components/settings/SettingsProvider";
 import { useBillingEnabled } from "@/hooks/useBillingEnabled";
-import {
-  parseSettingsDialogParam,
-  settingsDataHref,
-} from "@/lib/commandPalette";
 
-function useLegacyDialogRedirect() {
-  const navigate = useNavigate();
-  const dialogParam = useLocation({
-    select: (location) => new URLSearchParams(location.searchStr).get("dialog"),
-  });
-  useEffect(() => {
-    if (dialogParam === null) {
-      return;
-    }
-    const tab = parseSettingsDialogParam(dialogParam);
-    if (tab) {
-      // Let the router scroll to the section the link named.
-      navigate({ href: settingsDataHref(tab), replace: true });
-    } else {
-      navigate({
-        href: SETTINGS_PATHS.account,
-        replace: true,
-        resetScroll: false,
-      });
-    }
-  }, [dialogParam, navigate]);
-}
-
-export function SettingsPageClient() {
-  useLegacyDialogRedirect();
+export function SettingsPage() {
   const { inboundEmail, language, settings } = useSettings();
   const billingEnabled = useBillingEnabled();
   return (
@@ -68,7 +40,7 @@ export function SettingsPageClient() {
   );
 }
 
-export function PlanPageClient() {
+export function PlanPage() {
   const { checkout, settings } = useSettings();
   const billingEnabled = useBillingEnabled();
   const navigate = useNavigate();
@@ -91,12 +63,12 @@ export function PlanPageClient() {
   );
 }
 
-export function AppearancePageClient() {
+export function AppearancePage() {
   const { language } = useSettings();
   return <AppearanceSettings language={language} />;
 }
 
-export function IntegrationsPageClient() {
+export function IntegrationsPage() {
   const { inboundEmail, settings } = useSettings();
   return (
     <IntegrationsSettings
@@ -113,7 +85,7 @@ export function IntegrationsPageClient() {
   );
 }
 
-export function SecurityPageClient() {
+export function SecurityPage() {
   const { settings } = useSettings();
   return (
     <>
@@ -141,7 +113,7 @@ export function SecurityPageClient() {
   );
 }
 
-export function DataPageClient() {
+export function DataPage() {
   const { settings } = useSettings();
   return (
     <DataSettings

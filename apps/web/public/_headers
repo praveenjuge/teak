@@ -9,3 +9,32 @@
 # Vite fingerprints everything under /assets, so it never changes.
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
+
+# Written at build time from src/lib/installFiles.ts.
+/sw.js
+  Cache-Control: no-cache
+  Service-Worker-Allowed: /
+
+/manifest.webmanifest
+  Cache-Control: public, max-age=0, must-revalidate
+  Content-Type: application/manifest+json
+
+# Icons and images keep their names when they change, so they're cached for
+# a day, not forever.
+/icons/*
+  Cache-Control: public, max-age=86400
+
+/platform-icons/*
+  Cache-Control: public, max-age=86400
+
+/favicon.ico
+  Cache-Control: public, max-age=86400
+
+/icon.svg
+  Cache-Control: public, max-age=86400
+
+/apple-icon.png
+  Cache-Control: public, max-age=86400
+
+/opengraph-image.png
+  Cache-Control: public, max-age=86400

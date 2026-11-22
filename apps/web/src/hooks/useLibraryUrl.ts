@@ -1,6 +1,7 @@
 import { useLocation, useNavigate, useRouter } from "@tanstack/react-router";
 import { CARD_PARAM } from "@teak/convex/shared/webRoutes";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { appSearchParams } from "@/lib/appSearch";
 import { folderPath } from "@/lib/folders";
 import {
   ADD_TO_FOLDER_PARAM,
@@ -37,26 +38,20 @@ export function useLibraryUrl({ folderId }: { folderId?: string } = {}) {
   const router = useRouter();
   const navigate = useNavigate();
   const pathname = useLocation({ select: (location) => location.pathname });
-  const searchStr = useLocation({ select: (location) => location.searchStr });
-  const searchParams = useMemo(
-    () => new URLSearchParams(searchStr),
-    [searchStr]
-  );
-  const cardIdFromUrl = searchParams.get(CARD_PARAM);
-  const addToFolderId = folderId
-    ? undefined
-    : (searchParams.get(ADD_TO_FOLDER_PARAM) ?? undefined);
-  const focusComposer = searchParams.get(FOCUS_COMPOSER_PARAM) === "1";
+  const search = useLocation({ select: (location) => location.search });
+  const cardIdFromUrl = search[CARD_PARAM] ?? null;
+  const addToFolderId = folderId ? undefined : search[ADD_TO_FOLDER_PARAM];
+  const focusComposer = search[FOCUS_COMPOSER_PARAM] === "1";
   const [composerDraft] = useState(() => {
-    const shared = readSharedText(searchParams);
+    const shared = readSharedText(appSearchParams(search));
     return shared ? sharedDraft(shared) : undefined;
   });
-  useSharedFiles(searchParams.get(SHARE_FILES_PARAM));
+  useSharedFiles(search[SHARE_FILES_PARAM] ?? null);
   // Only the search's own params, so opening a card keeps the same state.
   const searchOnly = new URLSearchParams();
   for (const name of SEARCH_URL_PARAMS) {
-    const value = searchParams.get(name);
-    if (value !== null) {
+    const value = search[name];
+    if (value !== undefined) {
       searchOnly.set(name, value);
     }
   }
@@ -141,7 +136,11 @@ export function useLibraryUrl({ folderId }: { folderId?: string } = {}) {
 
   const setCardId = (cardId: string | null, replace: boolean) => {
     openCardIdRef.current = cardId;
-    const nextUrl = cardHref(cardId, pathname, searchParams.toString());
+    const nextUrl = cardHref(
+      cardId,
+      pathname,
+      appSearchParams(search).toString()
+    );
     cardEntryUrlRef.current = cardId ? nextUrl : null;
     navigate({ href: nextUrl, replace, resetScroll: false });
   };

@@ -12,9 +12,7 @@ declare namespace NodeJS {
 interface ImportMetaEnv {
   readonly VITE_PUBLIC_APP_VERSION?: string;
   readonly VITE_PUBLIC_COMMIT_SHA?: string;
-  readonly VITE_PUBLIC_CONVEX_SITE_URL?: string;
   readonly VITE_PUBLIC_CONVEX_URL?: string;
   readonly VITE_PUBLIC_FILES_BASE?: string;
   readonly VITE_PUBLIC_POSTHOG_PROJECT_TOKEN?: string;
-  readonly VITE_PUBLIC_WORKOS_REDIRECT_URI?: string;
 }

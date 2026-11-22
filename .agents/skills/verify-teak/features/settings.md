@@ -20,7 +20,7 @@ Settings is a set of pages under `/settings`, listed in the nav "Settings pages"
 - `settings-api-key-regenerate` replaces a key with a new one after a confirmation.
 - `settings-plan` shows on Plan the row "Current plan" with its badge ("Free Plan" or "Pro") and the progressbar "Cards used" ("N of 200 cards", "M cards left") and, on the free plan, the section "Upgrade to Pro" with "$99 / year" (first, with the badge "Best value • Save 57%") and "$19 / month", the list "Everything in Pro", and "Continue to checkout". On Pro it opens with the card "Teak Pro · Everything, unlimited.", has the row "Billing" with "Manage subscription", and lists "Included in your plan" instead.
 - `settings-delete-account` asks for the phrase "delete account"; the field starts empty every time the dialog opens.
-- `settings-legacy-link` sends an old `/settings?dialog=import` (or `export`) link to `/settings/data#import` (or `#export`).
+- `settings-legacy-link` sends an old `/settings?dialog=import` (or `export`) link to `/settings/data#import` (or `#export`), before the page renders: a page load gets a redirect from the server (`curl -sI` shows a 307 with that `location` for a signed-in cookie), and an in-app link never shows the Account page first. Any other `dialog` value goes to `/settings`.
 - `not-found` shows "Page not found" with a link "Go to your cards" for any unknown URL, in the chosen theme.
 
 ## How to get to it (user POV)

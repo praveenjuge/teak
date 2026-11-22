@@ -1,9 +1,13 @@
+import { isNotFound, isRedirect } from "@tanstack/react-router";
 import {
   createCsrfMiddleware,
   createMiddleware,
   createStart,
 } from "@tanstack/react-start";
+import { getCookie, getRequest } from "@tanstack/react-start/server";
+import { SESSION_HINT_COOKIE } from "@teak/convex/shared/sessionHint";
 import { authkitMiddleware } from "@workos/authkit-tanstack-react-start";
+import { reportServerError } from "@/server/errorReport";
 import {
   sessionHintHeader,
   signInGuard,
@@ -51,14 +55,14 @@ const sessionMiddleware = createMiddleware()
     authkitFailureMiddleware,
     authkitMiddleware(),
   ])
-  .server(async ({ request, context, next }) => {
+  .server(async ({ context, next }) => {
     const progress = (context as AuthContext)?.authkitProgress;
     if (progress) {
       progress.pastAuthKit = true;
     }
     const result = await next();
     const hint = sessionHintHeader(
-      request,
+      getCookie(SESSION_HINT_COOKIE),
       configureWorkos().origin,
       Boolean((context as AuthContext)?.auth?.().user)
     );
@@ -70,6 +74,23 @@ const sessionMiddleware = createMiddleware()
     return { ...result, response };
   });
 
+// Start answers a server function that throws with an error response, so
+// the error never reaches server.ts; it is reported here instead. Redirects
+// and not-founds are answers, not failures.
+const functionErrorMiddleware = createMiddleware({ type: "function" }).server(
+  async ({ next }) => {
+    try {
+      return await next();
+    } catch (error) {
+      if (!(isRedirect(error) || isNotFound(error))) {
+        reportServerError(error, getRequest());
+      }
+      throw error;
+    }
+  }
+);
+
 export const startInstance = createStart(() => ({
   requestMiddleware: [csrfMiddleware, sessionMiddleware],
+  functionMiddleware: [functionErrorMiddleware],
 }));

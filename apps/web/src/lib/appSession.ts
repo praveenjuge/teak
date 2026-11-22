@@ -1,10 +1,6 @@
 import { redirect } from "@tanstack/react-router";
-import { createServerFn } from "@tanstack/react-start";
-import {
-  getCookie,
-  getRequestHeaders,
-  getRequestUrl,
-} from "@tanstack/react-start/server";
+import { createIsomorphicFn, createServerFn } from "@tanstack/react-start";
+import { getCookie, getRequestUrl } from "@tanstack/react-start/server";
 import {
   LOCALE_COOKIE,
   loadMessages,
@@ -15,7 +11,6 @@ import { getAuth, getSignInUrl } from "@workos/authkit-tanstack-react-start";
 import type { AuthKitProviderProps } from "@workos/authkit-tanstack-react-start/client";
 import { configureWorkos } from "@/server/workos";
 import { signInPath } from "./authUrls";
-import { isDocumentRequest } from "./documentRequest";
 import type { QuerySeed } from "./firstLoadQueries";
 import { fetchFirstLoadSeeds } from "./firstLoadSeeds";
 import { localeFromCookie } from "./locale";
@@ -32,11 +27,20 @@ export interface AppSession {
   initialAuth: NonNullable<AuthKitProviderProps["initialAuth"]>;
   locale: UiLocale;
   messages: PartialMessages;
-  seeds: QuerySeed[];
+  /** A promise on a page load, rendered on the server; empty otherwise. */
+  seeds: QuerySeed[] | Promise<QuerySeed[]>;
   sidebar: { defaultOpen: boolean; defaultWidth: number };
 }
 
 export type AppSessionResult = AppSession | { unavailable: true };
+
+/**
+ * Whether the router is rendering a page load on the server. A later
+ * navigation runs in the browser, which calls the server for the session.
+ */
+export const isPageLoad = createIsomorphicFn()
+  .server(() => true)
+  .client(() => false);
 
 /**
  * What every signed-in page needs from the server: the session, the person's
@@ -46,11 +50,13 @@ export type AppSessionResult = AppSession | { unavailable: true };
  * gives the page. Without a session it redirects to sign-in.
  */
 export const loadAppSession = createServerFn({ method: "GET" })
-  .validator((data: { path: string; seeds: boolean }) => {
+  .validator((data: { pageLoad: boolean; path: string; seeds: boolean }) => {
     // The types hold for the app's own calls; a request built by hand gets
     // checked here. The path is always the page's own, never another origin.
     const input: unknown = data;
-    const { path, seeds } = (input ?? {}) as Partial<Record<string, unknown>>;
+    const { pageLoad, path, seeds } = (input ?? {}) as Partial<
+      Record<string, unknown>
+    >;
     if (
       typeof path !== "string" ||
       !path.startsWith("/") ||
@@ -58,7 +64,7 @@ export const loadAppSession = createServerFn({ method: "GET" })
     ) {
       throw new Error("loadAppSession needs the page's path");
     }
-    return { path, seeds: seeds === true };
+    return { pageLoad: pageLoad === true, path, seeds: seeds === true };
   })
   .handler(async ({ data }): Promise<AppSessionResult> => {
     let auth: Awaited<ReturnType<typeof getAuth>>;
@@ -71,7 +77,7 @@ export const loadAppSession = createServerFn({ method: "GET" })
       // A page load goes straight to hosted AuthKit, with its PKCE cookie;
       // a client navigation can't follow that cross-origin hop, so it goes
       // through /sign-in, which starts AuthKit as a page load.
-      if (isDocumentRequest(getRequestHeaders())) {
+      if (data.pageLoad) {
         throw redirect({
           href: await getSignInUrl({
             data: {
@@ -86,12 +92,12 @@ export const loadAppSession = createServerFn({ method: "GET" })
     const { accessToken, ...initialAuth } = auth;
     const locale = localeFromCookie(getCookie(LOCALE_COOKIE));
     const href = new URL(data.path, getRequestUrl()).toString();
-    const [seeds, messages] = await Promise.all([
-      data.seeds && accessToken
-        ? fetchFirstLoadSeeds(href, accessToken)
-        : ([] as QuerySeed[]),
-      loadMessages(locale),
-    ]);
+    // Deferred: the page's head and loading frame stream at once, and its
+    // content streams into the same response when the seeds answer (within
+    // their budget; the promise never rejects).
+    const seeds =
+      data.seeds && accessToken ? fetchFirstLoadSeeds(href, accessToken) : [];
+    const messages = await loadMessages(locale);
     return {
       accessToken,
       initialAuth,

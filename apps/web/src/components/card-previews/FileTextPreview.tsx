@@ -2,7 +2,6 @@ import type { FileFormat } from "@teak/convex/shared/fileFormats";
 import { useTranslations } from "@teak/i18n/react";
 import { common, createLowlight } from "lowlight";
 import { type ReactNode, useEffect, useState } from "react";
-import Markdown from "react-markdown";
 import "./sourceCodePreview.css";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -10,8 +9,8 @@ import {
   requestFileTextPreview,
   textPreviewKey,
 } from "./fileTextPreviewCache";
+import { type MarkdownRenderOptions, renderMarkdown } from "./MarkdownRenderer";
 
-const LANGUAGE_CLASS_REGEX = /language-([\w-]+)/u;
 const highlighter = createLowlight(common);
 const SUPPORTED_LANGUAGES: Record<string, string> = {
   css: "css",
@@ -74,31 +73,24 @@ export function SourceCodePreview({ code, language }: SourceCodePreviewProps) {
   );
 }
 
+const PREVIEW_RENDER_OPTIONS: MarkdownRenderOptions = {
+  codeBlock: ({ code, language }) =>
+    language ? (
+      <SourceCodePreview code={code.replace(/\n$/u, "")} language={language} />
+    ) : (
+      <code>{code}</code>
+    ),
+  link: ({ children, href }) => (
+    <a href={href} rel="noopener noreferrer">
+      {children}
+    </a>
+  ),
+};
+
 export function SafeMarkdownPreview({ source }: { source: string }) {
   return (
     <div className="typeset typeset-docs max-w-[37em] pb-6">
-      <Markdown
-        components={{
-          a: ({ children, href }) => (
-            <a href={href} rel="noopener noreferrer">
-              {children}
-            </a>
-          ),
-          code: ({ children, className }) => {
-            const language = LANGUAGE_CLASS_REGEX.exec(className ?? "")?.[1];
-            const code = String(children).replace(/\n$/u, "");
-            return language ? (
-              <SourceCodePreview code={code} language={language} />
-            ) : (
-              <code>{children}</code>
-            );
-          },
-          pre: ({ children }) => children,
-        }}
-        skipHtml
-      >
-        {source}
-      </Markdown>
+      {renderMarkdown(source, PREVIEW_RENDER_OPTIONS)}
     </div>
   );
 }

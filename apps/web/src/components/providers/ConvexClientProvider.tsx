@@ -9,6 +9,7 @@ import { ConvexQueryCacheProvider } from "convex-helpers/react/cache/provider";
 import {
   createContext,
   type ReactNode,
+  Suspense,
   useCallback,
   useContext,
   useRef,
@@ -25,20 +26,25 @@ export default function ConvexClientProvider({
   children,
   initialAuth,
   initialToken,
+  loading = null,
   seeds = [],
 }: {
   children: ReactNode;
   initialAuth?: AuthKitProviderProps["initialAuth"];
   initialToken?: string;
-  seeds?: readonly QuerySeed[];
+  /** Shown while a page load's seeds stream in. */
+  loading?: ReactNode;
+  seeds?: readonly QuerySeed[] | Promise<readonly QuerySeed[]>;
 }) {
   return (
     <AuthKitProvider initialAuth={initialAuth}>
       <PageTokenContext.Provider value={initialToken}>
         <ConvexProviderWithAuth client={convex} useAuth={useAuthFromAuthKit}>
-          <QuerySeedsProvider seeds={seeds}>
-            <ConvexQueryCacheProvider>{children}</ConvexQueryCacheProvider>
-          </QuerySeedsProvider>
+          <Suspense fallback={loading}>
+            <QuerySeedsProvider seeds={seeds}>
+              <ConvexQueryCacheProvider>{children}</ConvexQueryCacheProvider>
+            </QuerySeedsProvider>
+          </Suspense>
         </ConvexProviderWithAuth>
       </PageTokenContext.Provider>
     </AuthKitProvider>
