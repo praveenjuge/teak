@@ -836,6 +836,10 @@
         <item quantity="other">카드 %1$d개 이상을 영구 삭제하는 중</item>
     </plurals>
     <string name="native_trash_rateLimited">방금 휴지통을 여러 번 비웠습니다. 1분 후에 다시 시도하세요.</string>
+    <string name="native_widgets_favoritesDescription">최근 즐겨찾기에 추가한 카드입니다.</string>
+    <string name="native_widgets_favoritesEmpty">아직 즐겨찾기가 없습니다</string>
+    <string name="native_widgets_quickCapture">빠른 캡처</string>
+    <string name="native_widgets_quickCaptureDescription">메모, 음성 메모, 업로드를 한 번의 탭으로 시작합니다.</string>
     <string name="search_colorHues_blue">파란색</string>
     <string name="search_colorHues_brown">갈색</string>
     <string name="search_colorHues_cyan">시안</string>

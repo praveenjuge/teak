@@ -28,6 +28,7 @@ import com.praveenjuge.teak.core.data.repository.LanguageRepository
 import com.praveenjuge.teak.core.designsystem.theme.TeakTheme
 import com.praveenjuge.teak.core.i18n.AppLanguage
 import com.praveenjuge.teak.feature.auth.SignInController
+import com.praveenjuge.teak.feature.capture.CapturePick
 import com.praveenjuge.teak.ui.LaunchRequest
 import com.praveenjuge.teak.ui.TeakApp
 import dagger.hilt.android.AndroidEntryPoint
@@ -130,13 +131,30 @@ class MainActivity : ComponentActivity() {
             // The code can be spent only once, so finishing sign-in outlives a rotation or a closed activity. It starts
             // on the main thread right away, so it's marked as completing before onResume could cancel it.
             SignInController.isCallback(uri) -> appScope.launch(Dispatchers.Main.immediate) { signIn.handleCallback(requireNotNull(uri)) }
-            intent?.action == ACTION_NEW_NOTE -> launchRequest.value = LaunchRequest.NewNote
-            intent?.action == ACTION_VOICE_MEMO -> launchRequest.value = LaunchRequest.VoiceMemo
+            else -> launchRequest(intent)?.let { launchRequest.value = it }
         }
     }
 
     companion object {
         const val ACTION_NEW_NOTE = "com.praveenjuge.teak.action.NEW_NOTE"
         const val ACTION_VOICE_MEMO = "com.praveenjuge.teak.action.VOICE_MEMO"
+        const val ACTION_PHOTOS = "com.praveenjuge.teak.action.PHOTOS"
+        const val ACTION_CAMERA = "com.praveenjuge.teak.action.CAMERA"
+        const val ACTION_FILES = "com.praveenjuge.teak.action.FILES"
+        const val ACTION_OPEN_CARD = "com.praveenjuge.teak.action.OPEN_CARD"
+        const val EXTRA_CARD_ID = "com.praveenjuge.teak.extra.CARD_ID"
+
+        private val cardId = Regex("[a-z0-9]{16,64}")
+
+        /** The screen a shortcut's or a widget's intent asks for, or null for any other intent. */
+        fun launchRequest(intent: Intent?): LaunchRequest? = when (intent?.action) {
+            ACTION_NEW_NOTE -> LaunchRequest.NewNote
+            ACTION_VOICE_MEMO -> LaunchRequest.VoiceMemo
+            ACTION_PHOTOS -> LaunchRequest.Capture(CapturePick.Photos)
+            ACTION_CAMERA -> LaunchRequest.Capture(CapturePick.Camera)
+            ACTION_FILES -> LaunchRequest.Capture(CapturePick.Files)
+            ACTION_OPEN_CARD -> intent.getStringExtra(EXTRA_CARD_ID)?.takeIf(cardId::matches)?.let(LaunchRequest::OpenCard)
+            else -> null
+        }
     }
 }

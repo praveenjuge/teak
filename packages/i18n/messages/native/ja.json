@@ -805,6 +805,12 @@
       "pdfPage": "{page} / {total} ページ",
       "pdfLoading": "PDF を開いています…",
       "pdfFailed": "この PDF を開けませんでした。"
+    },
+    "widgets": {
+      "quickCapture": "クイックキャプチャ",
+      "quickCaptureDescription": "メモ、ボイスメモ、アップロードをワンタップで開始します。",
+      "favoritesDescription": "最近お気に入りに追加したカードです。",
+      "favoritesEmpty": "お気に入りはまだありません"
     }
   },
   "apple": {
@@ -980,12 +986,6 @@
       "zoomIn": "拡大",
       "zoomOut": "縮小",
       "zoomToFit": "ウインドウに合わせる"
-    },
-    "widgets": {
-      "quickCapture": "クイックキャプチャ",
-      "quickCaptureDescription": "メモ、ボイスメモ、アップロードをワンタップで開始します。",
-      "favoritesDescription": "最近お気に入りに追加したカードです。",
-      "favoritesEmpty": "お気に入りはまだありません"
     }
   },
   "android": {

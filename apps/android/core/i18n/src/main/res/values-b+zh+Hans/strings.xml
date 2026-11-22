@@ -836,6 +836,10 @@
         <item quantity="other">正在永久删除至少 %1$d 张卡片</item>
     </plurals>
     <string name="native_trash_rateLimited">刚才已多次清空废纸篓。请一分钟后再试。</string>
+    <string name="native_widgets_favoritesDescription">你最近收藏的卡片。</string>
+    <string name="native_widgets_favoritesEmpty">还没有收藏</string>
+    <string name="native_widgets_quickCapture">快速记录</string>
+    <string name="native_widgets_quickCaptureDescription">轻点一下即可开始笔记、语音备忘录或上传。</string>
     <string name="search_colorHues_blue">蓝色</string>
     <string name="search_colorHues_brown">棕色</string>
     <string name="search_colorHues_cyan">青色</string>

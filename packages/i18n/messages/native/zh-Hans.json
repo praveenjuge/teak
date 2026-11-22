@@ -805,6 +805,12 @@
       "pdfPage": "第 {page} 页，共 {total} 页",
       "pdfLoading": "正在打开 PDF…",
       "pdfFailed": "无法打开此 PDF。"
+    },
+    "widgets": {
+      "quickCapture": "快速记录",
+      "quickCaptureDescription": "轻点一下即可开始笔记、语音备忘录或上传。",
+      "favoritesDescription": "你最近收藏的卡片。",
+      "favoritesEmpty": "还没有收藏"
     }
   },
   "apple": {
@@ -980,12 +986,6 @@
       "zoomIn": "放大",
       "zoomOut": "缩小",
       "zoomToFit": "缩放至适合大小"
-    },
-    "widgets": {
-      "quickCapture": "快速记录",
-      "quickCaptureDescription": "轻点一下即可开始笔记、语音备忘录或上传。",
-      "favoritesDescription": "你最近收藏的卡片。",
-      "favoritesEmpty": "还没有收藏"
     }
   },
   "android": {

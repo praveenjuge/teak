@@ -876,6 +876,10 @@
         <item quantity="other">Excluindo pelo menos %1$d cards permanentemente</item>
     </plurals>
     <string name="native_trash_rateLimited">A lixeira foi esvaziada várias vezes agora há pouco. Tente de novo em um minuto.</string>
+    <string name="native_widgets_favoritesDescription">Seus cards favoritos mais recentes.</string>
+    <string name="native_widgets_favoritesEmpty">Nenhum favorito ainda</string>
+    <string name="native_widgets_quickCapture">Captura rápida</string>
+    <string name="native_widgets_quickCaptureDescription">Comece uma nota, uma nota de voz ou um envio com um toque.</string>
     <string name="search_colorHues_blue">Azul</string>
     <string name="search_colorHues_brown">Marrom</string>
     <string name="search_colorHues_cyan">Ciano</string>

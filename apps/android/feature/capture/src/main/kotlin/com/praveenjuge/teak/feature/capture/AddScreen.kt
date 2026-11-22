@@ -27,6 +27,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -53,13 +54,21 @@ import androidx.compose.foundation.layout.wrapContentWidth
 
 private enum class CameraAlert { PermissionDenied, Unavailable }
 
+/** A picker the Add screen opens as it shows, for a widget's button. */
+enum class CapturePick { Photos, Camera, Files }
+
 private val UriListSaver = listSaver<List<Uri>?, String>(
     save = { it.orEmpty().map(Uri::toString) },
     restore = { saved -> saved.map(Uri::parse).takeIf { it.isNotEmpty() } },
 )
 
 @Composable
-fun AddRoute(onWriteNote: () -> Unit, onRecordVoice: () -> Unit) {
+fun AddRoute(
+    onWriteNote: () -> Unit,
+    onRecordVoice: () -> Unit,
+    pick: CapturePick? = null,
+    onPickHandled: () -> Unit = {},
+) {
     val viewModel: AddViewModel = hiltViewModel()
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -115,22 +124,36 @@ fun AddRoute(onWriteNote: () -> Unit, onRecordVoice: () -> Unit) {
         if (granted) launchCamera() else cameraAlert = CameraAlert.PermissionDenied
     }
 
+    fun pickPhotos() = pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo))
+
+    fun takePhoto() {
+        // Teak declares the camera permission, so the camera app only opens once it's granted.
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+            launchCamera()
+        } else {
+            cameraPermission.launch(Manifest.permission.CAMERA)
+        }
+    }
+
+    fun chooseFiles() = pickFiles.launch(arrayOf("*/*"))
+
+    LaunchedEffect(pick) {
+        when (pick) {
+            CapturePick.Photos -> pickPhotos()
+            CapturePick.Camera -> takePhoto()
+            CapturePick.Files -> chooseFiles()
+            null -> return@LaunchedEffect
+        }
+        onPickHandled()
+    }
+
     AddScreen(
         state = state,
         onWriteNote = onWriteNote,
         onRecordVoice = onRecordVoice,
-        onPickMedia = {
-            pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo))
-        },
-        onTakePhoto = {
-            // Teak declares the camera permission, so the camera app only opens once it's granted.
-            if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
-                launchCamera()
-            } else {
-                cameraPermission.launch(Manifest.permission.CAMERA)
-            }
-        },
-        onPickFiles = { pickFiles.launch(arrayOf("*/*")) },
+        onPickMedia = ::pickPhotos,
+        onTakePhoto = ::takePhoto,
+        onPickFiles = ::chooseFiles,
         onClearFinished = viewModel::clearFinished,
         onDismissAlert = viewModel::dismissAlert,
     )

@@ -7,9 +7,16 @@ import com.praveenjuge.teak.core.data.auth.SessionState
 import com.praveenjuge.teak.core.data.repository.AccountRepository
 import com.praveenjuge.teak.core.designsystem.component.TeakLoading
 import com.praveenjuge.teak.feature.auth.WelcomeRoute
+import com.praveenjuge.teak.feature.capture.CapturePick
 import kotlinx.coroutines.flow.StateFlow
 
-enum class LaunchRequest { NewNote, VoiceMemo }
+/** What a launcher shortcut or a widget opens the app on. */
+sealed interface LaunchRequest {
+    data object NewNote : LaunchRequest
+    data object VoiceMemo : LaunchRequest
+    data class Capture(val pick: CapturePick) : LaunchRequest
+    data class OpenCard(val id: String) : LaunchRequest
+}
 
 @Composable
 fun TeakApp(

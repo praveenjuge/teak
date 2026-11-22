@@ -876,6 +876,10 @@
         <item quantity="other">Mindestens %1$d Karten werden endgültig gelöscht</item>
     </plurals>
     <string name="native_trash_rateLimited">Der Papierkorb wurde gerade mehrmals geleert. Versuchen Sie es in einer Minute erneut.</string>
+    <string name="native_widgets_favoritesDescription">Ihre neuesten Favoriten.</string>
+    <string name="native_widgets_favoritesEmpty">Noch keine Favoriten</string>
+    <string name="native_widgets_quickCapture">Schnellerfassung</string>
+    <string name="native_widgets_quickCaptureDescription">Starten Sie mit einem Tippen eine Notiz, ein Sprachmemo oder einen Upload.</string>
     <string name="search_colorHues_blue">Blau</string>
     <string name="search_colorHues_brown">Braun</string>
     <string name="search_colorHues_cyan">Cyan</string>

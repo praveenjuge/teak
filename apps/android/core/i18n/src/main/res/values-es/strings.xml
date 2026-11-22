@@ -876,6 +876,10 @@
         <item quantity="other">Eliminando al menos %1$d tarjetas definitivamente</item>
     </plurals>
     <string name="native_trash_rateLimited">La papelera se vació varias veces hace un momento. Inténtelo de nuevo en un minuto.</string>
+    <string name="native_widgets_favoritesDescription">Sus tarjetas favoritas más recientes.</string>
+    <string name="native_widgets_favoritesEmpty">Aún no hay favoritas</string>
+    <string name="native_widgets_quickCapture">Captura rápida</string>
+    <string name="native_widgets_quickCaptureDescription">Empiece una nota, una nota de voz o una subida con un toque.</string>
     <string name="search_colorHues_blue">Azul</string>
     <string name="search_colorHues_brown">Marrón</string>
     <string name="search_colorHues_cyan">Cian</string>

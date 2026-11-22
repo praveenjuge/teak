@@ -876,6 +876,10 @@
         <item quantity="other">Deleting at least %1$d cards forever</item>
     </plurals>
     <string name="native_trash_rateLimited">Trash was emptied a few times just now. Try again in a minute.</string>
+    <string name="native_widgets_favoritesDescription">Your newest favorite cards.</string>
+    <string name="native_widgets_favoritesEmpty">No favorites yet</string>
+    <string name="native_widgets_quickCapture">Quick Capture</string>
+    <string name="native_widgets_quickCaptureDescription">Start a note, a voice memo or an upload in one tap.</string>
     <string name="search_colorHues_blue">Blue</string>
     <string name="search_colorHues_brown">Brown</string>
     <string name="search_colorHues_cyan">Cyan</string>

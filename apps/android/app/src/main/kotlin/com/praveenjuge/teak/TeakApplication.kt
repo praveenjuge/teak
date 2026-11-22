@@ -31,6 +31,10 @@ import com.praveenjuge.teak.core.i18n.tr
 import com.praveenjuge.teak.offline.StableCacheKeys
 import com.praveenjuge.teak.offline.SuccessfulResponsesOnly
 import com.praveenjuge.teak.offline.TilePrefetchWorker
+import com.praveenjuge.teak.widget.FavoritesWidget
+import com.praveenjuge.teak.widget.FavoritesWidgetWriter
+import com.praveenjuge.teak.widget.QuickCaptureWidget
+import androidx.glance.appwidget.updateAll
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.collectLatest
@@ -54,6 +58,7 @@ class TeakApplication : Application(), Configuration.Provider, SingletonImageLoa
     @Inject lateinit var e2eLaunch: Optional<E2ELaunch>
     @Inject lateinit var language: LanguageRepository
     @Inject lateinit var uploads: UploadRepository
+    @Inject lateinit var favoritesWidget: FavoritesWidgetWriter
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder().setWorkerFactory(workerFactory).build()
@@ -63,7 +68,13 @@ class TeakApplication : Application(), Configuration.Provider, SingletonImageLoa
         initPostHog()
         publishShortcuts()
         // Android 12 sends no configuration change for an in-app language, so relabel on each change.
-        scope.launch { language.current.drop(1).collect { publishShortcuts() } }
+        scope.launch {
+            language.current.drop(1).collect {
+                publishShortcuts()
+                catchingFailures { relabelWidgets() }
+            }
+        }
+        favoritesWidget.start()
         scope.launch {
             e2eLaunch.orElse(null)?.let { launch -> catchingFailures { launch.adoptSession() } }
             account.start()
@@ -76,6 +87,12 @@ class TeakApplication : Application(), Configuration.Provider, SingletonImageLoa
     override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
         super.onConfigurationChanged(newConfig)
         publishShortcuts()
+    }
+
+    /** The widgets' labels and empty text follow the app's language. */
+    private suspend fun relabelWidgets() {
+        QuickCaptureWidget().updateAll(this)
+        FavoritesWidget.redraw(this)
     }
 
     private fun publishShortcuts() {

@@ -26,6 +26,7 @@ import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import com.praveenjuge.teak.feature.capture.AddRoute
+import com.praveenjuge.teak.feature.capture.CapturePick
 import com.praveenjuge.teak.feature.capture.NoteComposerRoute
 import com.praveenjuge.teak.feature.capture.VoiceMemoRoute
 import com.praveenjuge.teak.feature.card.CardDetailPlaceholder
@@ -66,6 +67,7 @@ fun TeakNavigation(launchRequest: LaunchRequest?, onLaunchRequestHandled: () -> 
     )
     var tab by rememberSaveable { mutableStateOf(Tab.Home) }
     var searchRequest by rememberSaveable { mutableStateOf<String?>(null) }
+    var capturePick by rememberSaveable { mutableStateOf<CapturePick?>(null) }
     val width = currentWindowAdaptiveInfo().windowSizeClass.windowWidth()
     val tabs = navigationTabs(width)
     // Narrowing the window drops Favorites, Archive and Trash from the bar; their chips are back on Home.
@@ -84,6 +86,17 @@ fun TeakNavigation(launchRequest: LaunchRequest?, onLaunchRequestHandled: () -> 
             LaunchRequest.VoiceMemo -> {
                 tab = Tab.Add
                 stacks.getValue(Tab.Add).resetUnlessCapturing(Add, VoiceMemo)
+            }
+            is LaunchRequest.Capture -> {
+                tab = Tab.Add
+                val add = stacks.getValue(Tab.Add)
+                add.resetUnlessCapturing(Add)
+                // Over a note or voice memo in progress, the picker waits for no one: it isn't opened later.
+                if (add.lastOrNull() == Add) capturePick = launchRequest.pick
+            }
+            is LaunchRequest.OpenCard -> {
+                tab = Tab.Home
+                stacks.getValue(Tab.Home).replaceDetail(CardDetail(launchRequest.id))
             }
             null -> return@LaunchedEffect
         }
@@ -125,7 +138,10 @@ fun TeakNavigation(launchRequest: LaunchRequest?, onLaunchRequestHandled: () -> 
                         rememberSaveableStateHolderNavEntryDecorator<NavKey>(),
                         rememberViewModelStoreNavEntryDecorator<NavKey>(),
                     ),
-                    entryProvider = destinations(stack, viewChips, ::searchHome, searchRequest) { searchRequest = null },
+                    entryProvider = destinations(
+                        stack, viewChips, ::searchHome, searchRequest, { searchRequest = null },
+                        capturePick, { capturePick = null },
+                    ),
                 )
             }
         }
@@ -150,6 +166,8 @@ private fun destinations(
     searchHome: (String) -> Unit,
     searchRequest: String?,
     onSearchRequestHandled: () -> Unit,
+    capturePick: CapturePick?,
+    onCapturePickHandled: () -> Unit,
 ): (NavKey) -> NavEntry<NavKey> {
     return entryProvider {
         entry<Home>(metadata = ListDetailSceneStrategy.listPane(detailPlaceholder = { CardDetailPlaceholder() })) {
@@ -207,6 +225,8 @@ private fun destinations(
             AddRoute(
                 onWriteNote = { backStack.push(NoteComposer()) },
                 onRecordVoice = { backStack.push(VoiceMemo) },
+                pick = capturePick,
+                onPickHandled = onCapturePickHandled,
             )
         }
         entry<NoteComposer> { key ->

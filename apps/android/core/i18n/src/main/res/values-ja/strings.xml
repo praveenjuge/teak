@@ -836,6 +836,10 @@
         <item quantity="other">%1$d 枚以上のカードを完全に削除しています</item>
     </plurals>
     <string name="native_trash_rateLimited">ゴミ箱を短時間に何度も空にしました。1 分後にもう一度お試しください。</string>
+    <string name="native_widgets_favoritesDescription">最近お気に入りに追加したカードです。</string>
+    <string name="native_widgets_favoritesEmpty">お気に入りはまだありません</string>
+    <string name="native_widgets_quickCapture">クイックキャプチャ</string>
+    <string name="native_widgets_quickCaptureDescription">メモ、ボイスメモ、アップロードをワンタップで開始します。</string>
     <string name="search_colorHues_blue">青</string>
     <string name="search_colorHues_brown">茶</string>
     <string name="search_colorHues_cyan">シアン</string>

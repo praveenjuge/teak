@@ -35,6 +35,30 @@
             </intent-filter>
         </activity>
 
+        <receiver
+            android:name=".widget.QuickCaptureWidgetReceiver"
+            android:exported="true"
+            android:label="@string/native_widgets_quickCapture">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/quick_capture_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.FavoritesWidgetReceiver"
+            android:exported="true"
+            android:label="@string/native_filters_favorites">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/favorites_widget_info" />
+        </receiver>
+
         <!-- Uploads use a Hilt worker factory, so WorkManager starts from TeakApplication. -->
         <provider
             android:name="androidx.startup.InitializationProvider"

@@ -805,6 +805,12 @@
       "pdfPage": "Page {page} of {total}",
       "pdfLoading": "Opening the PDF…",
       "pdfFailed": "Couldn't open this PDF."
+    },
+    "widgets": {
+      "quickCapture": "Quick Capture",
+      "quickCaptureDescription": "Start a note, a voice memo or an upload in one tap.",
+      "favoritesDescription": "Your newest favorite cards.",
+      "favoritesEmpty": "No favorites yet"
     }
   },
   "apple": {
@@ -980,12 +986,6 @@
       "zoomIn": "Zoom In",
       "zoomOut": "Zoom Out",
       "zoomToFit": "Zoom to Fit"
-    },
-    "widgets": {
-      "quickCapture": "Quick Capture",
-      "quickCaptureDescription": "Start a note, a voice memo or an upload in one tap.",
-      "favoritesDescription": "Your newest favorite cards.",
-      "favoritesEmpty": "No favorites yet"
     }
   },
   "android": {

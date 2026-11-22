@@ -12,8 +12,8 @@ struct QuickCaptureWidget: Widget {
         StaticConfiguration(kind: Self.kind, provider: QuickCaptureProvider()) { _ in
             QuickCaptureView()
         }
-        .configurationDisplayName(tr("apple.widgets.quickCapture"))
-        .description(tr("apple.widgets.quickCaptureDescription"))
+        .configurationDisplayName(tr("native.widgets.quickCapture"))
+        .description(tr("native.widgets.quickCaptureDescription"))
         .supportedFamilies(Self.families)
         .contentMarginsDisabled()
     }

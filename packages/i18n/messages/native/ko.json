@@ -805,6 +805,12 @@
       "pdfPage": "{page}/{total}페이지",
       "pdfLoading": "PDF를 여는 중…",
       "pdfFailed": "이 PDF를 열지 못했습니다."
+    },
+    "widgets": {
+      "quickCapture": "빠른 캡처",
+      "quickCaptureDescription": "메모, 음성 메모, 업로드를 한 번의 탭으로 시작합니다.",
+      "favoritesDescription": "최근 즐겨찾기에 추가한 카드입니다.",
+      "favoritesEmpty": "아직 즐겨찾기가 없습니다"
     }
   },
   "apple": {
@@ -980,12 +986,6 @@
       "zoomIn": "확대",
       "zoomOut": "축소",
       "zoomToFit": "윈도우에 맞게 확대/축소"
-    },
-    "widgets": {
-      "quickCapture": "빠른 캡처",
-      "quickCaptureDescription": "메모, 음성 메모, 업로드를 한 번의 탭으로 시작합니다.",
-      "favoritesDescription": "최근 즐겨찾기에 추가한 카드입니다.",
-      "favoritesEmpty": "아직 즐겨찾기가 없습니다"
     }
   },
   "android": {

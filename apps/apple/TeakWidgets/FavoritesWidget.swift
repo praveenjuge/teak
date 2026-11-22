@@ -11,7 +11,7 @@ struct FavoritesWidget: Widget {
             FavoritesView(entry: entry)
         }
         .configurationDisplayName(tr("native.filters.favorites"))
-        .description(tr("apple.widgets.favoritesDescription"))
+        .description(tr("native.widgets.favoritesDescription"))
         .supportedFamilies(Self.families)
         // The tiles set their own inset, so their corners follow the widget's.
         .contentMarginsDisabled()
@@ -132,14 +132,14 @@ struct FavoritesView: View {
         switch family {
         #if os(iOS)
         case .accessoryRectangular, .accessoryInline:
-            Label(tr("apple.widgets.favoritesEmpty"), systemImage: "heart")
+            Label(tr("native.widgets.favoritesEmpty"), systemImage: "heart")
         #endif
         default:
             VStack(spacing: 8) {
                 Image(systemName: "heart")
                     .font(.title2.weight(.medium))
                     .widgetAccentable()
-                Text(tr("apple.widgets.favoritesEmpty"))
+                Text(tr("native.widgets.favoritesEmpty"))
                     .font(.subheadline.weight(.medium))
             }
             .foregroundStyle(.secondary)

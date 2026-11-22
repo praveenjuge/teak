@@ -876,6 +876,10 @@
         <item quantity="other">Suppression définitive d’au moins %1$d fiches</item>
     </plurals>
     <string name="native_trash_rateLimited">La corbeille a été vidée plusieurs fois à l’instant. Réessayez dans une minute.</string>
+    <string name="native_widgets_favoritesDescription">Vos fiches favorites les plus récentes.</string>
+    <string name="native_widgets_favoritesEmpty">Aucun favori pour l’instant</string>
+    <string name="native_widgets_quickCapture">Capture rapide</string>
+    <string name="native_widgets_quickCaptureDescription">Commencez une note, un mémo vocal ou un envoi d’un simple toucher.</string>
     <string name="search_colorHues_blue">Bleu</string>
     <string name="search_colorHues_brown">Marron</string>
     <string name="search_colorHues_cyan">Cyan</string>
