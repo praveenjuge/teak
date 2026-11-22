@@ -57,6 +57,33 @@ export const isCapacityError = (error: unknown): boolean => {
   return CAPACITY_MESSAGE.test(message);
 };
 
+const PROVIDER_FAILURE_CODES = new Set([5007, 5028]);
+
+/**
+ * Workers AI itself failed: a 5xx, an internal error (5007) or a retired
+ * model (5028, as on 2026-11-20). Another try later may work, or a fixed
+ * deploy will, so callers wait the way they do for capacity instead of
+ * failing the card.
+ */
+export const isProviderFailure = (error: unknown): boolean => {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+  const facts = error as {
+    status?: unknown;
+    statusCode?: unknown;
+    code?: unknown;
+  };
+  const status = numericErrorFact(facts.status ?? facts.statusCode);
+  const code =
+    numericErrorFact(facts.code) ??
+    numericErrorFact(/^(\d{4}):/u.exec(errorMessage(error))?.[1]);
+  return (
+    (code !== undefined && PROVIDER_FAILURE_CODES.has(code)) ||
+    (status !== undefined && status >= 500 && status < 600)
+  );
+};
+
 /** The op failure a call still at capacity after its retries ends with. */
 export const aiCapacityFailure = (
   aiFacts: FilesAiGenerationFacts = { validationRetryCount: 0 }
@@ -73,9 +100,10 @@ export interface WorkersAiEnv extends AiGatewayEnv, AiUsageEnv {
 /**
  * Every Workers AI call an op makes: metered, sent through the AI Gateway
  * when one is set, and tried again with backoff while Workers AI is at
- * capacity. A call still at capacity throws the `ai_capacity` op failure
- * (AI_CAPACITY), carrying `aiFacts` when the caller has them; any other
- * error comes back as Workers AI threw it.
+ * capacity. A call still at capacity, or one Workers AI failed itself
+ * (`isProviderFailure`), throws the `ai_capacity` op failure (AI_CAPACITY),
+ * carrying `aiFacts` when the caller has them; any other error comes back as
+ * Workers AI threw it.
  *
  * `capacityRetries: 0` leaves the waiting to the caller: card metadata's
  * workflow step backs off for half a minute and more on AI_CAPACITY, and
@@ -115,6 +143,10 @@ export const runWorkersAi = async (
       }
     );
   } catch (error) {
-    throw isCapacityError(error) ? aiCapacityFailure(call.aiFacts) : error;
+    // A provider failure answers AI_CAPACITY too, so the caller's step
+    // backs off and then defers instead of losing the card.
+    throw isCapacityError(error) || isProviderFailure(error)
+      ? aiCapacityFailure(call.aiFacts)
+      : error;
   }
 };

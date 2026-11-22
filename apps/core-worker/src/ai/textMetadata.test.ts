@@ -241,6 +241,25 @@ describe("signed text/link metadata", () => {
       consoleError.mockRestore();
     }
   });
+  test.each([
+    [
+      "a retired model (5028)",
+      Object.assign(new Error("5028: @cf/x was deprecated on 2026-11-20"), {}),
+    ],
+    [
+      "an internal error (5007)",
+      Object.assign(new Error("internal"), { code: 5007 }),
+    ],
+    ["a 503", Object.assign(new Error("upstream down"), { status: 503 })],
+  ])("%s answers AI_CAPACITY so the step waits", async (_name, failure) => {
+    const run = mock(() => Promise.reject(failure));
+    const response = await handleOp(
+      opCall("generate-text-metadata", { prompt: "A note" }),
+      env(run)
+    );
+    expect(response.status).toBe(429);
+    expect((await response.json()).error.code).toBe("AI_CAPACITY");
+  });
   test("bounds text and link prompts while retaining beginning and end", () => {
     const content = `beginning${"x".repeat(10_000)}ending`;
     for (const prompt of [

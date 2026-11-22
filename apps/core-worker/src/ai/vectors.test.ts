@@ -536,7 +536,7 @@ describe("vector-delete and vector-query", () => {
   test.each([
     [
       "vector-delete",
-      { ids: Array.from({ length: 1001 }, (_, i) => `c${i}`), shard: 0 },
+      { ids: Array.from({ length: 101 }, (_, i) => `c${i}`), shard: 0 },
     ],
     ["vector-query", { namespace: NAMESPACE, shard: 0, text: "a", topK: 101 }],
     ["vector-query", { shard: 0, text: "a", topK: 10 }],

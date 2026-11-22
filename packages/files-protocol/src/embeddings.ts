@@ -40,8 +40,11 @@ export const truncateForEmbedding = (text: string): string => {
 };
 
 export const EMBED_UPSERT_MAX_ITEMS = 32;
-/** Ids per `vector-delete` call; Vectorize's own mutation limit is 1,000. */
-export const VECTOR_DELETE_MAX_IDS = 1000;
+/**
+ * Ids per `vector-delete` call: Vectorize's `deleteByIds` refuses more than
+ * 100 ("too many ids in payload", code 40007).
+ */
+export const VECTOR_DELETE_MAX_IDS = 100;
 /**
  * Matches per `vector-query`. Vectorize allows 100, or 50 when matches come
  * back with values or full metadata, so queries ask for neither.

@@ -20,6 +20,7 @@ const deletionBackend = (
     storage?: Partial<Record<string, StorageRow[]>>;
     workflowIds?: string[];
     writersPrepared?: boolean;
+    vectorCount?: number;
   } = {}
 ) => {
   const state: Record<string, unknown> & { stage: number } = {
@@ -39,7 +40,11 @@ const deletionBackend = (
   const events: string[] = [];
   const checkpoints: number[] = [];
   const failures: Record<string, unknown>[] = [];
-  let embeddings = [{ cardId: "card-1", rowId: "row-1", shard: 0 }];
+  let embeddings = Array.from({ length: options.vectorCount ?? 1 }, (_, i) => ({
+    cardId: `card-${String(i + 1)}`,
+    rowId: `row-${String(i + 1)}`,
+    shard: 0,
+  }));
   let finalizePages = 1;
   const handlers: Record<string, FakeHandler> = {
     "accountDeletion:beginAccountDataDeletion": () => {
@@ -174,7 +179,16 @@ const setup = (
   const ops: OpCaller = (spec) => {
     opCalls.push({ op: spec.op, params: spec.params });
     if (spec.op === "vector-delete") {
-      return Promise.resolve({ data: {} as never, kind: "ok" });
+      // Vectorize refuses a delete of more than 100 ids (code 40007).
+      return Promise.resolve(
+        (spec.params.ids as string[]).length > 100
+          ? {
+              code: "INVALID_INPUT" as never,
+              kind: "declined",
+              message: "too many ids in payload",
+            }
+          : { data: {} as never, kind: "ok" }
+      );
     }
     return callFilesOp(env, spec);
   };
@@ -258,6 +272,24 @@ describe("runAccountDeletion", () => {
       "advance 5",
       "finalize",
     ]);
+  });
+
+  test("deletes an account's vectors in batches Vectorize accepts", async () => {
+    const backend = deletionBackend({
+      stage: ACCOUNT_DATA,
+      vectorCount: 250,
+      writersPrepared: true,
+    });
+    const test = setup(backend);
+
+    await runAccountDeletion(test.run, { convex: test.convex, ops: test.ops });
+
+    expect(
+      test.opCalls
+        .filter((call) => call.op === "vector-delete")
+        .map((call) => (call.params.ids as string[]).length)
+    ).toEqual([100, 100, 50]);
+    expect(completionReports(test.callsTo)).toEqual(["complete"]);
   });
 
   test("an object still being written keeps its rows, records why and fails the run", async () => {
