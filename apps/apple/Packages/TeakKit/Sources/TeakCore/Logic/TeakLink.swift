@@ -11,6 +11,12 @@ public enum TeakLink: Hashable, Sendable {
     case newNote
     /// `teak://voice-memo`: opens the voice memo recorder.
     case voiceMemo
+    /// `teak://photos`: opens the photo picker to upload photos and videos.
+    case photos
+    /// `teak://camera`: opens the camera, on iPhone and iPad.
+    case camera
+    /// `teak://files`: opens the file picker to upload files.
+    case files
 
     public static let scheme = "teak"
 
@@ -25,6 +31,9 @@ public enum TeakLink: Hashable, Sendable {
             self = .card(id)
         case "new-note" where path.isEmpty: self = .newNote
         case "voice-memo" where path.isEmpty: self = .voiceMemo
+        case "photos" where path.isEmpty: self = .photos
+        case "camera" where path.isEmpty: self = .camera
+        case "files" where path.isEmpty: self = .files
         default: return nil
         }
     }
@@ -44,6 +53,9 @@ public enum TeakLink: Hashable, Sendable {
             components.path = "/" + id
         case .newNote: components.host = "new-note"
         case .voiceMemo: components.host = "voice-memo"
+        case .photos: components.host = "photos"
+        case .camera: components.host = "camera"
+        case .files: components.host = "files"
         }
         return components.url!
     }

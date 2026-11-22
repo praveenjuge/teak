@@ -902,7 +902,13 @@
       "newNote": "新規メモ",
       "newNoteDescription": "Teak を開いて新規メモを作成します。",
       "voiceMemo": "ボイスメモ",
-      "voiceMemoDescription": "Teak を開いてボイスメモを開始します。"
+      "voiceMemoDescription": "Teak を開いてボイスメモを開始します。",
+      "photos": "写真を追加",
+      "photosDescription": "Teak を開いて写真の選択画面を表示します。",
+      "camera": "写真を撮る",
+      "cameraDescription": "Teak を開いてカメラを起動します。",
+      "files": "ファイルをアップロード",
+      "filesDescription": "Teak を開いてファイルの選択画面を表示します。"
     },
     "mac": {
       "openLibrary": "Teak ライブラリを開く",
@@ -944,7 +950,13 @@
       "folderEntity": "フォルダ",
       "titleProperty": "タイトル",
       "linkProperty": "リンク",
-      "smartFolderMessage": "スマートフォルダは検索条件で自動的に中身が決まります。別のフォルダを選んでください。"
+      "smartFolderMessage": "スマートフォルダは検索条件で自動的に中身が決まります。別のフォルダを選んでください。",
+      "choosePhotosTitle": "写真を追加",
+      "choosePhotosDescription": "Teak を開いて写真の選択画面を表示し、写真や動画を保存します。",
+      "takePhotoTitle": "写真を撮る",
+      "takePhotoDescription": "Teak を開いてカメラを起動し、写真や動画を保存します。",
+      "uploadFilesTitle": "ファイルをアップロード",
+      "uploadFilesDescription": "Teak を開いてファイルの選択画面を表示し、ファイルを保存します。"
     },
     "appShortcuts": {
       "save": "{applicationName} に保存",
@@ -968,6 +980,12 @@
       "zoomIn": "拡大",
       "zoomOut": "縮小",
       "zoomToFit": "ウインドウに合わせる"
+    },
+    "widgets": {
+      "quickCapture": "クイックキャプチャ",
+      "quickCaptureDescription": "メモ、ボイスメモ、アップロードをワンタップで開始します。",
+      "favoritesDescription": "最近お気に入りに追加したカードです。",
+      "favoritesEmpty": "お気に入りはまだありません"
     }
   },
   "android": {

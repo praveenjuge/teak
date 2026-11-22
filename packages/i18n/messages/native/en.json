@@ -902,7 +902,13 @@
       "newNote": "New Note",
       "newNoteDescription": "Opens Teak on a new note.",
       "voiceMemo": "Voice Memo",
-      "voiceMemoDescription": "Opens Teak and starts a voice memo."
+      "voiceMemoDescription": "Opens Teak and starts a voice memo.",
+      "photos": "Add Photos",
+      "photosDescription": "Opens Teak on the photo picker.",
+      "camera": "Take Photo",
+      "cameraDescription": "Opens Teak on the camera.",
+      "files": "Upload Files",
+      "filesDescription": "Opens Teak on the file picker."
     },
     "mac": {
       "openLibrary": "Open Teak Library",
@@ -944,7 +950,13 @@
       "folderEntity": "Folder",
       "titleProperty": "Title",
       "linkProperty": "Link",
-      "smartFolderMessage": "A smart folder fills itself from its search. Pick another folder."
+      "smartFolderMessage": "A smart folder fills itself from its search. Pick another folder.",
+      "choosePhotosTitle": "Add Photos",
+      "choosePhotosDescription": "Opens Teak on the photo picker to save photos and videos.",
+      "takePhotoTitle": "Take Photo",
+      "takePhotoDescription": "Opens Teak on the camera to save a photo or video.",
+      "uploadFilesTitle": "Upload Files",
+      "uploadFilesDescription": "Opens Teak on the file picker to save files."
     },
     "appShortcuts": {
       "save": "Save to {applicationName}",
@@ -968,6 +980,12 @@
       "zoomIn": "Zoom In",
       "zoomOut": "Zoom Out",
       "zoomToFit": "Zoom to Fit"
+    },
+    "widgets": {
+      "quickCapture": "Quick Capture",
+      "quickCaptureDescription": "Start a note, a voice memo or an upload in one tap.",
+      "favoritesDescription": "Your newest favorite cards.",
+      "favoritesEmpty": "No favorites yet"
     }
   },
   "android": {

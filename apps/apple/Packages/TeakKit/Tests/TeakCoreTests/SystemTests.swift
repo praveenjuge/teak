@@ -17,6 +17,9 @@ private func summary(_ id: String = cardId, type: CardType = .link, title: Strin
         #expect(TeakLink(try #require(URL(string: "teak://card/\(cardId)/"))) == .card(cardId))
         #expect(TeakLink(try #require(URL(string: "TEAK://new-note"))) == .newNote)
         #expect(TeakLink(try #require(URL(string: "teak://voice-memo"))) == .voiceMemo)
+        #expect(TeakLink(try #require(URL(string: "teak://photos"))) == .photos)
+        #expect(TeakLink(try #require(URL(string: "teak://camera"))) == .camera)
+        #expect(TeakLink(try #require(URL(string: "teak://files"))) == .files)
         #expect(TeakLink(try #require(URL(string: "teak://connect"))) == .connect)
         #expect(TeakLink(try #require(URL(string: "teak://save?text=hello+world"))) == .save("hello world"))
     }
@@ -25,6 +28,7 @@ private func summary(_ id: String = cardId, type: CardType = .link, title: Strin
         "teak://card", "teak://card/", "teak://card/short", "teak://card/\(cardId.uppercased())",
         "teak://card/\(cardId)/extra", "teak://card/\(cardId)%20x", "teak://card/../\(cardId)",
         "teak://card/\(String(repeating: "a", count: 65))", "teak://new-note/x", "teak://voice-memo/x",
+        "teak://photos/x", "teak://camera/x", "teak://files/x",
         "teak://unknown", "https://teakvault.com/card/\(cardId)",
     ])
     func ignoresBadLinks(_ link: String) throws {
@@ -32,12 +36,53 @@ private func summary(_ id: String = cardId, type: CardType = .link, title: Strin
     }
 
     @Test func writesLinksItReadsBack() {
-        for link in [TeakLink.card(cardId), .newNote, .voiceMemo, .connect, .save("Café + 50% & more?")] {
+        for link in [TeakLink.card(cardId), .newNote, .voiceMemo, .photos, .camera, .files, .connect,
+                     .save("Café + 50% & more?")] {
             #expect(TeakLink(link.url) == link)
         }
         #expect(TeakLink.card(cardId).url.absoluteString == "teak://card/\(cardId)")
         #expect(TeakLink.newNote.url.absoluteString == "teak://new-note")
         #expect(TeakLink.voiceMemo.url.absoluteString == "teak://voice-memo")
+    }
+}
+
+@Suite(.english) struct FavoritesSnapshotTests {
+    @Test func keepsWhatATileShowsAndLeavesArchivedCardsOut() throws {
+        var palette = summary("p" + cardId.dropFirst(), type: .palette, title: "Sunset")
+        palette.colors = ["#ff8800", "abc", "#11223380", "not a color", "#000000", "#FFFFFF", "#123456", "#654321"]
+        #expect(FavoritesSnapshot.Card.from(summary(archived: true)) == nil)
+        let (card, thumbnail) = try #require(FavoritesSnapshot.Card.from(palette))
+        // Stored as #RRGGBB, alpha dropped, bad values skipped, at most five.
+        #expect(card.colors == ["#FF8800", "#AABBCC", "#112233", "#000000", "#FFFFFF"])
+        #expect(card.image == nil && thumbnail == nil)
+
+        let link = try #require(FavoritesSnapshot.Card.from(summary(title: "Article", url: "https://www.example.com/a",
+                                                                   linkPreviewImageUrl: "https://cdn.example.com/a.jpg?sig=1")))
+        #expect(link.card.subtitle == "example.com")
+        #expect(link.thumbnail?.absoluteString == "https://cdn.example.com/a.jpg?sig=1")
+        #expect(link.card.image?.hasPrefix("\(cardId)-") == true)
+        #expect(link.card.link == TeakLink.card(cardId).url)
+    }
+
+    @Test func writesReadsAndDropsThumbnailsItNoLongerNames() throws {
+        let container = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: container) }
+        let first = FavoritesSnapshot(cards: [FavoritesSnapshot.Card(id: "a", type: .image, title: "A", image: "a-1.jpg")])
+        try first.write(to: container, images: ["a-1.jpg": Data([1])])
+        #expect(FavoritesSnapshot.read(from: container) == first)
+
+        let second = FavoritesSnapshot(cards: [FavoritesSnapshot.Card(id: "a", type: .image, title: "A", image: "a-2.jpg")])
+        try second.write(to: container, images: ["a-2.jpg": Data([2])])
+        let files = try FileManager.default.contentsOfDirectory(atPath: FavoritesSnapshot.folder(in: container).path())
+        #expect(Set(files) == ["Favorites.json", "a-2.jpg"])
+
+        FavoritesSnapshot.clear(in: container)
+        #expect(FavoritesSnapshot.read(from: container) == FavoritesSnapshot())
+    }
+
+    @Test func asksForTheNewestFavoritesOnly() {
+        #expect(FavoritesSnapshot.searchArgs["favoritesOnly"] == true)
+        #expect(FavoritesSnapshot.searchArgs["searchQuery"] == nil)
     }
 }
 

@@ -902,7 +902,13 @@
       "newNote": "Nueva nota",
       "newNoteDescription": "Abre Teak con una nota nueva.",
       "voiceMemo": "Nota de voz",
-      "voiceMemoDescription": "Abre Teak y empieza una nota de voz."
+      "voiceMemoDescription": "Abre Teak y empieza una nota de voz.",
+      "photos": "Añadir fotos",
+      "photosDescription": "Abre Teak en el selector de fotos.",
+      "camera": "Hacer foto",
+      "cameraDescription": "Abre Teak en la cámara.",
+      "files": "Subir archivos",
+      "filesDescription": "Abre Teak en el selector de archivos."
     },
     "mac": {
       "openLibrary": "Abrir la biblioteca de Teak",
@@ -944,7 +950,13 @@
       "folderEntity": "Carpeta",
       "titleProperty": "Título",
       "linkProperty": "Enlace",
-      "smartFolderMessage": "Una carpeta inteligente se llena con su búsqueda. Elija otra carpeta."
+      "smartFolderMessage": "Una carpeta inteligente se llena con su búsqueda. Elija otra carpeta.",
+      "choosePhotosTitle": "Añadir fotos",
+      "choosePhotosDescription": "Abre Teak en el selector de fotos para guardar fotos y vídeos.",
+      "takePhotoTitle": "Hacer foto",
+      "takePhotoDescription": "Abre Teak en la cámara para guardar una foto o un vídeo.",
+      "uploadFilesTitle": "Subir archivos",
+      "uploadFilesDescription": "Abre Teak en el selector de archivos para guardar archivos."
     },
     "appShortcuts": {
       "save": "Guardar en {applicationName}",
@@ -968,6 +980,12 @@
       "zoomIn": "Ampliar",
       "zoomOut": "Reducir",
       "zoomToFit": "Ajustar a la ventana"
+    },
+    "widgets": {
+      "quickCapture": "Captura rápida",
+      "quickCaptureDescription": "Empiece una nota, una nota de voz o una subida con un toque.",
+      "favoritesDescription": "Sus tarjetas favoritas más recientes.",
+      "favoritesEmpty": "Aún no hay favoritas"
     }
   },
   "android": {

@@ -21,6 +21,7 @@ final class AppModel {
     let session: TeakSession
     let backend: TeakBackend
     let spotlight: SpotlightIndexer
+    let favoritesWidget: FavoritesWidgetWriter
 
     private(set) var authMode: AuthMode?
     private(set) var user: SessionUser?
@@ -46,6 +47,7 @@ final class AppModel {
         session = TeakServices.session(config: config)
         backend = TeakBackend(convexURL: config.convexURL, session: session)
         spotlight = SpotlightIndexer(session: session)
+        favoritesWidget = FavoritesWidgetWriter(backend: backend, container: config.sharedContainer)
         defaults = TeakServices.sharedDefaults(config: config)
     }
 
@@ -71,7 +73,12 @@ final class AppModel {
         tasks.append(Task {
             for await authed in self.backend.authStates() {
                 self.isConvexAuthenticated = authed
-                if authed { self.refreshSpotlight() }
+                if authed {
+                    self.refreshSpotlight()
+                    self.favoritesWidget.start()
+                } else {
+                    self.favoritesWidget.stop()
+                }
             }
         })
         tasks.append(Task { await self.timeOutConfiguration() })
@@ -135,7 +142,10 @@ final class AppModel {
             }
             // Not awaited: emptying Spotlight can take many seconds, and the
             // next state (a sign-in) must not wait behind it.
-            if state == .signedOut { Task { [spotlight] in await spotlight.removeAll() } }
+            if state == .signedOut {
+                Task { [spotlight] in await spotlight.removeAll() }
+                favoritesWidget.clear()
+            }
             if previous != nil, state.user == nil {
                 authenticateTask?.cancel()
                 tokenTask?.cancel()

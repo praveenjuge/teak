@@ -902,7 +902,13 @@
       "newNote": "Nouvelle note",
       "newNoteDescription": "Ouvre Teak sur une nouvelle note.",
       "voiceMemo": "Mémo vocal",
-      "voiceMemoDescription": "Ouvre Teak et lance un mémo vocal."
+      "voiceMemoDescription": "Ouvre Teak et lance un mémo vocal.",
+      "photos": "Ajouter des photos",
+      "photosDescription": "Ouvre Teak sur le sélecteur de photos.",
+      "camera": "Prendre une photo",
+      "cameraDescription": "Ouvre Teak sur l’appareil photo.",
+      "files": "Importer des fichiers",
+      "filesDescription": "Ouvre Teak sur le sélecteur de fichiers."
     },
     "mac": {
       "openLibrary": "Ouvrir la bibliothèque Teak",
@@ -944,7 +950,13 @@
       "folderEntity": "Dossier",
       "titleProperty": "Titre",
       "linkProperty": "Lien",
-      "smartFolderMessage": "Un dossier intelligent se remplit à partir de sa recherche. Choisissez un autre dossier."
+      "smartFolderMessage": "Un dossier intelligent se remplit à partir de sa recherche. Choisissez un autre dossier.",
+      "choosePhotosTitle": "Ajouter des photos",
+      "choosePhotosDescription": "Ouvre Teak sur le sélecteur de photos pour enregistrer des photos et des vidéos.",
+      "takePhotoTitle": "Prendre une photo",
+      "takePhotoDescription": "Ouvre Teak sur l’appareil photo pour enregistrer une photo ou une vidéo.",
+      "uploadFilesTitle": "Importer des fichiers",
+      "uploadFilesDescription": "Ouvre Teak sur le sélecteur de fichiers pour enregistrer des fichiers."
     },
     "appShortcuts": {
       "save": "Enregistrer dans {applicationName}",
@@ -968,6 +980,12 @@
       "zoomIn": "Zoom avant",
       "zoomOut": "Zoom arrière",
       "zoomToFit": "Zoom à la taille de la fenêtre"
+    },
+    "widgets": {
+      "quickCapture": "Capture rapide",
+      "quickCaptureDescription": "Commencez une note, un mémo vocal ou un envoi d’un simple toucher.",
+      "favoritesDescription": "Vos fiches favorites les plus récentes.",
+      "favoritesEmpty": "Aucun favori pour l’instant"
     }
   },
   "android": {

@@ -117,6 +117,13 @@ final class AppRouter {
             if homePath.last?.id != id { homePath = [CardRoute(id: id, summary: nil)] }
         case .newNote: compose()
         case .voiceMemo: record()
+        case .photos: isPickingPhotos = true
+        case .files: isImportingFiles = true
+        case .camera:
+            // The Mac has no camera here, nor do some iPads and the Simulator.
+            #if os(iOS)
+            if UIImagePickerController.isSourceTypeAvailable(.camera) { isUsingCamera = true }
+            #endif
         case .save, .connect: break
         }
     }

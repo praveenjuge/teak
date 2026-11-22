@@ -64,6 +64,7 @@ struct MainView: View {
     @Environment(AppRouter.self) private var router
     @Environment(CaptureModel.self) private var capture
     @Namespace private var namespace
+    @State private var photos: [PhotosPickerItem] = []
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var sizeClass
     #endif
@@ -120,6 +121,16 @@ struct MainView: View {
         .sheet(isPresented: $router.isComposing) { NoteComposerView() }
         .sheet(isPresented: $router.isRecording) { VoiceMemoView() }
         #endif
+        .photosPicker(isPresented: $router.isPickingPhotos, selection: $photos,
+                      maxSelectionCount: TeakLimits.maxFilesPerUpload, selectionBehavior: .ordered,
+                      matching: .any(of: [.images, .videos]))
+        .onChange(of: photos) { _, selection in
+            guard !selection.isEmpty else { return }
+            Task {
+                await capture.uploadPhotos(selection)
+                photos = []
+            }
+        }
         .fileImporter(isPresented: $router.isImportingFiles, allowedContentTypes: [.item], allowsMultipleSelection: true) { result in
             if case let .success(urls) = result { Task { await capture.uploadPicked(urls) } }
         }

@@ -5,8 +5,8 @@ import TeakCore
 // forward and performs them there, where the `teak://` link goes to the app's router.
 // `OpenURLIntent` can't do this: it opens universal links only, not `teak://`.
 //
-// The New Note and Voice Memo controls run these too, so this file and IntentSession.swift
-// are also in the TeakWidgets extension, as Apple requires for a control that opens its app.
+// The controls run these too, so this file and IntentSession.swift are also in the
+// TeakWidgets extension, as Apple requires for a control that opens its app.
 
 struct NewNoteIntent: AppIntent {
     static let title = LocalizedStringResource("intents.newNoteTitle", table: "AppIntents")
@@ -28,6 +28,44 @@ struct RecordVoiceMemoIntent: AppIntent {
     @MainActor
     func perform() async throws -> some IntentResult {
         try await openInTeak(.voiceMemo)
+        return .result()
+    }
+}
+
+struct ChoosePhotosIntent: AppIntent {
+    static let title = LocalizedStringResource("intents.choosePhotosTitle", table: "AppIntents")
+    static let description = IntentDescription(LocalizedStringResource("intents.choosePhotosDescription", table: "AppIntents"))
+    static let supportedModes: IntentModes = .foreground
+
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        try await openInTeak(.photos)
+        return .result()
+    }
+}
+
+#if os(iOS)
+struct TakePhotoIntent: AppIntent {
+    static let title = LocalizedStringResource("intents.takePhotoTitle", table: "AppIntents")
+    static let description = IntentDescription(LocalizedStringResource("intents.takePhotoDescription", table: "AppIntents"))
+    static let supportedModes: IntentModes = .foreground
+
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        try await openInTeak(.camera)
+        return .result()
+    }
+}
+#endif
+
+struct UploadFilesIntent: AppIntent {
+    static let title = LocalizedStringResource("intents.uploadFilesTitle", table: "AppIntents")
+    static let description = IntentDescription(LocalizedStringResource("intents.uploadFilesDescription", table: "AppIntents"))
+    static let supportedModes: IntentModes = .foreground
+
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        try await openInTeak(.files)
         return .result()
     }
 }

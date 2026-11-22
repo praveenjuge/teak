@@ -3,8 +3,9 @@ import SwiftUI
 import TeakCore
 import WidgetKit
 
-/// Teak's Control Center, Lock Screen and Action button controls. They only open the app,
-/// so the extension never signs in or touches the network.
+/// Teak's widgets, and its Control Center, Lock Screen and Action button controls. They only
+/// open the app or read what it saved to the app group, so the extension never signs in or
+/// touches the network.
 @main
 struct TeakWidgetsBundle: WidgetBundle {
     init() {
@@ -13,8 +14,15 @@ struct TeakWidgetsBundle: WidgetBundle {
     }
 
     var body: some Widget {
+        QuickCaptureWidget()
+        FavoritesWidget()
         NewNoteControl()
         VoiceMemoControl()
+        ChoosePhotosControl()
+        #if os(iOS)
+        TakePhotoControl()
+        #endif
+        UploadFilesControl()
     }
 }
 
@@ -41,6 +49,47 @@ struct VoiceMemoControl: ControlWidget {
         }
         .displayName(catalogResource("apple.controls.voiceMemo"))
         .description(catalogResource("apple.controls.voiceMemoDescription"))
+    }
+}
+
+struct ChoosePhotosControl: ControlWidget {
+    var body: some ControlWidgetConfiguration {
+        StaticControlConfiguration(kind: "com.praveenjuge.teak.widgets.photos") {
+            ControlWidgetButton(action: ChoosePhotosIntent()) {
+                Label(tr("apple.controls.photos"), systemImage: "photo.on.rectangle")
+            }
+            .tint(Color("AccentColor"))
+        }
+        .displayName(catalogResource("apple.controls.photos"))
+        .description(catalogResource("apple.controls.photosDescription"))
+    }
+}
+
+#if os(iOS)
+struct TakePhotoControl: ControlWidget {
+    var body: some ControlWidgetConfiguration {
+        StaticControlConfiguration(kind: "com.praveenjuge.teak.widgets.camera") {
+            ControlWidgetButton(action: TakePhotoIntent()) {
+                Label(tr("apple.controls.camera"), systemImage: "camera")
+            }
+            .tint(Color("AccentColor"))
+        }
+        .displayName(catalogResource("apple.controls.camera"))
+        .description(catalogResource("apple.controls.cameraDescription"))
+    }
+}
+#endif
+
+struct UploadFilesControl: ControlWidget {
+    var body: some ControlWidgetConfiguration {
+        StaticControlConfiguration(kind: "com.praveenjuge.teak.widgets.files") {
+            ControlWidgetButton(action: UploadFilesIntent()) {
+                Label(tr("apple.controls.files"), systemImage: "folder")
+            }
+            .tint(Color("AccentColor"))
+        }
+        .displayName(catalogResource("apple.controls.files"))
+        .description(catalogResource("apple.controls.filesDescription"))
     }
 }
 

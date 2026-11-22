@@ -902,7 +902,13 @@
       "newNote": "新建笔记",
       "newNoteDescription": "打开 Teak 并新建笔记。",
       "voiceMemo": "语音备忘录",
-      "voiceMemoDescription": "打开 Teak 并开始录制语音备忘录。"
+      "voiceMemoDescription": "打开 Teak 并开始录制语音备忘录。",
+      "photos": "添加照片",
+      "photosDescription": "打开 Teak 的照片选择器。",
+      "camera": "拍照",
+      "cameraDescription": "打开 Teak 的相机。",
+      "files": "上传文件",
+      "filesDescription": "打开 Teak 的文件选择器。"
     },
     "mac": {
       "openLibrary": "打开 Teak 资料库",
@@ -944,7 +950,13 @@
       "folderEntity": "文件夹",
       "titleProperty": "标题",
       "linkProperty": "链接",
-      "smartFolderMessage": "智能文件夹会根据其搜索条件自动填充。请选择其他文件夹。"
+      "smartFolderMessage": "智能文件夹会根据其搜索条件自动填充。请选择其他文件夹。",
+      "choosePhotosTitle": "添加照片",
+      "choosePhotosDescription": "打开 Teak 的照片选择器以保存照片和视频。",
+      "takePhotoTitle": "拍照",
+      "takePhotoDescription": "打开 Teak 的相机以保存照片或视频。",
+      "uploadFilesTitle": "上传文件",
+      "uploadFilesDescription": "打开 Teak 的文件选择器以保存文件。"
     },
     "appShortcuts": {
       "save": "存储到 {applicationName}",
@@ -968,6 +980,12 @@
       "zoomIn": "放大",
       "zoomOut": "缩小",
       "zoomToFit": "缩放至适合大小"
+    },
+    "widgets": {
+      "quickCapture": "快速记录",
+      "quickCaptureDescription": "轻点一下即可开始笔记、语音备忘录或上传。",
+      "favoritesDescription": "你最近收藏的卡片。",
+      "favoritesEmpty": "还没有收藏"
     }
   },
   "android": {

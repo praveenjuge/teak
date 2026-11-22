@@ -14,7 +14,7 @@ import UniformTypeIdentifiers
 /// sent again and lets a refresh find the ones that left while Teak was closed.
 actor SpotlightIndexer {
     private static let domain = "cards"
-    private static let thumbnailSize = 300
+    static let thumbnailSize = 300
     /// Cards indexed together, so a first refresh doesn't fetch 500 thumbnails at once.
     private static let batchSize = 50
     private static let refreshInterval: Duration = .seconds(300)
@@ -210,14 +210,15 @@ actor SpotlightIndexer {
         }
     }
 
-    private static func thumbnail(_ url: URL) async -> Data? {
+    /// A JPEG of the image at `url`, no larger than `maxPixelSize` on its longer side.
+    static func thumbnail(_ url: URL, maxPixelSize: Int = thumbnailSize) async -> Data? {
         guard let (data, response) = try? await URLSession.shared.data(from: url),
               (response as? HTTPURLResponse)?.statusCode == 200,
               let source = CGImageSourceCreateWithData(data as CFData, nil),
               let image = CGImageSourceCreateThumbnailAtIndex(source, 0, [
                   kCGImageSourceCreateThumbnailFromImageAlways: true,
                   kCGImageSourceCreateThumbnailWithTransform: true,
-                  kCGImageSourceThumbnailMaxPixelSize: thumbnailSize,
+                  kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
               ] as CFDictionary)
         else { return nil }
         let output = NSMutableData()
