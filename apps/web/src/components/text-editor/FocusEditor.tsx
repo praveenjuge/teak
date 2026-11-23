@@ -30,8 +30,9 @@ import type { CardLinkOptions } from "./types";
 import { countWords, formatWordCount } from "./wordCount";
 
 /**
- * Radix sees Esc before the slash menu and the link editor (it listens
- * on the document), so Focus steps aside while one of them is open.
+ * While the slash menu or the link editor is open, Esc is theirs: Focus
+ * steps aside. The menus close themselves on that same Esc before the
+ * dialog's handler runs, so Focus asks in the capture phase, first.
  */
 export function editorPopupOwnsEscape(
   dialog: ParentNode,
@@ -84,6 +85,7 @@ export function FocusEditor({
   valueRef.current = value;
   const returnFocus = useReturnFocus(open);
   const contentRef = useRef<HTMLDivElement>(null);
+  const popupEscapeRef = useRef<Event | null>(null);
 
   const scheduleWordCount = useCallback(() => {
     if (idleTimerRef.current) {
@@ -127,11 +129,9 @@ export function FocusEditor({
     <Dialog
       onOpenChange={(nextOpen, details) => {
         // An editor popup (link, slash menu) takes Escape before the dialog.
-        const dialog = contentRef.current;
         if (
           details.reason === "escape-key" &&
-          dialog &&
-          editorPopupOwnsEscape(dialog, document.activeElement)
+          details.event === popupEscapeRef.current
         ) {
           details.cancel();
           return;
@@ -156,6 +156,15 @@ export function FocusEditor({
           if (!target?.closest("[contenteditable='true'], textarea")) {
             showChrome();
           }
+        }}
+        onKeyDownCapture={(event) => {
+          const dialog = contentRef.current;
+          popupEscapeRef.current =
+            event.key === "Escape" &&
+            dialog &&
+            editorPopupOwnsEscape(dialog, document.activeElement)
+              ? event.nativeEvent
+              : null;
         }}
         onPointerMove={showChrome}
         ref={contentRef}
