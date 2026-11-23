@@ -75,3 +75,22 @@ test("leaves focus to the dialog when the opener is gone", async () => {
 
   expect(returnFocus()()).toBe(true);
 });
+
+test("focuses an opener that isn't tabbable itself, so focus doesn't drop into its first button", async () => {
+  const dialog = document.createElement("div");
+  dialog.setAttribute("role", "dialog");
+  dialog.tabIndex = -1;
+  const inside = document.createElement("button");
+  inside.textContent = "Focus";
+  dialog.append(inside);
+  document.body.append(dialog);
+  const { returnFocus, setOpen } = await renderReturnFocus();
+
+  dialog.focus();
+  await setOpen(true);
+  inside.focus();
+  await setOpen(false);
+
+  expect(returnFocus()(inside)).toBe(false);
+  expect(document.activeElement).toBe(dialog);
+});

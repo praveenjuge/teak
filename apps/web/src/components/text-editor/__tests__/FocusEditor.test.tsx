@@ -208,3 +208,29 @@ test.each([
     ).toBe(expected);
   }
 );
+
+test("Esc that closes the slash menu leaves Focus open, even though the menu goes first", async () => {
+  const handlers = await renderFocus();
+  const note = editor();
+  if (!note) {
+    throw new Error("no editor");
+  }
+  const menu = document.createElement("div");
+  menu.setAttribute("role", "listbox");
+  menu.setAttribute("data-editor-popup", "");
+  note.after(menu);
+  // Like ProseMirror's suggestion plugin: the menu closes itself on Esc.
+  note.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && menu.isConnected) {
+      event.preventDefault();
+      menu.remove();
+    }
+  });
+
+  await press(note, { key: "Escape" });
+  expect(menu.isConnected).toBe(false);
+  expect(handlers.onRequestClose).not.toHaveBeenCalled();
+
+  await press(note, { key: "Escape" });
+  expect(handlers.onRequestClose).toHaveBeenCalledTimes(1);
+});
