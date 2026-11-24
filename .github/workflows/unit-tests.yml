@@ -38,7 +38,7 @@ jobs:
       - name: Build the docs site and bundle its Worker
         working-directory: apps/docs
         run: |
-          bun run build:site
+          bun run build
           bun x wrangler deploy --dry-run
 
   extension-firefox:
