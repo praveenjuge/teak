@@ -85,10 +85,7 @@ describe("markdownPathFor", () => {
 describe("negotiateMarkdown", () => {
   test("returns null when the client did not ask for Markdown", async () => {
     const assets = assetsWith({});
-    const result = await negotiateMarkdown(
-      request("/", "text/html"),
-      assets
-    );
+    const result = await negotiateMarkdown(request("/", "text/html"), assets);
     expect(result).toBeNull();
   });
 
