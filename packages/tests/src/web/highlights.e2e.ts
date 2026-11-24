@@ -36,8 +36,8 @@ describe("Highlighting a saved article", () => {
     );
 
     await gotoApp(browser, `/?card=${research?._id}`);
-    await expect(screen.getByRole("radio", "Read")).toHaveAttribute(
-      "aria-checked",
+    await expect(screen.getByRole("button", "Read")).toHaveAttribute(
+      "aria-pressed",
       "true",
       { timeout: 15_000 }
     );

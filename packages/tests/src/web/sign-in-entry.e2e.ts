@@ -25,14 +25,20 @@ describe("Web sign-in entry", () => {
     screen,
   }) => {
     const pageErrors = await capturePageErrors(browser);
-    // A page load goes straight to hosted AuthKit; a router fetch can't
-    // follow that hop, so it goes through /sign-in.
-    expect(
-      (await redirectTarget("/settings", "text/html")).startsWith(
-        "/user_management/authorize?"
-      )
-    ).toBe(true);
-    expect(await redirectTarget("/settings")).toBe("/sign-in?next=%2Fsettings");
+    // A page load, or any request that accepts a page, goes straight to
+    // hosted AuthKit; one that asks only for another type is refused.
+    for (const accept of ["text/html", "*/*"]) {
+      expect(
+        (await redirectTarget("/settings", accept)).startsWith(
+          "/user_management/authorize?"
+        )
+      ).toBe(true);
+    }
+    const json = await fetch(appPath("/settings"), {
+      headers: { accept: "application/json" },
+      redirect: "manual",
+    });
+    expect(json.status).toBe(406);
     await gotoApp(browser, "/settings");
     await expect(screen.getByLabel("Email")).toBeVisible();
     expect(new URL(await browser.url()).origin).not.toBe(
