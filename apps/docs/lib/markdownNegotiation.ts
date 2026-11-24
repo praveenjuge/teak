@@ -1,3 +1,5 @@
+import { SITE_HEADERS } from "./siteHeaders";
+
 const MARKDOWN = "text/markdown";
 const MARKDOWN_CONTENT_TYPE = "text/markdown; charset=utf-8";
 
@@ -74,9 +76,8 @@ function markdownMiss(pageExists: boolean, method: string): Response {
   return new Response(method === "HEAD" ? null : body, {
     status: pageExists ? 406 : 404,
     headers: {
-      "Access-Control-Allow-Origin": "*",
+      ...SITE_HEADERS,
       "Content-Type": MARKDOWN_CONTENT_TYPE,
-      "X-Content-Type-Options": "nosniff",
       Vary: "Accept",
     },
   });
