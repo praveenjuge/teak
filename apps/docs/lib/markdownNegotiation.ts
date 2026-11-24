@@ -65,36 +65,54 @@ function markdownResponse(asset: Response): Response {
 
 // Both misses carry a Markdown body with a way onward, which is what an agent
 // needs to recover: 404 when the page itself doesn't exist, 406 when it only
-// lacks a Markdown twin.
-function markdownMiss(pathname: string, pageExists: boolean): Response {
+// lacks a Markdown twin. The path is left out of the body so a crafted URL
+// can't inject Markdown images or links.
+function markdownMiss(pageExists: boolean, method: string): Response {
   const body = pageExists
-    ? `# No Markdown for ${pathname}\n\nThis page exists on teakvault.com, but only as HTML: ask for it with \`Accept: text/html\`. https://teakvault.com/llms.txt lists every agent-readable page, and https://teakvault.com/sitemap.xml lists every page.\n`
-    : `# ${pathname} not found\n\nThere is no page at this address on teakvault.com. https://teakvault.com/llms.txt lists every agent-readable page, and https://teakvault.com/sitemap.xml lists every page.\n`;
-  return new Response(body, {
+    ? "# No Markdown for this page\n\nThis page exists on teakvault.com, but only as HTML: ask for it with `Accept: text/html`. https://teakvault.com/llms.txt lists every agent-readable page, and https://teakvault.com/sitemap.xml lists every page.\n"
+    : "# Page not found\n\nThere is no page at this address on teakvault.com. https://teakvault.com/llms.txt lists every agent-readable page, and https://teakvault.com/sitemap.xml lists every page.\n";
+  return new Response(method === "HEAD" ? null : body, {
     status: pageExists ? 406 : 404,
     headers: { "Content-Type": MARKDOWN_CONTENT_TYPE, Vary: "Accept" },
   });
 }
 
 // Answers an `Accept: text/markdown` request from the page's Markdown twin.
-// Returns null for any other request so the caller serves the assets.
+// Returns null for anything else (other methods, asset paths with an
+// extension, redirects) so the caller serves the assets as usual.
 export async function negotiateMarkdown(
   request: Request,
   assets: SiteAssets
 ): Promise<Response | null> {
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    return null;
+  }
   if (!wantsMarkdown(request.headers.get("Accept"))) {
     return null;
   }
   const url = new URL(request.url);
   const markdownPath = markdownPathFor(url.pathname);
-  if (markdownPath) {
-    const twin = await assets.fetch(new Request(new URL(markdownPath, url)));
-    if (twin.ok) {
-      return markdownResponse(twin);
-    }
+  if (!markdownPath) {
+    return null;
+  }
+  const twin = await assets.fetch(
+    new Request(new URL(markdownPath, url), { method: request.method })
+  );
+  if (
+    twin.ok &&
+    twin.headers.get("Content-Type")?.includes(MARKDOWN) === true
+  ) {
+    return markdownResponse(twin);
+  }
+  if (twin.status >= 500) {
+    return twin;
   }
   const page = await assets.fetch(request);
-  const exists =
-    page.ok || (page.status >= 300 && page.status < 400);
-  return markdownMiss(url.pathname, exists);
+  if (page.status >= 300 && page.status < 400) {
+    return page;
+  }
+  if (page.status >= 500) {
+    return page;
+  }
+  return markdownMiss(page.ok, request.method);
 }
