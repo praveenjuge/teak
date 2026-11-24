@@ -118,7 +118,7 @@
       "openSafariSettings": "Safari-Einstellungen öffnen…",
       "safariCheckFailed": "Die Erweiterung konnte nicht geprüft werden: {error}",
       "safariWhere": "Wählen Sie in Safari „Safari > Einstellungen > Erweiterungen“ und aktivieren Sie Teak.",
-      "safariHint": "Sichern Sie Seiten aus Safari mit einem Tippen. Tippen Sie in Safari in der Adressleiste auf {icon}, wählen Sie „Erweiterungen verwalten“ und aktivieren Sie Teak."
+      "safariHint": "Aktivieren Sie Teak in Safari: Tippen Sie auf {icon} > „Erweiterungen verwalten“."
     },
     "app": {
       "nav": {
@@ -986,6 +986,9 @@
       "zoomIn": "Vergrößern",
       "zoomOut": "Verkleinern",
       "zoomToFit": "Auf Fenstergröße zoomen"
+    },
+    "settings": {
+      "madeBy": "Mit Liebe gemacht von {handle}"
     }
   },
   "android": {

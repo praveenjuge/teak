@@ -118,7 +118,7 @@
       "openSafariSettings": "Abrir los ajustes de Safari…",
       "safariCheckFailed": "No se pudo comprobar la extensión: {error}",
       "safariWhere": "En Safari, elija Safari > Ajustes > Extensiones y active Teak.",
-      "safariHint": "Guarde páginas desde Safari con un toque. En Safari, toque {icon} en la barra de direcciones, elija Gestionar extensiones y active Teak."
+      "safariHint": "Active Teak en Safari: toque {icon} > Gestionar extensiones."
     },
     "app": {
       "nav": {
@@ -986,6 +986,9 @@
       "zoomIn": "Ampliar",
       "zoomOut": "Reducir",
       "zoomToFit": "Ajustar a la ventana"
+    },
+    "settings": {
+      "madeBy": "Hecho con cariño por {handle}"
     }
   },
   "android": {

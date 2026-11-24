@@ -709,7 +709,7 @@
     <string name="native_settings_profile">个人资料</string>
     <string name="native_settings_safariCheckFailed">无法检查扩展：%1$s</string>
     <string name="native_settings_safariExtension">Safari 浏览器扩展</string>
-    <string name="native_settings_safariHint">在 Safari 浏览器中轻点一下即可保存网页。在 Safari 浏览器中，轻点地址栏中的 %1$s，选择“管理扩展”，然后开启 Teak。</string>
+    <string name="native_settings_safariHint">在 Safari 浏览器中轻点 %1$s &gt;“管理扩展”，然后开启 Teak。</string>
     <string name="native_settings_safariWhere">在 Safari 浏览器中，选取“Safari 浏览器”&gt;“设置”&gt;“扩展”，然后开启 Teak。</string>
     <string name="native_settings_signOut">退出登录</string>
     <string name="native_settings_signOutConfirm">确定要退出登录吗？</string>

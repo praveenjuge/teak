@@ -737,7 +737,7 @@
     <string name="native_settings_profile">Perfil</string>
     <string name="native_settings_safariCheckFailed">Não foi possível verificar a extensão: %1$s</string>
     <string name="native_settings_safariExtension">Extensão do Safari</string>
-    <string name="native_settings_safariHint">Salve páginas do Safari com um toque. No Safari, toque em %1$s na barra de endereço, escolha Gerenciar Extensões e ative o Teak.</string>
+    <string name="native_settings_safariHint">Ative o Teak no Safari: toque em %1$s &gt; Gerenciar Extensões.</string>
     <string name="native_settings_safariWhere">No Safari, escolha Safari &gt; Ajustes &gt; Extensões e ative o Teak.</string>
     <string name="native_settings_signOut">Sair</string>
     <string name="native_settings_signOutConfirm">Tem certeza de que quer sair?</string>

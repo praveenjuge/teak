@@ -737,7 +737,7 @@
     <string name="native_settings_profile">Profile</string>
     <string name="native_settings_safariCheckFailed">Couldn\'t check the extension: %1$s</string>
     <string name="native_settings_safariExtension">Safari extension</string>
-    <string name="native_settings_safariHint">Save pages from Safari with one tap. In Safari, tap %1$s in the address bar, choose Manage Extensions, and turn on Teak.</string>
+    <string name="native_settings_safariHint">Turn on Teak in Safari: tap %1$s &gt; Manage Extensions.</string>
     <string name="native_settings_safariWhere">In Safari, choose Safari &gt; Settings &gt; Extensions, then turn on Teak.</string>
     <string name="native_settings_signOut">Sign out</string>
     <string name="native_settings_signOutConfirm">Are you sure you want to sign out?</string>

@@ -709,7 +709,7 @@
     <string name="native_settings_profile">プロフィール</string>
     <string name="native_settings_safariCheckFailed">拡張機能を確認できませんでした：%1$s</string>
     <string name="native_settings_safariExtension">Safari 拡張機能</string>
-    <string name="native_settings_safariHint">Safari からワンタップでページを保存できます。Safari のアドレスバーで %1$s をタップし、“機能拡張を管理”を選択して Teak をオンにしてください。</string>
+    <string name="native_settings_safariHint">Safari で %1$s &gt;“機能拡張を管理”から Teak をオンにします。</string>
     <string name="native_settings_safariWhere">Safari で“Safari”&gt;“設定”&gt;“機能拡張”を選択して、Teak をオンにしてください。</string>
     <string name="native_settings_signOut">サインアウト</string>
     <string name="native_settings_signOutConfirm">サインアウトしますか？</string>

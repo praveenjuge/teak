@@ -118,7 +118,7 @@
       "openSafariSettings": "Safari の設定を開く…",
       "safariCheckFailed": "拡張機能を確認できませんでした：{error}",
       "safariWhere": "Safari で“Safari”>“設定”>“機能拡張”を選択して、Teak をオンにしてください。",
-      "safariHint": "Safari からワンタップでページを保存できます。Safari のアドレスバーで {icon} をタップし、“機能拡張を管理”を選択して Teak をオンにしてください。"
+      "safariHint": "Safari で {icon} >“機能拡張を管理”から Teak をオンにします。"
     },
     "app": {
       "nav": {
@@ -986,6 +986,9 @@
       "zoomIn": "拡大",
       "zoomOut": "縮小",
       "zoomToFit": "ウインドウに合わせる"
+    },
+    "settings": {
+      "madeBy": "{handle} が心を込めて制作"
     }
   },
   "android": {

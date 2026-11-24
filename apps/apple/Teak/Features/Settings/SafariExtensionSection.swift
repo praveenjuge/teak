@@ -7,17 +7,26 @@ import SafariServices
 
 enum SafariExtension {
     static let identifier = "com.praveenjuge.teak.safari-extension"
+
+    #if os(iOS)
+    /// How to turn the extension on. iOS can't read or open its setting, so Settings shows this as a footnote.
+    static var hint: Text {
+        let marker = "\u{FFFC}"
+        let parts = tr("native.settings.safariHint", marker).components(separatedBy: marker)
+        let icon = Text(Image(systemName: "puzzlepiece.extension"))
+        guard parts.count == 2 else { return Text(parts.joined()) }
+        return Text("\(Text(parts[0]))\(icon)\(Text(parts[1]))")
+    }
+    #endif
 }
 
+#if os(macOS)
 struct SafariExtensionSection: View {
-    #if os(macOS)
     @State private var isEnabled: Bool?
     @State private var problem: String?
-    #endif
 
     var body: some View {
         Section(tr("native.settings.safariExtension")) {
-            #if os(macOS)
             LabeledContent(tr("native.settings.status")) {
                 switch isEnabled {
                 case true?: Label(tr("native.settings.on"), systemImage: "checkmark.circle.fill").foregroundStyle(.green)
@@ -29,31 +38,13 @@ struct SafariExtensionSection: View {
             if let problem {
                 Text(problem).font(.footnote).foregroundStyle(.secondary)
             }
-            #else
-            hint
-                .font(.callout)
-                .foregroundStyle(.secondary)
-            #endif
         }
-        #if os(macOS)
         .task { await refresh() }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             Task { await refresh() }
         }
-        #endif
     }
 
-    #if os(iOS)
-    private var hint: Text {
-        let marker = "\u{FFFC}"
-        let parts = tr("native.settings.safariHint", marker).components(separatedBy: marker)
-        let icon = Text(Image(systemName: "puzzlepiece.extension"))
-        guard parts.count == 2 else { return Text(parts.joined()) }
-        return Text("\(Text(parts[0]))\(icon)\(Text(parts[1]))")
-    }
-    #endif
-
-    #if os(macOS)
     private func refresh() async {
         let (enabled, error) = await withCheckedContinuation { continuation in
             // The SDK marks this handler main-actor, but Safari calls it from an
@@ -84,5 +75,5 @@ struct SafariExtensionSection: View {
         }
         problem = tr("native.settings.safariWhere")
     }
-    #endif
 }
+#endif

@@ -118,7 +118,7 @@
       "openSafariSettings": "打开 Safari 浏览器设置…",
       "safariCheckFailed": "无法检查扩展：{error}",
       "safariWhere": "在 Safari 浏览器中，选取“Safari 浏览器”>“设置”>“扩展”，然后开启 Teak。",
-      "safariHint": "在 Safari 浏览器中轻点一下即可保存网页。在 Safari 浏览器中，轻点地址栏中的 {icon}，选择“管理扩展”，然后开启 Teak。"
+      "safariHint": "在 Safari 浏览器中轻点 {icon} >“管理扩展”，然后开启 Teak。"
     },
     "app": {
       "nav": {
@@ -986,6 +986,9 @@
       "zoomIn": "放大",
       "zoomOut": "缩小",
       "zoomToFit": "缩放至适合大小"
+    },
+    "settings": {
+      "madeBy": "由 {handle} 用心打造"
     }
   },
   "android": {

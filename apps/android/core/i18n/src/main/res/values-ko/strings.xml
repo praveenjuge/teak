@@ -709,7 +709,7 @@
     <string name="native_settings_profile">프로필</string>
     <string name="native_settings_safariCheckFailed">확장 프로그램을 확인하지 못했습니다: %1$s</string>
     <string name="native_settings_safariExtension">Safari 확장 프로그램</string>
-    <string name="native_settings_safariHint">Safari에서 한 번만 탭하면 페이지를 저장할 수 있습니다. Safari 주소 막대에서 %1$s을(를) 탭하고 확장 프로그램 관리를 선택한 다음 Teak을 켜세요.</string>
+    <string name="native_settings_safariHint">Safari에서 %1$s &gt; 확장 프로그램 관리로 이동해 Teak을 켜세요.</string>
     <string name="native_settings_safariWhere">Safari에서 Safari &gt; 설정 &gt; 확장 프로그램을 선택한 다음 Teak을 켜세요.</string>
     <string name="native_settings_signOut">로그아웃</string>
     <string name="native_settings_signOutConfirm">로그아웃하시겠습니까?</string>

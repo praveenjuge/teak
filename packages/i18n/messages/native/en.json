@@ -118,7 +118,7 @@
       "openSafariSettings": "Open Safari settings…",
       "safariCheckFailed": "Couldn't check the extension: {error}",
       "safariWhere": "In Safari, choose Safari > Settings > Extensions, then turn on Teak.",
-      "safariHint": "Save pages from Safari with one tap. In Safari, tap {icon} in the address bar, choose Manage Extensions, and turn on Teak."
+      "safariHint": "Turn on Teak in Safari: tap {icon} > Manage Extensions."
     },
     "app": {
       "nav": {
@@ -986,6 +986,9 @@
       "zoomIn": "Zoom In",
       "zoomOut": "Zoom Out",
       "zoomToFit": "Zoom to Fit"
+    },
+    "settings": {
+      "madeBy": "Made with care by {handle}"
     }
   },
   "android": {

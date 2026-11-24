@@ -30,15 +30,31 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
+            #if os(iOS)
+            AccountHeader(account: account)
+            Section {
+                AppearancePicker()
+                LanguagePicker()
+                if sizeClass == .compact { TagsLink() }
+            } footer: {
+                VStack(alignment: .leading, spacing: 10) {
+                    LanguageFooter(showsDescription: false)
+                    SafariExtension.hint
+                }
+            }
+            AccountActions {
+                VersionRow()
+            } footer: {
+                AboutCredit()
+            }
+            #else
             ProfileSection(account: account)
             AppearanceSection()
             LanguageSection()
-            #if os(iOS)
-            if sizeClass == .compact { LibrarySection() }
-            #endif
             SafariExtensionSection()
             AboutSection()
             AccountActions()
+            #endif
         }
         .formStyle(.grouped)
         .navigationTitle(tr("native.settings.title"))
@@ -47,37 +63,96 @@ struct SettingsView: View {
 }
 
 #if os(iOS)
-struct LibrarySection: View {
+struct TagsLink: View {
     @Environment(AppRouter.self) private var router
 
     var body: some View {
-        Section(tr("native.settings.library")) {
-            NavigationLink {
-                TagsView(model: AppServices.shared.tags) { tag in
-                    let library = AppServices.shared.home
-                    library.open(nil)
-                    library.filterByTag(tag)
-                    router.homePath = []
-                    router.tab = .home
-                }
-            } label: {
-                Label(tr("native.tags.title"), systemImage: "number")
+        NavigationLink {
+            TagsView(model: AppServices.shared.tags) { tag in
+                let library = AppServices.shared.home
+                library.open(nil)
+                library.filterByTag(tag)
+                router.homePath = []
+                router.tab = .home
             }
-            .accessibilityIdentifier("settings.tags")
+        } label: {
+            Text(tr("native.tags.title"))
+        }
+        .accessibilityIdentifier("settings.tags")
+    }
+}
+
+/// The account at the top of Settings, like the Apple Account row in iOS Settings.
+struct AccountHeader: View {
+    let account: AccountModel
+    @Environment(AppModel.self) private var app
+
+    private var email: String? { app.user?.email ?? account.user?.email }
+
+    var body: some View {
+        Section {
+            HStack(spacing: 14) {
+                monogram
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(email ?? tr("native.settings.notSignedIn"))
+                        .font(.headline)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .textSelection(.enabled)
+                    details
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(.vertical, 4)
+            .accessibilityElement(children: .combine)
+        }
+    }
+
+    private var monogram: some View {
+        let initial = email?.first.map { String($0).uppercased() }
+        return Circle()
+            .fill(Color.gray.gradient)
+            .frame(width: 52, height: 52)
+            .overlay {
+                if let initial {
+                    Text(initial).font(.title2.weight(.semibold))
+                } else {
+                    Image(systemName: "person.fill").font(.title2)
+                }
+            }
+            .foregroundStyle(.white)
+            .accessibilityHidden(true)
+    }
+
+    @ViewBuilder private var details: some View {
+        if let user = account.user {
+            Text(verbatim: "\(AccountText.plan(user)) · \(AccountText.usage(user))")
+        } else if account.isLoading {
+            ProgressView().controlSize(.small)
+        } else {
+            Text(tr("native.settings.notAvailable"))
         }
     }
 }
 #endif
 
 struct AppearanceSection: View {
+    var body: some View {
+        Section(tr("native.settings.appearance")) {
+            AppearancePicker(title: tr("native.settings.theme"))
+                .pickerStyle(.segmented)
+        }
+    }
+}
+
+struct AppearancePicker: View {
+    var title = tr("native.settings.appearance")
     @AppStorage("teak.appearance") private var appearance = Appearance.auto
 
     var body: some View {
-        Section(tr("native.settings.appearance")) {
-            Picker(tr("native.settings.theme"), selection: $appearance) {
-                ForEach(Appearance.allCases) { Text($0.title).tag($0) }
-            }
-            .pickerStyle(.segmented)
+        Picker(title, selection: $appearance) {
+            ForEach(Appearance.allCases) { Text($0.title).tag($0) }
         }
     }
 }
@@ -142,7 +217,10 @@ struct ProfileSection: View {
     }
 }
 
-struct AccountActions: View {
+/// Sign out, with any rows and footer that share its group, then Delete account on its own.
+struct AccountActions<Rows: View, Footer: View>: View {
+    private let rows: Rows
+    private let footer: Footer
     @Environment(AppModel.self) private var app
     @State private var confirmSignOut = false
     @State private var confirmDelete = false
@@ -151,23 +229,29 @@ struct AccountActions: View {
     @State private var isWorking = false
     @State private var error: String?
 
+    init(@ViewBuilder rows: () -> Rows, @ViewBuilder footer: () -> Footer) {
+        self.rows = rows()
+        self.footer = footer()
+    }
+
     var body: some View {
         Group {
             Section {
+                rows
                 Button(tr("native.settings.signOut")) { confirmSignOut = true }
                     .tint(.primary)
+                    .disabled(app.user == nil)
                     .accessibilityIdentifier("settings.logOut")
             } footer: {
-                if let error { Text(error).foregroundStyle(.red) }
+                if let error { Text(error).foregroundStyle(.red) } else { footer }
             }
             Section {
                 Button(isWorking ? tr("native.settings.deleting") : tr("native.settings.deleteAccount"), role: .destructive) {
                     confirmDelete = true
                 }
-                .disabled(isWorking)
+                .disabled(isWorking || app.user == nil)
             }
         }
-        .disabled(app.user == nil)
         .confirmationDialog(tr("native.settings.signOut"), isPresented: $confirmSignOut) {
             Button(tr("native.settings.signOut"), role: .destructive) { signOut() }
         } message: {
@@ -222,6 +306,10 @@ struct AccountActions: View {
     }
 }
 
+extension AccountActions where Rows == EmptyView, Footer == EmptyView {
+    init() { self.init(rows: { EmptyView() }, footer: { EmptyView() }) }
+}
+
 enum AccountText {
     /// What the person types to delete their account. It stays English in every language.
     static let deletePhrase = "delete account"
@@ -240,15 +328,27 @@ enum AccountText {
 }
 
 private struct AboutSection: View {
-    @Environment(AppModel.self) private var app
-
     var body: some View {
         Section {
-            LabeledContent(tr("native.settings.version"), value: "\(app.config.version) (\(app.config.build))")
+            VersionRow()
         } header: {
             Text(tr("native.settings.about"))
         } footer: {
-            Text(tr("native.settings.hope") + "\n" + tr("native.settings.byAuthor", "@praveenjuge"))
+            AboutCredit()
         }
+    }
+}
+
+private struct VersionRow: View {
+    @Environment(AppModel.self) private var app
+
+    var body: some View {
+        LabeledContent(tr("native.settings.version"), value: "\(app.config.version) (\(app.config.build))")
+    }
+}
+
+private struct AboutCredit: View {
+    var body: some View {
+        Text(tr("apple.settings.madeBy", "@praveenjuge"))
     }
 }

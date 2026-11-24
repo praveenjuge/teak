@@ -4877,6 +4877,59 @@
         }
       }
     },
+    "apple.settings.madeBy" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mit Liebe gemacht von %1$@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Made with care by %1$@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hecho con cariño por %1$@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fait avec soin par %1$@"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ が心を込めて制作"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@이(가) 정성껏 만들었습니다"
+          }
+        },
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Feito com carinho por %1$@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "由 %1$@ 用心打造"
+          }
+        }
+      }
+    },
     "cards.types.audio" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -40828,49 +40881,49 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sichern Sie Seiten aus Safari mit einem Tippen. Tippen Sie in Safari in der Adressleiste auf %1$@, wählen Sie „Erweiterungen verwalten“ und aktivieren Sie Teak."
+            "value" : "Aktivieren Sie Teak in Safari: Tippen Sie auf %1$@ > „Erweiterungen verwalten“."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Save pages from Safari with one tap. In Safari, tap %1$@ in the address bar, choose Manage Extensions, and turn on Teak."
+            "value" : "Turn on Teak in Safari: tap %1$@ > Manage Extensions."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Guarde páginas desde Safari con un toque. En Safari, toque %1$@ en la barra de direcciones, elija Gestionar extensiones y active Teak."
+            "value" : "Active Teak en Safari: toque %1$@ > Gestionar extensiones."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Enregistrez des pages depuis Safari d’un simple toucher. Dans Safari, touchez %1$@ dans la barre d’adresse, choisissez Gérer les extensions, puis activez Teak."
+            "value" : "Activez Teak dans Safari : touchez %1$@ > Gérer les extensions."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Safari からワンタップでページを保存できます。Safari のアドレスバーで %1$@ をタップし、“機能拡張を管理”を選択して Teak をオンにしてください。"
+            "value" : "Safari で %1$@ >“機能拡張を管理”から Teak をオンにします。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Safari에서 한 번만 탭하면 페이지를 저장할 수 있습니다. Safari 주소 막대에서 %1$@을(를) 탭하고 확장 프로그램 관리를 선택한 다음 Teak을 켜세요."
+            "value" : "Safari에서 %1$@ > 확장 프로그램 관리로 이동해 Teak을 켜세요."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Salve páginas do Safari com um toque. No Safari, toque em %1$@ na barra de endereço, escolha Gerenciar Extensões e ative o Teak."
+            "value" : "Ative o Teak no Safari: toque em %1$@ > Gerenciar Extensões."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "在 Safari 浏览器中轻点一下即可保存网页。在 Safari 浏览器中，轻点地址栏中的 %1$@，选择“管理扩展”，然后开启 Teak。"
+            "value" : "在 Safari 浏览器中轻点 %1$@ >“管理扩展”，然后开启 Teak。"
           }
         }
       }

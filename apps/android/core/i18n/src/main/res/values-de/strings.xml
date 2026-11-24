@@ -737,7 +737,7 @@
     <string name="native_settings_profile">Profil</string>
     <string name="native_settings_safariCheckFailed">Die Erweiterung konnte nicht geprüft werden: %1$s</string>
     <string name="native_settings_safariExtension">Safari-Erweiterung</string>
-    <string name="native_settings_safariHint">Sichern Sie Seiten aus Safari mit einem Tippen. Tippen Sie in Safari in der Adressleiste auf %1$s, wählen Sie „Erweiterungen verwalten“ und aktivieren Sie Teak.</string>
+    <string name="native_settings_safariHint">Aktivieren Sie Teak in Safari: Tippen Sie auf %1$s &gt; „Erweiterungen verwalten“.</string>
     <string name="native_settings_safariWhere">Wählen Sie in Safari „Safari &gt; Einstellungen &gt; Erweiterungen“ und aktivieren Sie Teak.</string>
     <string name="native_settings_signOut">Abmelden</string>
     <string name="native_settings_signOutConfirm">Möchten Sie sich wirklich abmelden?</string>

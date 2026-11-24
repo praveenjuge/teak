@@ -737,7 +737,7 @@
     <string name="native_settings_profile">Profil</string>
     <string name="native_settings_safariCheckFailed">Impossible de vérifier l’extension : %1$s</string>
     <string name="native_settings_safariExtension">Extension Safari</string>
-    <string name="native_settings_safariHint">Enregistrez des pages depuis Safari d’un simple toucher. Dans Safari, touchez %1$s dans la barre d’adresse, choisissez Gérer les extensions, puis activez Teak.</string>
+    <string name="native_settings_safariHint">Activez Teak dans Safari : touchez %1$s &gt; Gérer les extensions.</string>
     <string name="native_settings_safariWhere">Dans Safari, choisissez Safari &gt; Réglages &gt; Extensions, puis activez Teak.</string>
     <string name="native_settings_signOut">Se déconnecter</string>
     <string name="native_settings_signOutConfirm">Voulez-vous vraiment vous déconnecter ?</string>

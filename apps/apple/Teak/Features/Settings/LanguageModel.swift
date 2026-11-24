@@ -114,25 +114,38 @@ final class LanguageModel {
 }
 
 struct LanguageSection: View {
+    var body: some View {
+        Section {
+            LanguagePicker()
+        } footer: {
+            LanguageFooter()
+        }
+    }
+}
+
+struct LanguagePicker: View {
     @Environment(LanguageModel.self) private var language
     @Environment(AppModel.self) private var app
 
     var body: some View {
-        Section {
-            Picker(tr("settings.language.label"), selection: Binding(
-                get: { language.code },
-                set: { language.choose($0, backend: app.backend) }
-            )) {
-                ForEach(AppLanguage.options) { Text(verbatim: $0.name).tag($0.id) }
-            }
-            .disabled(language.isSaving || app.phase != .signedIn)
-            .accessibilityIdentifier("settings.language")
-        } footer: {
-            footer
+        Picker(tr("settings.language.label"), selection: Binding(
+            get: { language.code },
+            set: { language.choose($0, backend: app.backend) }
+        )) {
+            ForEach(AppLanguage.options) { Text(verbatim: $0.name).tag($0.id) }
         }
+        .disabled(language.isSaving || app.phase != .signedIn)
+        .accessibilityIdentifier("settings.language")
     }
+}
 
-    @ViewBuilder private var footer: some View {
+struct LanguageFooter: View {
+    /// Off on iPhone and iPad, whose Settings keep only the error and Undo here.
+    var showsDescription = true
+    @Environment(LanguageModel.self) private var language
+    @Environment(AppModel.self) private var app
+
+    var body: some View {
         if let error = language.error {
             Text(error).foregroundStyle(.red)
         } else if language.undoTo != nil {
@@ -141,7 +154,7 @@ struct LanguageSection: View {
                 Button(tr("common.undo")) { language.undo(backend: app.backend) }
                     .buttonStyle(.borderless)
             }
-        } else {
+        } else if showsDescription {
             Text(tr("native.settings.languageDescription"))
         }
     }

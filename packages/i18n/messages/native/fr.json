@@ -118,7 +118,7 @@
       "openSafariSettings": "Ouvrir les réglages de Safari…",
       "safariCheckFailed": "Impossible de vérifier l’extension : {error}",
       "safariWhere": "Dans Safari, choisissez Safari > Réglages > Extensions, puis activez Teak.",
-      "safariHint": "Enregistrez des pages depuis Safari d’un simple toucher. Dans Safari, touchez {icon} dans la barre d’adresse, choisissez Gérer les extensions, puis activez Teak."
+      "safariHint": "Activez Teak dans Safari : touchez {icon} > Gérer les extensions."
     },
     "app": {
       "nav": {
@@ -986,6 +986,9 @@
       "zoomIn": "Zoom avant",
       "zoomOut": "Zoom arrière",
       "zoomToFit": "Zoom à la taille de la fenêtre"
+    },
+    "settings": {
+      "madeBy": "Fait avec soin par {handle}"
     }
   },
   "android": {

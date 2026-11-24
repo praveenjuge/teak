@@ -737,7 +737,7 @@
     <string name="native_settings_profile">Perfil</string>
     <string name="native_settings_safariCheckFailed">No se pudo comprobar la extensión: %1$s</string>
     <string name="native_settings_safariExtension">Extensión de Safari</string>
-    <string name="native_settings_safariHint">Guarde páginas desde Safari con un toque. En Safari, toque %1$s en la barra de direcciones, elija Gestionar extensiones y active Teak.</string>
+    <string name="native_settings_safariHint">Active Teak en Safari: toque %1$s &gt; Gestionar extensiones.</string>
     <string name="native_settings_safariWhere">En Safari, elija Safari &gt; Ajustes &gt; Extensiones y active Teak.</string>
     <string name="native_settings_signOut">Cerrar sesión</string>
     <string name="native_settings_signOutConfirm">¿Seguro que quiere cerrar sesión?</string>
