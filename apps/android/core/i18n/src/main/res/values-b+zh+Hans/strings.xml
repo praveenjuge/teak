@@ -697,7 +697,7 @@
     <string name="native_settings_helpDocs">帮助和文档</string>
     <string name="native_settings_hope">希望你喜欢使用 Teak，就像我喜欢创造它一样。</string>
     <string name="native_settings_languageDescription">保存在你的账户中，会同步到你的所有设备。</string>
-    <string name="native_settings_library">资料库</string>
+    <string name="native_settings_madeBy">由 %1$s 用心打造</string>
     <string name="native_settings_manage">管理…</string>
     <string name="native_settings_notAvailable">不可用</string>
     <string name="native_settings_notSignedIn">未登录</string>
@@ -715,7 +715,6 @@
     <string name="native_settings_signOutConfirm">确定要退出登录吗？</string>
     <string name="native_settings_signingOut">正在退出登录…</string>
     <string name="native_settings_status">状态</string>
-    <string name="native_settings_tagsDescription">重命名、合并或删除你的标签</string>
     <string name="native_settings_theme">主题</string>
     <string name="native_settings_themeAuto">自动</string>
     <string name="native_settings_themeDark">深色</string>

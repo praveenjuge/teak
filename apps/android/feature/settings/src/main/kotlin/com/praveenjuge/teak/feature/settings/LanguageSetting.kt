@@ -29,52 +29,64 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.praveenjuge.teak.core.designsystem.component.ListRow
-import com.praveenjuge.teak.core.designsystem.component.ListRowValue
 import com.praveenjuge.teak.core.i18n.tr
 import com.praveenjuge.teak.core.model.LOCALE_NAMES
 
-/** Settings → Language, a row in the Appearance group. Each language is listed in its own name. */
+/** Settings → Language. Each language is listed in its own name. */
 @Composable
 internal fun LanguageSetting(language: String, enabled: Boolean, onChoose: (String) -> Unit) {
     var picking by remember { mutableStateOf(false) }
     ListRow(
         label = tr("settings.language.label"),
         icon = Icons.Outlined.Language,
-        supporting = tr("native.settings.languageDescription"),
-        trailing = { ListRowValue(LOCALE_NAMES[language] ?: language) },
+        supporting = LOCALE_NAMES[language] ?: language,
         enabled = enabled,
         onClick = { picking = true },
     )
     if (picking) {
-        AlertDialog(
-            onDismissRequest = { picking = false },
-            title = { Text(tr("settings.language.label")) },
-            text = {
-                Column(Modifier.selectableGroup().verticalScroll(rememberScrollState())) {
-                    LOCALE_NAMES.forEach { (code, name) ->
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 48.dp)
-                                .selectable(
-                                    selected = code == language,
-                                    role = Role.RadioButton,
-                                    onClick = {
-                                        picking = false
-                                        onChoose(code)
-                                    },
-                                ),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            RadioButton(selected = code == language, onClick = null)
-                            Text(name, Modifier.padding(start = 12.dp))
-                        }
-                    }
-                }
+        ChoiceDialog(
+            title = tr("settings.language.label"),
+            options = LOCALE_NAMES.toList(),
+            selected = language,
+            onChoose = {
+                picking = false
+                onChoose(it)
             },
-            confirmButton = { TextButton(onClick = { picking = false }) { Text(tr("common.cancel")) } },
+            onDismiss = { picking = false },
         )
     }
+}
+
+/** A dialog of radio buttons, like Android's own list settings; choosing one closes it. */
+@Composable
+internal fun <T> ChoiceDialog(
+    title: String,
+    options: List<Pair<T, String>>,
+    selected: T,
+    onChoose: (T) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            Column(Modifier.selectableGroup().verticalScroll(rememberScrollState())) {
+                options.forEach { (value, name) ->
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 48.dp)
+                            .selectable(selected = value == selected, role = Role.RadioButton, onClick = { onChoose(value) }),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(selected = value == selected, onClick = null)
+                        Text(name, Modifier.padding(start = 12.dp))
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(tr("common.cancel")) } },
+    )
 }
 
 /** "Language changed" with Undo, or why it couldn't change. */

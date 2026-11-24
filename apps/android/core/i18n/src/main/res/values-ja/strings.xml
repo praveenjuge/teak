@@ -697,7 +697,7 @@
     <string name="native_settings_helpDocs">ヘルプとドキュメント</string>
     <string name="native_settings_hope">私が楽しんで作ったのと同じくらい、Teak を楽しんで使っていただけたらうれしいです。</string>
     <string name="native_settings_languageDescription">アカウントに保存されるため、すべてのデバイスで同じ設定になります。</string>
-    <string name="native_settings_library">ライブラリ</string>
+    <string name="native_settings_madeBy">%1$s が心を込めて制作</string>
     <string name="native_settings_manage">管理…</string>
     <string name="native_settings_notAvailable">利用できません</string>
     <string name="native_settings_notSignedIn">サインインしていません</string>
@@ -715,7 +715,6 @@
     <string name="native_settings_signOutConfirm">サインアウトしますか？</string>
     <string name="native_settings_signingOut">サインアウト中…</string>
     <string name="native_settings_status">状態</string>
-    <string name="native_settings_tagsDescription">タグの名前の変更、統合、削除ができます</string>
     <string name="native_settings_theme">テーマ</string>
     <string name="native_settings_themeAuto">自動</string>
     <string name="native_settings_themeDark">ダーク</string>

@@ -349,6 +349,6 @@ private struct VersionRow: View {
 
 private struct AboutCredit: View {
     var body: some View {
-        Text(tr("apple.settings.madeBy", "@praveenjuge"))
+        Text(tr("native.settings.madeBy", "@praveenjuge"))
     }
 }

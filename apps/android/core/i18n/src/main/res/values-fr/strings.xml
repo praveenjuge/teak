@@ -725,7 +725,7 @@
     <string name="native_settings_helpDocs">Aide et documentation</string>
     <string name="native_settings_hope">J’espère que vous aurez autant de plaisir à utiliser Teak que j’en ai eu à le créer.</string>
     <string name="native_settings_languageDescription">Enregistrée dans votre compte, elle vous suit sur tous vos appareils.</string>
-    <string name="native_settings_library">Bibliothèque</string>
+    <string name="native_settings_madeBy">Fait avec soin par %1$s</string>
     <string name="native_settings_manage">Gérer…</string>
     <string name="native_settings_notAvailable">Non disponible</string>
     <string name="native_settings_notSignedIn">Non connecté</string>
@@ -743,7 +743,6 @@
     <string name="native_settings_signOutConfirm">Voulez-vous vraiment vous déconnecter ?</string>
     <string name="native_settings_signingOut">Déconnexion…</string>
     <string name="native_settings_status">État</string>
-    <string name="native_settings_tagsDescription">Renommez, fusionnez ou supprimez vos tags</string>
     <string name="native_settings_theme">Thème</string>
     <string name="native_settings_themeAuto">Automatique</string>
     <string name="native_settings_themeDark">Sombre</string>

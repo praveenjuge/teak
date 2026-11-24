@@ -85,8 +85,6 @@
       "themeAuto": "自動",
       "themeLight": "ライト",
       "themeDark": "ダーク",
-      "library": "ライブラリ",
-      "tagsDescription": "タグの名前の変更、統合、削除ができます",
       "account": "アカウント",
       "profile": "プロフィール",
       "email": "メールアドレス",
@@ -118,7 +116,8 @@
       "openSafariSettings": "Safari の設定を開く…",
       "safariCheckFailed": "拡張機能を確認できませんでした：{error}",
       "safariWhere": "Safari で“Safari”>“設定”>“機能拡張”を選択して、Teak をオンにしてください。",
-      "safariHint": "Safari で {icon} >“機能拡張を管理”から Teak をオンにします。"
+      "safariHint": "Safari で {icon} >“機能拡張を管理”から Teak をオンにします。",
+      "madeBy": "{handle} が心を込めて制作"
     },
     "app": {
       "nav": {
@@ -986,9 +985,6 @@
       "zoomIn": "拡大",
       "zoomOut": "縮小",
       "zoomToFit": "ウインドウに合わせる"
-    },
-    "settings": {
-      "madeBy": "{handle} が心を込めて制作"
     }
   },
   "android": {

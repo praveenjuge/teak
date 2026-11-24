@@ -85,8 +85,6 @@
       "themeAuto": "자동",
       "themeLight": "라이트",
       "themeDark": "다크",
-      "library": "라이브러리",
-      "tagsDescription": "태그 이름을 변경하거나 병합하거나 삭제합니다",
       "account": "계정",
       "profile": "프로필",
       "email": "이메일",
@@ -118,7 +116,8 @@
       "openSafariSettings": "Safari 설정 열기…",
       "safariCheckFailed": "확장 프로그램을 확인하지 못했습니다: {error}",
       "safariWhere": "Safari에서 Safari > 설정 > 확장 프로그램을 선택한 다음 Teak을 켜세요.",
-      "safariHint": "Safari에서 {icon} > 확장 프로그램 관리로 이동해 Teak을 켜세요."
+      "safariHint": "Safari에서 {icon} > 확장 프로그램 관리로 이동해 Teak을 켜세요.",
+      "madeBy": "{handle}이(가) 정성껏 만들었습니다"
     },
     "app": {
       "nav": {
@@ -986,9 +985,6 @@
       "zoomIn": "확대",
       "zoomOut": "축소",
       "zoomToFit": "윈도우에 맞게 확대/축소"
-    },
-    "settings": {
-      "madeBy": "{handle}이(가) 정성껏 만들었습니다"
     }
   },
   "android": {

@@ -85,8 +85,6 @@
       "themeAuto": "Automatique",
       "themeLight": "Clair",
       "themeDark": "Sombre",
-      "library": "Bibliothèque",
-      "tagsDescription": "Renommez, fusionnez ou supprimez vos tags",
       "account": "Compte",
       "profile": "Profil",
       "email": "E-mail",
@@ -118,7 +116,8 @@
       "openSafariSettings": "Ouvrir les réglages de Safari…",
       "safariCheckFailed": "Impossible de vérifier l’extension : {error}",
       "safariWhere": "Dans Safari, choisissez Safari > Réglages > Extensions, puis activez Teak.",
-      "safariHint": "Activez Teak dans Safari : touchez {icon} > Gérer les extensions."
+      "safariHint": "Activez Teak dans Safari : touchez {icon} > Gérer les extensions.",
+      "madeBy": "Fait avec soin par {handle}"
     },
     "app": {
       "nav": {
@@ -986,9 +985,6 @@
       "zoomIn": "Zoom avant",
       "zoomOut": "Zoom arrière",
       "zoomToFit": "Zoom à la taille de la fenêtre"
-    },
-    "settings": {
-      "madeBy": "Fait avec soin par {handle}"
     }
   },
   "android": {

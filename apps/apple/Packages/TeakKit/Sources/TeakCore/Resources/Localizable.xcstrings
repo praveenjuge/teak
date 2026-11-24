@@ -4877,59 +4877,6 @@
         }
       }
     },
-    "apple.settings.madeBy" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mit Liebe gemacht von %1$@"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Made with care by %1$@"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hecho con cariño por %1$@"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fait avec soin par %1$@"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@ が心を込めて制作"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@이(가) 정성껏 만들었습니다"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Feito com carinho por %1$@"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "由 %1$@ 用心打造"
-          }
-        }
-      }
-    },
     "cards.types.audio" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -40239,55 +40186,55 @@
         }
       }
     },
-    "native.settings.library" : {
+    "native.settings.madeBy" : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bibliothek"
+            "value" : "Mit Liebe gemacht von %1$@"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Library"
+            "value" : "Made with care by %1$@"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Biblioteca"
+            "value" : "Hecho con cariño por %1$@"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bibliothèque"
+            "value" : "Fait avec soin par %1$@"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "ライブラリ"
+            "value" : "%1$@ が心を込めて制作"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "라이브러리"
+            "value" : "%1$@이(가) 정성껏 만들었습니다"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Biblioteca"
+            "value" : "Feito com carinho por %1$@"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "资料库"
+            "value" : "由 %1$@ 用心打造"
           }
         }
       }
@@ -41189,59 +41136,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "状态"
-          }
-        }
-      }
-    },
-    "native.settings.tagsDescription" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tags umbenennen, zusammenführen oder löschen"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Rename, merge or delete your tags"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cambie el nombre de sus etiquetas, fusiónelas o elimínelas"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Renommez, fusionnez ou supprimez vos tags"
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "タグの名前の変更、統合、削除ができます"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "태그 이름을 변경하거나 병합하거나 삭제합니다"
-          }
-        },
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Renomeie, mescle ou exclua suas tags"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "重命名、合并或删除你的标签"
           }
         }
       }
