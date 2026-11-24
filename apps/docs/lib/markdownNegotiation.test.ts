@@ -6,6 +6,7 @@ import {
   wantsMarkdown,
   withVaryAccept,
 } from "./markdownNegotiation";
+import { SITE_HEADERS } from "./siteHeaders";
 
 const MARKDOWN_CT = "text/markdown; charset=utf-8";
 
@@ -115,7 +116,12 @@ describe("negotiateMarkdown", () => {
     expect(body?.length).toBeGreaterThan(20);
     expect(body).toContain("https://teakvault.com/llms.txt");
     expect(result?.headers.get("Access-Control-Allow-Origin")).toBe("*");
-    expect(result?.headers.get("X-Content-Type-Options")).toBe("nosniff");
+    for (const [name, value] of Object.entries(SITE_HEADERS)) {
+      expect(result?.headers.get(name)).toBe(value);
+    }
+    expect(result?.headers.get("Content-Type")).toBe(
+      "text/markdown; charset=utf-8"
+    );
   });
 
   test("answers 406 when the page exists only as HTML", async () => {
