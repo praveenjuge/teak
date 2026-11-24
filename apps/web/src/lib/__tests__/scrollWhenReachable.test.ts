@@ -49,6 +49,7 @@ beforeEach(() => {
     value: 500,
   });
   Object.defineProperty(window, "scrollY", { configurable: true, value: 0 });
+  Object.defineProperty(window, "scrollX", { configurable: true, value: 0 });
   globalThis.ResizeObserver =
     FakeResizeObserver as unknown as typeof ResizeObserver;
 });
@@ -100,6 +101,37 @@ describe("scrollWhenReachable", () => {
     scrollWhenReachable(600);
     growTo(2000);
     expect(scrollTo).not.toHaveBeenCalled();
+    scrollTo.mockRestore();
+  });
+
+  test("a window in place vertically still gets its sideways place back", () => {
+    pageHeight = 2000;
+    Object.defineProperty(window, "scrollY", {
+      configurable: true,
+      value: 600,
+    });
+    const scrollTo = spyOn(window, "scrollTo").mockImplementation(
+      () => undefined
+    );
+    scrollWhenReachable(600, 100);
+    expect(scrollTo).toHaveBeenCalledWith({ top: 600, left: 100 });
+    scrollTo.mockRestore();
+  });
+
+  test("a shorter window makes the place reachable without the page growing", () => {
+    const scrollTo = spyOn(window, "scrollTo").mockImplementation(
+      () => undefined
+    );
+    pageHeight = 1000;
+    scrollWhenReachable(600);
+    expect(scrollTo).not.toHaveBeenCalled();
+    Object.defineProperty(window, "innerHeight", {
+      configurable: true,
+      value: 400,
+    });
+    window.dispatchEvent(new Event("resize"));
+    expect(scrollTo).toHaveBeenCalledWith({ top: 600, left: 0 });
+    expect(observing).toBe(false);
     scrollTo.mockRestore();
   });
 

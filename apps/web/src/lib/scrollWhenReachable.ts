@@ -25,7 +25,10 @@ function maxScrollTop() {
  * function that stops waiting.
  */
 export function scrollWhenReachable(top: number, left = 0): () => void {
-  if (Math.abs(window.scrollY - top) <= 1) {
+  if (
+    Math.abs(window.scrollY - top) <= 1 &&
+    Math.abs(window.scrollX - left) <= 1
+  ) {
     return NOOP;
   }
   if (maxScrollTop() >= top) {
@@ -33,9 +36,10 @@ export function scrollWhenReachable(top: number, left = 0): () => void {
     return NOOP;
   }
   let stopped = false;
-  // Each time the page grows, move as close to `top` as it allows, so a page
-  // that never gets tall enough again still ends near the old place.
-  const observer = new ResizeObserver(() => {
+  // Each time the page or the window changes size, move as close to `top` as
+  // the page allows, so one that never gets tall enough again still ends near
+  // the old place.
+  const followContent = () => {
     const reachable = Math.min(top, maxScrollTop());
     if (reachable >= top) {
       stop();
@@ -43,7 +47,8 @@ export function scrollWhenReachable(top: number, left = 0): () => void {
     if (reachable > window.scrollY) {
       window.scrollTo({ top: reachable, left });
     }
-  });
+  };
+  const observer = new ResizeObserver(followContent);
   const timer = setTimeout(() => stop(), SCROLL_RESTORE_GIVE_UP_MS);
   function stop() {
     if (stopped) {
@@ -52,11 +57,13 @@ export function scrollWhenReachable(top: number, left = 0): () => void {
     stopped = true;
     observer.disconnect();
     clearTimeout(timer);
+    window.removeEventListener("resize", followContent);
     for (const type of USER_INPUT_EVENTS) {
       window.removeEventListener(type, stop, true);
     }
   }
   observer.observe(document.body);
+  window.addEventListener("resize", followContent);
   for (const type of USER_INPUT_EVENTS) {
     window.addEventListener(type, stop, { capture: true, passive: true });
   }
