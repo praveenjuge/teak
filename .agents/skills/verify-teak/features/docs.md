@@ -16,7 +16,7 @@ teakvault.com's docs, built from `apps/docs/content` with Blume. The sidebar gro
 ## How to get to it (user POV)
 
 - Locally: `bun run dev docs` (or `bun run --cwd apps/docs dev`), then `<docsOrigin>/docs`, where `<docsOrigin>` is `http://localhost:<docs>` with the `docs` port `bun run dev --status` prints (3001 in the main checkout).
-- Production: `https://teakvault.com/docs`. Workers Builds runs `bun run build` and `bun run deploy` (`cf deploy dist`, configured by `apps/docs/cloudflare.config.ts`) in `apps/docs` on every push to `main`. The site is the assets-only `teak-site` Worker on the teakvault.com and www.teakvault.com Custom Domains; a zone redirect rule sends www to the apex with a 308.
+- Production: `https://teakvault.com/docs`. Workers Builds runs `bun run build` and `bun run deploy` (`wrangler deploy`, configured by `apps/docs/wrangler.jsonc`) in `apps/docs` on every push to `main`. The site is the `teak-site` Worker, which serves the built assets and answers `Accept: text/markdown` from `apps/docs/worker.ts`, on the teakvault.com and www.teakvault.com Custom Domains; a zone redirect rule sends www to the apex with a 308.
 - A page's Markdown: its URL plus `.md`, such as `/docs/testing.md`.
 - The built site, with `llms.txt` and `llms-full.txt`: `bun run --cwd apps/docs build:site`, then `bunx blume preview` in `apps/docs`.
 
@@ -35,6 +35,7 @@ Steps:
 - **Header.** On `/docs/testing` and `/`, the header has links "Login" and "Register" and no visible "Open Teak". Add cookie `teak_session_hint` with value `1` for the host and reload: only "Open Teak" shows. Never all three.
 - **Blog.** `open_session` on `<docsOrigin>/blog`. The heading reads "Blog", **Subscribe with RSS** links to `/blog/rss.xml`, and the grid lists every post in `content/blog` as a card with a cover image, a date like "October 27, 2026", a title and a description, newest first. Open the first card: the post shows its cover first, then the byline "<date> · Praveen Juge" above the title, no sidebar and no previous or next links, and **Related pages** at its foot. `curl -s <docsOrigin>/blog/rss.xml` lists the posts (from a build or preview). Repeat the index in dark and at 390px, where `document.documentElement.scrollWidth` stays at most the window width and the cards stack in one column. The footer on `/` and on a docs page has a **Blog** link.
 - **Hosting.** After a deploy, `curl -sI https://teakvault.com/docs/api` returns `200` with `strict-transport-security`, `x-frame-options: DENY` and `access-control-allow-origin: *` once each; `curl -sI https://teakvault.com/docs/api/` is a `307` to `/docs/api`; `curl -sI https://www.teakvault.com/pricing` is a `308` to `https://teakvault.com/pricing`; `curl -sI https://teakvault.com/docs/skills` is a `301` to `/docs/ai-agents`. `bun run build` writes those headers into `dist/_headers` (`apps/docs/scripts/security-headers.ts`) and the redirects into `dist/_redirects`.
+- **Markdown negotiation.** Needs a built site: `bun run --cwd apps/docs build`, then `bun x wrangler dev --local` in `apps/docs`. `curl -si -H 'Accept: text/markdown' <origin>/docs/testing` is `200` with `content-type: text/markdown`, `vary: accept` and the site headers. `curl -si -H 'Accept: text/markdown' <origin>/no-such-page` is a `404` with a Markdown body, and `/pricing` (a page with no Markdown twin) is a `406`. `curl -si <origin>/docs/testing` is still HTML with `vary: accept`, and `/llms.txt` is unchanged. `bun test lib` covers the same cases.
 - **Links.** `bun run --cwd apps/docs typecheck` (strict check and validate) and `bun run --cwd apps/docs build` (build and audit) both pass.
 
 ## Gotchas
@@ -43,5 +44,5 @@ Steps:
 - Don't build while the docs dev server runs: the build refuses. Stop it first, or run `blume build --isolated`.
 - The dev server doesn't serve `llms.txt` or `llms-full.txt`; read them from a build (`apps/docs/dist`) or a preview.
 - Group folders in parentheses, such as `(open-source)`, add no URL segment: moving a page between groups keeps its URL. Renaming the file changes it, so add a redirect in `blume.config.ts`.
-- The site is static: a page's Markdown is only at its `.md` URL, and `Accept: text/markdown` on the page URL still returns HTML.
+- A page's Markdown is at its `.md` URL. In production, `worker.ts` also serves it at the page URL when the request sends `Accept: text/markdown`. `bun run dev` and `blume preview` don't run the Worker, so there `Accept: text/markdown` on the page URL returns HTML.
 - `/api` and `/mcp` on the docs dev server proxy to the development deployment; the API, CLI and MCP recipe ([api-cli-mcp](./api-cli-mcp.md)) covers them.
