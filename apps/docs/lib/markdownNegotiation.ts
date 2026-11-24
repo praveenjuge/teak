@@ -73,7 +73,12 @@ function markdownMiss(pageExists: boolean, method: string): Response {
     : "# Page not found\n\nThere is no page at this address on teakvault.com. https://teakvault.com/llms.txt lists every agent-readable page, and https://teakvault.com/sitemap.xml lists every page.\n";
   return new Response(method === "HEAD" ? null : body, {
     status: pageExists ? 406 : 404,
-    headers: { "Content-Type": MARKDOWN_CONTENT_TYPE, Vary: "Accept" },
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Content-Type": MARKDOWN_CONTENT_TYPE,
+      "X-Content-Type-Options": "nosniff",
+      Vary: "Accept",
+    },
   });
 }
 
