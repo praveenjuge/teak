@@ -150,10 +150,10 @@ describe("negotiateMarkdown", () => {
 
   test("keeps the path out of the Markdown miss body", async () => {
     const result = await negotiateMarkdown(
-      request("/x![a](https://evil.test/p.png)", "text/markdown"),
+      request("/x![a](evil)", "text/markdown"),
       assetsWith({})
     );
-    expect(await result?.text()).not.toContain("evil.test");
+    expect(await result?.text()).not.toContain("evil");
   });
 
   test("sends no body for a HEAD request", async () => {
