@@ -131,14 +131,81 @@ describe("negotiateMarkdown", () => {
     expect(await result?.text()).toContain("Accept: text/html");
   });
 
-  test("answers a Markdown 404 for a missing asset path", async () => {
+  test("leaves a missing asset path to the assets", async () => {
     const assets = assetsWith({});
     const result = await negotiateMarkdown(
       request("/missing.png", "text/markdown"),
       assets
     );
+    expect(result).toBeNull();
+  });
+
+  test("passes existing asset paths through, such as llms.txt", async () => {
+    const assets = assetsWith({
+      "/llms.txt": { body: "# Teak", contentType: "text/plain" },
+    });
+    const result = await negotiateMarkdown(
+      request("/llms.txt", "text/markdown, text/plain, */*"),
+      assets
+    );
+    expect(result).toBeNull();
+  });
+
+  test("keeps the path out of the Markdown miss body", async () => {
+    const result = await negotiateMarkdown(
+      request("/x![a](https://evil.test/p.png)", "text/markdown"),
+      assetsWith({})
+    );
+    expect(await result?.text()).not.toContain("evil.test");
+  });
+
+  test("sends no body for a HEAD request", async () => {
+    const assets = assetsWith({});
+    const head = new Request("https://teakvault.com/nope", {
+      method: "HEAD",
+      headers: { Accept: "text/markdown" },
+    });
+    const result = await negotiateMarkdown(head, assets);
     expect(result?.status).toBe(404);
-    expect(result?.headers.get("Content-Type")).toBe(MARKDOWN_CT);
+    expect(await result?.text()).toBe("");
+  });
+
+  test("ignores other methods", async () => {
+    const post = new Request("https://teakvault.com/", {
+      method: "POST",
+      headers: { Accept: "text/markdown" },
+    });
+    expect(await negotiateMarkdown(post, assetsWith({}))).toBeNull();
+  });
+
+  test("keeps a redirect instead of answering 406", async () => {
+    const assets: SiteAssets = {
+      fetch: (input) => {
+        const path = new URL(input instanceof URL ? input.href : input.url)
+          .pathname;
+        return Promise.resolve(
+          path === "/old"
+            ? new Response(null, { status: 301, headers: { Location: "/new" } })
+            : new Response("nope", { status: 404 })
+        );
+      },
+    };
+    const result = await negotiateMarkdown(
+      request("/old", "text/markdown"),
+      assets
+    );
+    expect(result?.status).toBe(301);
+  });
+
+  test("passes a 5xx from the assets through", async () => {
+    const assets: SiteAssets = {
+      fetch: () => Promise.resolve(new Response("boom", { status: 503 })),
+    };
+    const result = await negotiateMarkdown(
+      request("/docs", "text/markdown"),
+      assets
+    );
+    expect(result?.status).toBe(503);
   });
 });
 
