@@ -135,6 +135,22 @@ describe("scrollWhenReachable", () => {
     scrollTo.mockRestore();
   });
 
+  test("once it stops, a later window resize no longer scrolls", () => {
+    const scrollTo = spyOn(window, "scrollTo").mockImplementation(
+      () => undefined
+    );
+    pageHeight = 1000;
+    const stop = scrollWhenReachable(600);
+    stop();
+    Object.defineProperty(window, "innerHeight", {
+      configurable: true,
+      value: 400,
+    });
+    window.dispatchEvent(new Event("resize"));
+    expect(scrollTo).not.toHaveBeenCalled();
+    scrollTo.mockRestore();
+  });
+
   test("scrolling or acting first cancels the jump", () => {
     for (const type of ["wheel", "touchstart", "keydown", "pointerdown"]) {
       pageHeight = 500;
