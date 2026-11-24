@@ -58,17 +58,22 @@ afterEach(() => {
 });
 
 describe("scrollWhenReachable", () => {
-  test("a page that is still loading scrolls back once it is tall enough", () => {
-    const scrollTo = spyOn(window, "scrollTo").mockImplementation(
-      () => undefined
-    );
+  test("a page that is still loading follows its content back to the place", () => {
+    const scrollTo = spyOn(window, "scrollTo").mockImplementation((options) => {
+      Object.defineProperty(window, "scrollY", {
+        configurable: true,
+        value: (options as ScrollToOptions).top,
+      });
+    });
     scrollWhenReachable(600);
     expect(scrollTo).not.toHaveBeenCalled();
+    // Only 400 fits yet: it goes as far as it can and keeps waiting.
     growTo(900);
-    expect(scrollTo).not.toHaveBeenCalled();
+    expect(scrollTo).toHaveBeenLastCalledWith({ top: 400, left: 0 });
+    expect(observing).toBe(true);
     growTo(1500);
-    expect(scrollTo).toHaveBeenCalledTimes(1);
-    expect(scrollTo).toHaveBeenCalledWith({ top: 600, left: 0 });
+    expect(scrollTo).toHaveBeenLastCalledWith({ top: 600, left: 0 });
+    expect(scrollTo).toHaveBeenCalledTimes(2);
     expect(observing).toBe(false);
     scrollTo.mockRestore();
   });

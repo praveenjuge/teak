@@ -20,7 +20,7 @@ function maxScrollTop() {
  * Scrolls the window to `top` as soon as the page is tall enough to get
  * there. A page that is still loading can be shorter than the position it is
  * asked to return to, and the browser then clamps the scroll to what fits.
- * This waits for the content to grow instead, and gives up when the person
+ * This follows the content down as it grows instead, and stops when the person
  * scrolls or acts first, or after SCROLL_RESTORE_GIVE_UP_MS. Returns a
  * function that stops waiting.
  */
@@ -33,10 +33,15 @@ export function scrollWhenReachable(top: number, left = 0): () => void {
     return NOOP;
   }
   let stopped = false;
+  // Each time the page grows, move as close to `top` as it allows, so a page
+  // that never gets tall enough again still ends near the old place.
   const observer = new ResizeObserver(() => {
-    if (maxScrollTop() >= top) {
+    const reachable = Math.min(top, maxScrollTop());
+    if (reachable >= top) {
       stop();
-      window.scrollTo({ top, left });
+    }
+    if (reachable > window.scrollY) {
+      window.scrollTo({ top: reachable, left });
     }
   });
   const timer = setTimeout(() => stop(), SCROLL_RESTORE_GIVE_UP_MS);
