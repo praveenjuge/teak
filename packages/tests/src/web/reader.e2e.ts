@@ -37,9 +37,9 @@ describe("Reading a saved article", () => {
     );
 
     await gotoApp(browser, `/?card=${longRead?._id}`);
-    const read = screen.getByRole("radio", "Read");
-    const preview = screen.getByRole("radio", "Preview");
-    await expect(read).toHaveAttribute("aria-checked", "true", {
+    const read = screen.getByRole("button", "Read");
+    const preview = screen.getByRole("button", "Preview");
+    await expect(read).toHaveAttribute("aria-pressed", "true", {
       timeout: 15_000,
     });
     // The dialog's own title is a hidden heading with the same name, so the
@@ -55,11 +55,11 @@ describe("Reading a saved article", () => {
     ).toBeVisible();
 
     await browser.keyboard.press("r");
-    await expect(preview).toHaveAttribute("aria-checked", "true");
+    await expect(preview).toHaveAttribute("aria-pressed", "true");
     await expect(screen.getByText("Planting calendar")).toBeHidden();
 
     await browser.keyboard.press("r");
-    await expect(read).toHaveAttribute("aria-checked", "true");
+    await expect(read).toHaveAttribute("aria-pressed", "true");
     await expect(reader.getByRole("heading", LONG_READ)).toBeVisible();
   });
 });

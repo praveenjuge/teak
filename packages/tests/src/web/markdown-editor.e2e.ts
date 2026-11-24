@@ -206,6 +206,8 @@ describe("Markdown editor", { trace: "on", video: "retain-on-failure" }, () => {
     await goToEnd(browser, DIALOG_EDITOR);
     await fullscreen.pressSequentially(" continued");
     await dialog.getByRole("button", "Close").click();
+    // Focus mode stays in the page, with its own editor, while it animates out.
+    await expect(dialog).toBeHidden();
     await expect(await getBlockEditor(composer)).toHaveText(
       `${marker} continued`
     );
