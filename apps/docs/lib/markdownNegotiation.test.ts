@@ -114,6 +114,8 @@ describe("negotiateMarkdown", () => {
     const body = await result?.text();
     expect(body?.length).toBeGreaterThan(20);
     expect(body).toContain("https://teakvault.com/llms.txt");
+    expect(result?.headers.get("Access-Control-Allow-Origin")).toBe("*");
+    expect(result?.headers.get("X-Content-Type-Options")).toBe("nosniff");
   });
 
   test("answers 406 when the page exists only as HTML", async () => {
