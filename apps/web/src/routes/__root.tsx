@@ -11,6 +11,7 @@ import { RootError } from "@/components/feedback/RootError";
 import { CookieLocaleProvider } from "@/components/providers/CookieLocaleProvider";
 import { ShareWorkerRegistration } from "@/components/providers/ShareWorkerRegistration";
 import { RouteAnnouncer } from "@/components/RouteAnnouncer";
+import { ScrollRestoreAfterLoad } from "@/components/ScrollRestoreAfterLoad";
 import { Toaster } from "@/components/ui/sonner";
 import { APP_BACKGROUND_COLOR } from "@/lib/appTheme";
 import { pageTitle } from "@/lib/pageTitle";
@@ -115,6 +116,7 @@ function RootDocument({ children }: { children: ReactNode }) {
         <Toaster position="bottom-center" />
         <ShareWorkerRegistration />
         <RouteAnnouncer />
+        <ScrollRestoreAfterLoad />
         <Scripts />
       </body>
     </html>
