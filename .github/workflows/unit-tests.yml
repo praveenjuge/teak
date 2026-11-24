@@ -35,6 +35,11 @@ jobs:
           bun run --cwd apps/web cf-typegen:check
       - name: Run unit tests
         run: bun run test
+      - name: Build the docs site and bundle its Worker
+        working-directory: apps/docs
+        run: |
+          bun run build:site
+          bun x wrangler deploy --dry-run
 
   extension-firefox:
     runs-on: ubuntu-latest
