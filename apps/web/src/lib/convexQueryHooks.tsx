@@ -43,6 +43,9 @@ import {
 
 class QuerySeeds {
   readonly #values: Map<string, Value>;
+  // Retired seeds stay readable for components still hydrating, which must
+  // match the server even after another reader of the same query went live.
+  readonly #retired = new Set<string>();
 
   constructor(seeds: readonly QuerySeed[]) {
     // Decoded once, so a seed keeps one identity across renders.
@@ -58,12 +61,14 @@ class QuerySeeds {
     return this.#values.size === 0;
   }
 
-  read(key: string) {
-    return this.#values.get(key);
+  read(key: string, hydrating: boolean) {
+    return hydrating || !this.#retired.has(key)
+      ? this.#values.get(key)
+      : undefined;
   }
 
   retire(key: string) {
-    this.#values.delete(key);
+    this.#retired.add(key);
   }
 }
 
@@ -109,7 +114,7 @@ function useSeed(key: string | null, liveArrived: boolean, hydrated: boolean) {
       seeds?.retire(key);
     }
   }, [key, liveShown, seeds]);
-  return liveShown || key === null ? undefined : seeds?.read(key);
+  return liveShown || key === null ? undefined : seeds?.read(key, !hydrated);
 }
 
 export function useQuery<Query extends FunctionReference<"query">>(

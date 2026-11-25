@@ -5,7 +5,7 @@ import type { Root } from "react-dom/client";
 GlobalRegistrator.register({ url: "http://localhost:3000/" });
 
 const { api } = await import("@teak/convex");
-const { act, Suspense } = await import("react");
+const { act, Suspense, use } = await import("react");
 const { createRoot } = await import("react-dom/client");
 const { renderToString } = await import("react-dom/server");
 const { ConvexProvider } = await import("convex/react");
@@ -187,7 +187,11 @@ test("shows a complete seeded first page as exhausted", async () => {
 });
 
 // The server has no live results: render its HTML on a transport of its own.
-async function hydrate(seeds: Seeds, children: React.ReactNode) {
+async function hydrate(
+  seeds: Seeds,
+  children: React.ReactNode,
+  beforeHydrate: () => void = () => undefined
+) {
   const { hydrateRoot } = await import("react-dom/client");
   const errors: unknown[] = [];
   const browser = transport;
@@ -195,10 +199,11 @@ async function hydrate(seeds: Seeds, children: React.ReactNode) {
   container = document.createElement("div");
   document.body.append(container);
   const html = renderToString(tree(seeds, children));
-  const parsed = new DOMParser().parseFromString(html, "text/html");
-  container.append(...parsed.body.childNodes);
+  // happy-dom's DOMParser drops comments, and with them Suspense's markers.
+  container.append(document.createRange().createContextualFragment(html));
   transport = browser;
   const serverHtml = text();
+  beforeHydrate();
   await act(() => {
     root = hydrateRoot(container, tree(seeds, children), {
       onRecoverableError: (error) => errors.push(error),
@@ -240,4 +245,39 @@ test("hydrates an unseeded query as loading even when the live result is already
   expect(serverHtml).toBe("loadingLoadingFirstPage:");
   expect(errors).toEqual([]);
   expect(text()).toBe("LiveCanLoadMore:card_1,card_2");
+});
+
+test("a reader that hydrates later still gets the seed another reader retired", async () => {
+  transport = createConvexTransport();
+  transport.seed("folders:getFolder", { ...folder, name: "Live" });
+  let gate: Promise<void> | null = null;
+  let open: () => void = () => undefined;
+  function Later() {
+    if (gate) {
+      use(gate);
+    }
+    return <Folder />;
+  }
+  const page = (
+    <>
+      <Folder />
+      <Suspense fallback={<p>waiting</p>}>
+        <Later />
+      </Suspense>
+    </>
+  );
+  const pending = new Promise<void>((resolve) => {
+    open = resolve;
+  });
+  const { errors, serverHtml } = await hydrate([folderSeed], page, () => {
+    gate = pending;
+  });
+  expect(serverHtml).toBe("ReadingReading");
+
+  await act(async () => {
+    open();
+    await pending;
+  });
+  expect(errors).toEqual([]);
+  expect(text()).toBe("LiveLive");
 });
