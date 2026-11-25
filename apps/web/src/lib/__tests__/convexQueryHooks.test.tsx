@@ -185,3 +185,57 @@ test("shows a complete seeded first page as exhausted", async () => {
   await mount([cardsSeed({ ...firstPage, isDone: true })], <Cards />);
   expect(text()).toBe("Exhausted:card_1,card_2");
 });
+
+// The server has no live results: render its HTML on a transport of its own.
+async function hydrate(seeds: Seeds, children: React.ReactNode) {
+  const { hydrateRoot } = await import("react-dom/client");
+  const errors: unknown[] = [];
+  const browser = transport;
+  transport = createConvexTransport();
+  container = document.createElement("div");
+  document.body.append(container);
+  container.innerHTML = renderToString(tree(seeds, children));
+  transport = browser;
+  const serverHtml = text();
+  await act(() => {
+    root = hydrateRoot(container, tree(seeds, children), {
+      onRecoverableError: (error) => errors.push(error),
+    });
+  });
+  return { errors, serverHtml };
+}
+
+test("hydrates the seed even when the live result is already in, then shows it", async () => {
+  transport = createConvexTransport();
+  transport.seed("folders:getFolder", { ...folder, name: "Live" });
+  transport.seed("cards:searchCardsPaginated", {
+    ...firstPage,
+    page: [{ _id: "card_3" }],
+  });
+  const { errors, serverHtml } = await hydrate(
+    [folderSeed, cardsSeed(firstPage)],
+    <>
+      <Folder />
+      <Cards />
+    </>
+  );
+  expect(serverHtml).toBe("ReadingLoadingMore:card_1,card_2");
+  expect(errors).toEqual([]);
+  expect(text()).toBe("LiveCanLoadMore:card_3");
+});
+
+test("hydrates an unseeded query as loading even when the live result is already in", async () => {
+  transport = createConvexTransport();
+  transport.seed("folders:getFolder", { ...folder, name: "Live" });
+  transport.seed("cards:searchCardsPaginated", firstPage);
+  const { errors, serverHtml } = await hydrate(
+    [],
+    <>
+      <Folder />
+      <Cards />
+    </>
+  );
+  expect(serverHtml).toBe("loadingLoadingFirstPage:");
+  expect(errors).toEqual([]);
+  expect(text()).toBe("LiveCanLoadMore:card_1,card_2");
+});
