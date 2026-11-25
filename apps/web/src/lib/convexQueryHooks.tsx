@@ -68,7 +68,9 @@ class QuerySeeds {
   }
 
   retire(key: string) {
-    this.#retired.add(key);
+    if (this.#values.has(key)) {
+      this.#retired.add(key);
+    }
   }
 }
 
