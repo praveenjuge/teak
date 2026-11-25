@@ -1,3 +1,4 @@
+import { useHydrated } from "@tanstack/react-router";
 import type {
   OptionalRestArgsOrSkip,
   PaginatedQueryReference,
@@ -35,9 +36,16 @@ import {
 // convex-helpers, which fall back to the result the server fetched for the
 // page (its seed) while the live query is still loading. A query's seed is
 // retired the moment its live result arrives, so nothing shows it again.
+// While a component hydrates, the hooks render exactly what the server did
+// (the seed, or loading), even when the live result is already in: a
+// different first render fails hydration, and React then rebuilds the page,
+// dropping anything the person had typed into it.
 
 class QuerySeeds {
   readonly #values: Map<string, Value>;
+  // Retired seeds stay readable for components still hydrating, which must
+  // match the server even after another reader of the same query went live.
+  readonly #retired = new Set<string>();
 
   constructor(seeds: readonly QuerySeed[]) {
     // Decoded once, so a seed keeps one identity across renders.
@@ -53,12 +61,16 @@ class QuerySeeds {
     return this.#values.size === 0;
   }
 
-  read(key: string) {
-    return this.#values.get(key);
+  read(key: string, hydrating: boolean) {
+    return hydrating || !this.#retired.has(key)
+      ? this.#values.get(key)
+      : undefined;
   }
 
   retire(key: string) {
-    this.#values.delete(key);
+    if (this.#values.has(key)) {
+      this.#retired.add(key);
+    }
   }
 }
 
@@ -96,14 +108,15 @@ function useSeedKey(
   return querySeedKey(getFunctionName(query), convexToJson(args ?? {}));
 }
 
-function useSeed(key: string | null, liveArrived: boolean) {
+function useSeed(key: string | null, liveArrived: boolean, hydrated: boolean) {
   const seeds = useContext(QuerySeedsContext);
+  const liveShown = liveArrived && hydrated;
   useEffect(() => {
-    if (liveArrived && key !== null) {
+    if (liveShown && key !== null) {
       seeds?.retire(key);
     }
-  }, [key, liveArrived, seeds]);
-  return liveArrived || key === null ? undefined : seeds?.read(key);
+  }, [key, liveShown, seeds]);
+  return liveShown || key === null ? undefined : seeds?.read(key, !hydrated);
 }
 
 export function useQuery<Query extends FunctionReference<"query">>(
@@ -111,9 +124,10 @@ export function useQuery<Query extends FunctionReference<"query">>(
   ...args: OptionalRestArgsOrSkip<Query>
 ): FunctionReturnType<Query> | undefined {
   const live = useCachedQuery(query, ...args);
+  const hydrated = useHydrated();
   const key = useSeedKey(query, args[0] as Record<string, Value> | "skip");
-  const seed = useSeed(key, live !== undefined);
-  return live === undefined
+  const seed = useSeed(key, live !== undefined, hydrated);
+  return live === undefined || !hydrated
     ? (seed as FunctionReturnType<Query> | undefined)
     : live;
 }
@@ -158,11 +172,22 @@ export function usePaginatedQuery<Query extends PageQuery>(
           options.initialNumItems
         ) as Record<string, Value>)
   );
-  const firstPage = useSeed(key, live.status !== "LoadingFirstPage") as
-    | FunctionReturnType<Query>
-    | undefined;
+  const hydrated = useHydrated();
+  const firstPage = useSeed(
+    key,
+    live.status !== "LoadingFirstPage",
+    hydrated
+  ) as FunctionReturnType<Query> | undefined;
   if (firstPage === undefined) {
-    return live;
+    // The server never has a live page: without a seed it rendered loading.
+    return hydrated
+      ? live
+      : ({
+          results: [],
+          status: "LoadingFirstPage",
+          isLoading: true,
+          loadMore: noLoadMore,
+        } as UsePaginatedQueryResult<PageQueryItem<Query>>);
   }
   // More pages load once the live query has the first one.
   return (
