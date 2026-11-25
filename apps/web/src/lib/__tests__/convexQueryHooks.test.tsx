@@ -194,7 +194,9 @@ async function hydrate(seeds: Seeds, children: React.ReactNode) {
   transport = createConvexTransport();
   container = document.createElement("div");
   document.body.append(container);
-  container.innerHTML = renderToString(tree(seeds, children));
+  const html = renderToString(tree(seeds, children));
+  const parsed = new DOMParser().parseFromString(html, "text/html");
+  container.append(...parsed.body.childNodes);
   transport = browser;
   const serverHtml = text();
   await act(() => {
