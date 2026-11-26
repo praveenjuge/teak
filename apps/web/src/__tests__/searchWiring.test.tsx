@@ -158,6 +158,23 @@ describe("library URL", () => {
     expect(await back()).toBe("/?sort=oldest");
   });
 
+  test("a typed search that settles while a quick command leaves the page doesn't cancel the move", async () => {
+    render("");
+    screenProps.onNavigateView("trash");
+    // The search box's own write for "trash", flushed by React right after
+    // the Enter that started the move, then the emptied box.
+    screenProps.onSearchUrlStateChange(
+      { q: "trash", sort: "newest", types: [] },
+      { sortChanged: false, tagChanged: false, typesChanged: false }
+    );
+    screenProps.onSearchUrlStateChange(
+      { q: "", sort: "newest", types: [] },
+      { sortChanged: false, tagChanged: false, typesChanged: false }
+    );
+    expect(url()).toBe("/trash");
+    expect(await back()).toBe("/");
+  });
+
   test("Search everything reruns this page's search in the library and leaves this entry alone, so Back returns to it", async () => {
     render("q=tomato%20soup&type=link,image&card=card_1");
     screenProps.onSearchEverything();

@@ -68,10 +68,27 @@ export function useLibraryUrl({ folderId }: { folderId?: string } = {}) {
     openCardIdRef.current = cardIdFromUrl;
   }, [cardIdFromUrl]);
 
+  // Set while this page navigates to another one. A search write then
+  // would replace the URL under the move and cancel it: React flushes the
+  // search box's pending write right after the Enter that ran "trash".
+  const leavingRef = useRef<boolean>(false);
+  const leaveTo = useCallback(
+    (href: string) => {
+      leavingRef.current = true;
+      navigate({ href }).finally(() => {
+        leavingRef.current = false;
+      });
+    },
+    [navigate]
+  );
+
   // Router navigations commit in the order they're called, so an older
   // search can never land after a newer one.
   const onSearchUrlStateChange = useCallback(
     (state: SearchUrlState, change: SearchUrlChange) => {
+      if (leavingRef.current) {
+        return;
+      }
       const query = searchUrlQuery(
         state,
         window.location.search,
@@ -113,9 +130,9 @@ export function useLibraryUrl({ folderId }: { folderId?: string } = {}) {
         // as one entry, which would drop this replace into the push below.
         router.history.flush();
       }
-      navigate({ href: LIBRARY_VIEW_PATHS[nextView] });
+      leaveTo(LIBRARY_VIEW_PATHS[nextView]);
     },
-    [navigate, router]
+    [leaveTo, navigate, router]
   );
 
   // The same search in the whole library, from a view that found nothing.
@@ -129,8 +146,8 @@ export function useLibraryUrl({ folderId }: { folderId?: string } = {}) {
         search.set(name, value);
       }
     }
-    navigate({ href: libraryHref(LIBRARY_VIEW_PATHS.all, search) });
-  }, [navigate]);
+    leaveTo(libraryHref(LIBRARY_VIEW_PATHS.all, search));
+  }, [leaveTo]);
 
   const cardEntryUrlRef = useRef<string | null>(null);
 

@@ -71,7 +71,7 @@ Steps:
 
 ## Gotchas
 
-- Enter changes the query: a plain word becomes a chip and the input empties. "orange" becomes a color filter, "minimal" a style, "today" a time; "fav", "trash" and "archive" navigate.
+- Enter changes the query: a plain word becomes a chip and the input empties. "orange" becomes a color filter, "minimal" a style, "today" a time; "fav", "trash" and "archive" navigate, even when Enter lands just as the typed word is being written to the URL (the page's own search write must not cancel the move; `__tests__/searchWiring.test.tsx`).
 - The dev deployment also searches by meaning, so even a nonsense word can show cards: "zzzz-no-match-…" matched the seeded "Document: Teak search cheat sheet.pdf". For a no-match check use a qualifier (`tag:zzzz-no-match-<run-id>`), which matches exactly. A search that finds no words waits for its meaning matches (up to 6 s) before the empty state.
 - A card made through the API reaches server search after a short delay. If the UI misses it, search again after a few seconds before calling it a bug.
 - Processing can rename a card ("Text: …" to "Palette: …", or a link's title), so match by marker, not by full name.
