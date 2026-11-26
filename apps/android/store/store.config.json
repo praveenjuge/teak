@@ -1,7 +1,7 @@
 {
   "packageName": "com.praveenjuge.teak",
   "locale": "en-US",
-  "whatsNew": "",
+  "whatsNew": "Teak now uses Allo, a friendly new typeface. Settings has a simpler layout. New widgets: Quick Capture saves a note, voice memo, photo or file in one tap, and Favorites shows your latest favorites on your home screen.",
   "listing": {
     "title": "Teak: Save Inspirations",
     "shortDescription": "Save links, images, notes and voice memos to your personal inspiration vault.",
