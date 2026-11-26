@@ -115,8 +115,20 @@ export const cardOperations = {
         schema: { type: "array", items: { type: "string" } },
         description: "Repeat to match any selected value within this filter.",
       })),
-      { in: "query", name: "createdAfter", schema: { type: "number" } },
-      { in: "query", name: "createdBefore", schema: { type: "number" } },
+      {
+        in: "query",
+        name: "createdAfter",
+        schema: { type: "number" },
+        description:
+          "Only cards saved at or after this time (Unix ms): the card's `savedAt`, which is when it was created unless the same link was saved again since.",
+      },
+      {
+        in: "query",
+        name: "createdBefore",
+        schema: { type: "number" },
+        description:
+          "Only cards saved at or before this time (Unix ms), by `savedAt`.",
+      },
       {
         in: "query",
         name: "include",

@@ -66,9 +66,14 @@ export const parseCardsQueryOptions = (
 ): CardsQueryOptions | Response => {
   const { searchParams } = new URL(request.url);
   const similarTo = parseOptionalString(searchParams.get("similarTo"));
+  // The whole value must be the id: `<id> design` would parse as `like:<id>`
+  // plus a word, silently narrowing the list.
+  const similarity = similarTo
+    ? parseSearchQuery(`like:${similarTo}`).similarity
+    : null;
   if (
     searchParams.has("similarTo") &&
-    !(similarTo && parseSearchQuery(`like:${similarTo}`).similarity)
+    !(similarity?.kind === "like" && similarity.cardId === similarTo)
   ) {
     return errorResponse(
       400,

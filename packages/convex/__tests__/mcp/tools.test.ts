@@ -15,6 +15,21 @@ import {
 setUpMcpEnv();
 
 describe("MCP tools", () => {
+  test("tools that lose data for good are marked destructive", () => {
+    // A client may run a non-destructive write without asking first.
+    const destructive = TEAK_V1_TOOLS.filter(
+      (entry) => entry.annotations.destructiveHint
+    ).map((entry) => entry.name);
+    expect(destructive).toEqual(
+      expect.arrayContaining([
+        "teak_v1_merge_tags",
+        "teak_v1_reset_card_thumbnail",
+        "teak_v1_delete_tag",
+        "teak_v1_delete_card",
+      ])
+    );
+  });
+
   test("forwards MCP tools to the injected v1 executor", async () => {
     const captured: Array<{
       path: string;

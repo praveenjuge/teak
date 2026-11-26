@@ -539,12 +539,28 @@ export const editTags = async (
   options: GlobalOptions
 ) => {
   const api = client(options);
-  const wanted = names.map((name) => name.trim().toLowerCase()).filter(Boolean);
+  // Tags keep the case they're typed in, as `add --tags` saves them; only
+  // the comparison ignores case.
+  const typed = names.map((name) => name.trim()).filter(Boolean);
+  const wanted = typed.map((name) => name.toLowerCase());
   const card = await api.cards.get(id);
   const isWanted = (tag: string) => wanted.includes(tag.toLowerCase());
+  const has = new Set(card.tags.map((tag) => tag.toLowerCase()));
   const update =
     mode === "add"
-      ? { tags: Array.from(new Set([...card.tags, ...wanted])) }
+      ? {
+          tags: [
+            ...card.tags,
+            ...typed.filter((tag) => {
+              const key = tag.toLowerCase();
+              if (has.has(key)) {
+                return false;
+              }
+              has.add(key);
+              return true;
+            }),
+          ],
+        }
       : {
           tags: card.tags.filter((tag) => !isWanted(tag)),
           removeAiTags: card.aiTags.filter(isWanted),

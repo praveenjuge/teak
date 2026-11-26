@@ -41,6 +41,37 @@ export const bulkItemProblem = (
   if (unknownKey !== undefined) {
     return `Unknown field \`${unknownKey}\``;
   }
+  // A field of the wrong type fails the item, as POST and PATCH refuse it,
+  // rather than being dropped while the rest of the item saves.
+  if (allowed) {
+    const wrongType = [...allowed].find(
+      (key) =>
+        key !== "cardId" &&
+        key !== "tags" &&
+        key !== "notes" &&
+        payload[key] !== undefined &&
+        typeof payload[key] !== "string"
+    );
+    if (wrongType !== undefined) {
+      return `\`${wrongType}\` must be a string`;
+    }
+    if (
+      payload.notes !== undefined &&
+      payload.notes !== null &&
+      typeof payload.notes !== "string"
+    ) {
+      return "`notes` must be a string or null";
+    }
+    if (
+      payload.tags !== undefined &&
+      !(
+        Array.isArray(payload.tags) &&
+        payload.tags.every((tag) => typeof tag === "string")
+      )
+    ) {
+      return "`tags` must be an array of strings";
+    }
+  }
   if (operation === "create") {
     // Empty content is fine on an explicit text card.
     const content =

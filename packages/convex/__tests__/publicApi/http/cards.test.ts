@@ -2067,6 +2067,14 @@ describe("listCardsV1 search modes", () => {
     );
     expect(response.status).toBe(400);
     expect(await response.json()).toMatchObject({ code: "INVALID_INPUT" });
+    // A valid id followed by words isn't an id either.
+    const withWords = await runHandler(
+      publicApiV1,
+      ctxFor().ctx,
+      authorizedRequest("similarTo=j979t50bv7gjxz2mazwwf5tes18gbvnt%20design")
+    );
+    expect(withWords.status).toBe(400);
+    expect(await withWords.json()).toMatchObject({ code: "INVALID_INPUT" });
   });
 
   test("similarTo lists a card's neighbors, or says why it can't", async () => {
