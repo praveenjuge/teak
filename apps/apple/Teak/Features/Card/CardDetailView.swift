@@ -1,5 +1,6 @@
 import SwiftUI
 import TeakCore
+import TeakUI
 
 struct CardDetailView: View {
     let route: CardRoute
@@ -398,11 +399,14 @@ private struct EditLinkSheet: View {
                         .onSubmit(submit)
                         .accessibilityIdentifier("editLink.field")
                 } footer: {
-                    if let error {
-                        Text(error).foregroundStyle(.red)
-                    } else {
-                        Text(tr("native.card.editLink.message"))
+                    Group {
+                        if let error {
+                            Text(error).foregroundStyle(.red)
+                        } else {
+                            Text(tr("native.card.editLink.message"))
+                        }
                     }
+                    .font(.allo(.footnote))
                 }
             }
             .formStyle(.grouped)

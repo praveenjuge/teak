@@ -2,6 +2,7 @@ import ImageIO
 import QuickLookThumbnailing
 import SwiftUI
 import TeakCore
+import TeakUI
 import UniformTypeIdentifiers
 
 struct SharePreview: Equatable {
@@ -97,7 +98,7 @@ struct SharePreviewTile: View {
                         .transition(.opacity)
                 } else if let preview {
                     Image(systemName: preview.symbol)
-                        .font(.system(size: size * 0.36, weight: .medium))
+                        .font(.allo(fixedSize: size * 0.36, weight: .medium))
                         .foregroundStyle(.secondary)
                         .transition(.opacity)
                 }
@@ -123,7 +124,7 @@ struct ShareStatusBadge: View {
                 Spinner(lineWidth: size * 0.08).padding(size * 0.24)
             } else {
                 Image(systemName: symbol)
-                    .font(.system(size: size * 0.46, weight: .black))
+                    .font(.allo(fixedSize: size * 0.46, weight: .black))
                     .foregroundStyle(.white)
                     .id(status)
                     .transition(.symbolEffect(.drawOn))

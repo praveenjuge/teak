@@ -1,5 +1,6 @@
 import SwiftUI
 import TeakCore
+import TeakUI
 
 #if os(macOS)
 import SafariServices
@@ -36,7 +37,7 @@ struct SafariExtensionSection: View {
             }
             Button(tr("native.settings.openSafariSettings")) { Task { await openSafariSettings() } }
             if let problem {
-                Text(problem).font(.footnote).foregroundStyle(.secondary)
+                Text(problem).font(.allo(.footnote)).foregroundStyle(.secondary)
             }
         }
         .task { await refresh() }

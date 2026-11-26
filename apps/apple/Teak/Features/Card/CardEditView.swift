@@ -1,5 +1,6 @@
 import SwiftUI
 import TeakCore
+import TeakUI
 
 struct CardEditView: View {
     let cardId: String
@@ -129,6 +130,7 @@ struct CardEditView: View {
             } footer: {
                 if let hint = HiddenTags.addedHint(before: card.tags, after: draft.wrappedValue.tags) {
                     Label(hint, systemImage: "eye.slash")
+                        .font(.allo(.footnote))
                         .accessibilityIdentifier("edit.hiddenHint")
                 }
             }
@@ -183,7 +185,7 @@ struct CardEditView: View {
         } header: {
             Text(tr("native.card.note"))
         } footer: {
-            Text(tr("native.linkPicker.hint"))
+            Text(tr("native.linkPicker.hint")).font(.allo(.footnote))
         }
     }
 

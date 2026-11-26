@@ -172,6 +172,8 @@ targets:
     dependencies:
       - package: TeakKit
         product: TeakCore
+      - package: TeakKit
+        product: TeakUI
 
   TeakUITests:
     type: bundle.ui-testing

@@ -1,5 +1,6 @@
 import ImageIO
 import SwiftUI
+import TeakUI
 
 #if os(macOS)
 import AppKit
@@ -128,7 +129,7 @@ struct RemoteImage: View {
                         .blur(radius: 8)
                 } else if failed || urls.isEmpty {
                     Image(systemName: "photo")
-                        .font(.title3)
+                        .font(.allo(.title3))
                         .foregroundStyle(.secondary)
                 }
             }

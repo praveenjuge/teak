@@ -59,7 +59,7 @@ public struct FolderChecklist: View {
                 Label(folder.name, systemImage: folder.symbol).lineLimit(1)
                 Spacer(minLength: 8)
                 Text(Int(folder.activeCardCount), format: .number.locale(AppLanguage.locale))
-                    .font(.footnote)
+                    .font(.allo(.footnote))
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
                 Image(systemName: isChecked ? "checkmark.circle.fill" : "circle")

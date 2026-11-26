@@ -1,5 +1,6 @@
 import SwiftUI
 import TeakCore
+import TeakUI
 
 struct LibraryView: View {
     @Bindable var library: LibraryModel
@@ -162,7 +163,7 @@ struct LibraryView: View {
             ScrollView {
                 if library.query.revealsHiddenCards {
                     Label(HiddenTags.searchHint, systemImage: "eye.slash")
-                        .font(.footnote)
+                        .font(.allo(.footnote))
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, CardGrid.edge + 4)
@@ -310,11 +311,11 @@ struct LibraryView: View {
     private var refreshFailed: some View {
         HStack {
             Label(tr("native.library.loadFailed.title"), systemImage: "exclamationmark.triangle")
-                .font(.footnote)
+                .font(.allo(.footnote))
                 .foregroundStyle(.secondary)
             Spacer(minLength: 8)
             Button(tr("common.retry")) { library.pager.retry() }
-                .font(.footnote.weight(.semibold))
+                .font(.allo(.footnote).weight(.semibold))
                 .buttonStyle(.borderless)
         }
         .padding(.horizontal, CardGrid.edge + 4)
@@ -323,7 +324,7 @@ struct LibraryView: View {
 
     private var loadMoreFailed: some View {
         VStack(spacing: 8) {
-            Text(tr("native.library.loadMoreFailed")).font(.footnote).foregroundStyle(.secondary)
+            Text(tr("native.library.loadMoreFailed")).font(.allo(.footnote)).foregroundStyle(.secondary)
             Button(tr("common.retry")) { library.pager.retry() }.buttonStyle(.bordered)
         }
         .padding(.bottom, 24)
@@ -589,10 +590,10 @@ struct StatusToast: View {
         HStack(spacing: 10) {
             Image(systemName: status.isError ? "exclamationmark.circle" : "checkmark.circle")
                 .foregroundStyle(status.isError ? .red : .green)
-            Text(status.text).font(.subheadline.weight(.medium))
+            Text(status.text).font(.allo(.subheadline).weight(.medium))
             if let undo = status.undo {
                 Button(tr("common.undo")) { undo() }
-                    .font(.subheadline.weight(.semibold))
+                    .font(.allo(.subheadline).weight(.semibold))
                     .buttonStyle(.borderless)
                     .accessibilityIdentifier("status.undo")
             }
@@ -624,9 +625,9 @@ struct FirstCardView: View {
                 .foregroundStyle(.primary)
                 .accessibilityLabel("Teak")
             VStack(spacing: 6) {
-                Text(tr("native.library.firstCard.title")).font(.headline)
+                Text(tr("native.library.firstCard.title")).font(.allo(.headline))
                 Text(tr("native.library.firstCard.message"))
-                    .font(.subheadline)
+                    .font(.allo(.subheadline))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }

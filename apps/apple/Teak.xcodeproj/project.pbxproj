@@ -15,6 +15,7 @@
 		11977A51CFA72681AD445E73 /* RevisitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7540E18BA147E28A80B9210 /* RevisitView.swift */; };
 		122B495FE6E2CF79820F24C5 /* QuickCaptureWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE372B97F1ECFAD55EF21AF2 /* QuickCaptureWidget.swift */; };
 		12DE4A1F397593B86AC346BA /* popup.js in Resources */ = {isa = PBXBuildFile; fileRef = 38FE96DF2D1AF40CC9B918A0 /* popup.js */; };
+		162D2123D2F2E947F0990BA5 /* TeakUI in Frameworks */ = {isa = PBXBuildFile; productRef = 20C55AAE2EE3A0C9533AFB2F /* TeakUI */; };
 		1CE56A8AD57F772FD73CBDBE /* SearchTeakIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BF1C6AEB2ABA4A07CAE45E7 /* SearchTeakIntent.swift */; };
 		208E0427A98AAEAF3EE3D554 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4C91E3F9825B47431347263 /* ShareViewController.swift */; };
 		247696638EB43FCE52B18248 /* ShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 33E8EAB38FCCC721B42D58D4 /* ShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -26,6 +27,7 @@
 		30A45942EBCE0415DEB04D11 /* AddView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B2D4635BF4CC78ADEDD823F /* AddView.swift */; };
 		30ADC10754A1888C9797A570 /* FavoritesWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = A45CCD2A6E5F8FE936628B93 /* FavoritesWidget.swift */; };
 		32D18DBF4311E084D1853F5C /* TeakCore in Frameworks */ = {isa = PBXBuildFile; productRef = 1358010ADD171359F5432971 /* TeakCore */; };
+		36BAA88FD7392559A8424D31 /* AlloVariableFriendly.woff2 in Resources */ = {isa = PBXBuildFile; fileRef = 759A827A12B43101930C74A2 /* AlloVariableFriendly.woff2 */; };
 		3B09E374EB56BA539F61359D /* RemoteImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1241428612C78B46F9261153 /* RemoteImage.swift */; };
 		3BA71F9BEC7161BD5DADDE25 /* TeakUI in Frameworks */ = {isa = PBXBuildFile; productRef = 3046B73655D6061E5C61DCCE /* TeakUI */; };
 		3CFE72D197FCA573B94B309A /* SaveToTeakIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFD2EBF243733EF9F23C428D /* SaveToTeakIntent.swift */; };
@@ -74,6 +76,7 @@
 		B33C43CAFF9E6D3A752F0878 /* SpotlightIndexer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73398FFB255AE0403EB2DDE3 /* SpotlightIndexer.swift */; };
 		BA6AA56ECC778EF921A6A451 /* PostHog in Frameworks */ = {isa = PBXBuildFile; productRef = 05A6A4C24A841ACBD88F153D /* PostHog */; };
 		BABE0E920FA931BDF96D06B5 /* AppIntents.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = D606D982DC768AADB4134838 /* AppIntents.xcstrings */; };
+		C122C1D02C0878AF7F8FC1CE /* Allo-OFL.txt in Resources */ = {isa = PBXBuildFile; fileRef = 83CF07DB5AA88936684946E9 /* Allo-OFL.txt */; };
 		C83C290350B432DEC81C2DA8 /* CardDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13C31EB7F1B7572867D99BCC /* CardDetailView.swift */; };
 		CA936634E82AC028BE4DD6AE /* LanguageModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FB394A36A18ACECFC01E2CA /* LanguageModel.swift */; };
 		CCFAE0D0E4C07CE16BB0A82E /* TeakControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51B859EE31449C9D1CBB36F6 /* TeakControls.swift */; };
@@ -171,10 +174,12 @@
 		6E3FF2D7400936FF1F520A0D /* E2EStack.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = E2EStack.swift; sourceTree = "<group>"; };
 		73398FFB255AE0403EB2DDE3 /* SpotlightIndexer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotlightIndexer.swift; sourceTree = "<group>"; };
 		73BD742C40C369AC491243AC /* SidebarMainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarMainView.swift; sourceTree = "<group>"; };
+		759A827A12B43101930C74A2 /* AlloVariableFriendly.woff2 */ = {isa = PBXFileReference; path = AlloVariableFriendly.woff2; sourceTree = "<group>"; };
 		765D5C7C127FCACD4165A25C /* TeakWidgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = TeakWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		76D800F04BFC3FD19DA1FF4B /* VoiceMemoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceMemoView.swift; sourceTree = "<group>"; };
 		7E6D07D7E008E4C2F978F868 /* MacCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacCapture.swift; sourceTree = "<group>"; };
 		81BE157FBAE13A3511575988 /* manifest.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = manifest.json; sourceTree = "<group>"; };
+		83CF07DB5AA88936684946E9 /* Allo-OFL.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Allo-OFL.txt"; sourceTree = "<group>"; };
 		86D536980FFE491122D6407C /* CardPreviews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardPreviews.swift; sourceTree = "<group>"; };
 		8825C3A95E26F19DF39B0F96 /* StatusViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusViews.swift; sourceTree = "<group>"; };
 		91A3A8E4246126162ECD4292 /* SafariExtensionSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafariExtensionSection.swift; sourceTree = "<group>"; };
@@ -237,6 +242,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				32D18DBF4311E084D1853F5C /* TeakCore in Frameworks */,
+				162D2123D2F2E947F0990BA5 /* TeakUI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -370,6 +376,8 @@
 			isa = PBXGroup;
 			children = (
 				BDFC7C1A7EFDB3B2D6F915E2 /* _locales */,
+				83CF07DB5AA88936684946E9 /* Allo-OFL.txt */,
+				759A827A12B43101930C74A2 /* AlloVariableFriendly.woff2 */,
 				310894E9752F13554268C5D7 /* background.js */,
 				6C85399EBC56ADF34B6DE69D /* images */,
 				81BE157FBAE13A3511575988 /* manifest.json */,
@@ -598,6 +606,7 @@
 			name = TeakWidgets;
 			packageProductDependencies = (
 				1358010ADD171359F5432971 /* TeakCore */,
+				20C55AAE2EE3A0C9533AFB2F /* TeakUI */,
 			);
 			productName = TeakWidgets;
 			productReference = 765D5C7C127FCACD4165A25C /* TeakWidgets.appex */;
@@ -707,6 +716,8 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C122C1D02C0878AF7F8FC1CE /* Allo-OFL.txt in Resources */,
+				36BAA88FD7392559A8424D31 /* AlloVariableFriendly.woff2 in Resources */,
 				F675C71A37C1A0C1943901E6 /* _locales in Resources */,
 				80F6ACDD5F9616FB3FBFE83F /* background.js in Resources */,
 				435531015D521B1295BD6684 /* images in Resources */,
@@ -1309,6 +1320,10 @@
 		1358010ADD171359F5432971 /* TeakCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = TeakCore;
+		};
+		20C55AAE2EE3A0C9533AFB2F /* TeakUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = TeakUI;
 		};
 		3046B73655D6061E5C61DCCE /* TeakUI */ = {
 			isa = XCSwiftPackageProductDependency;

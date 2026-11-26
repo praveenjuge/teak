@@ -1,5 +1,6 @@
 import SwiftUI
 import TeakCore
+import TeakUI
 
 struct ImageViewerItem: Codable, Hashable, Identifiable {
     var urls: [URL]
@@ -62,7 +63,7 @@ struct ImageViewer: View {
                 .environment(\.colorScheme, .dark)
             Button(tr("common.close"), systemImage: "xmark") { dismiss() }
                 .labelStyle(.iconOnly)
-                .font(.title3)
+                .font(.allo(.title3))
                 .frame(width: 44, height: 44)
                 .buttonStyle(.glass)
                 .buttonBorderShape(.circle)

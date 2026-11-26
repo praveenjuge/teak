@@ -1,3 +1,11 @@
+/* Allo by Josh Puckett (SIL OFL 1.1, Allo-OFL.txt), the app's font. The system
+   text-style shorthands keep each size following Dynamic Type; only the family changes. */
+@font-face {
+  font-family: "Allo";
+  src: url("AlloVariableFriendly.woff2") format("woff2");
+  font-weight: 100 900;
+}
+
 :root {
   --accent: #dc2626;
   --label: -apple-system-label;
@@ -5,6 +13,7 @@
   --fill: rgba(120, 120, 128, 0.16);
   --green: #34c759;
   --orange: #ff9500;
+  --font: "Allo", -apple-system, system-ui, sans-serif;
   color-scheme: light dark;
 }
 
@@ -16,6 +25,7 @@ body {
   width: 300px;
   margin: 0;
   font: -apple-system-body;
+  font-family: var(--font);
   color: var(--label, CanvasText);
   -webkit-user-select: none;
   user-select: none;
@@ -119,11 +129,13 @@ body[data-state="invalid"] .warning {
 .title {
   margin: 0;
   font: -apple-system-headline;
+  font-family: var(--font);
 }
 
 .message {
   margin: 0;
   font: -apple-system-subheadline;
+  font-family: var(--font);
   color: var(--secondary, GrayText);
 }
 
@@ -140,6 +152,7 @@ button {
   min-height: 32px;
   padding: 0 16px;
   font: -apple-system-body;
+  font-family: var(--font);
   font-weight: 600;
   color: var(--label, CanvasText);
   cursor: pointer;

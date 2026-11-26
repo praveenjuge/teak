@@ -1,5 +1,6 @@
 import SwiftUI
 import TeakCore
+import TeakUI
 
 @MainActor
 final class AppServices {
@@ -135,6 +136,6 @@ extension View {
             .environment(services.capture)
             .environment(services.language)
             .environment(\.locale, services.language.locale)
-            .fontDesign(.rounded)
+            .font(.allo(.body))
     }
 }

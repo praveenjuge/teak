@@ -1,5 +1,6 @@
 import SwiftUI
 import TeakCore
+import TeakUI
 
 struct MarkdownView: View {
     let markdown: String
@@ -22,16 +23,16 @@ struct MarkdownView: View {
         switch block {
         case let .heading(level, text):
             let style = headingStyle(level)
-            inline(text, style, weight: .semibold).font(.system(style)).fontWeight(.semibold)
+            inline(text, style, weight: .semibold).font(.allo(style)).fontWeight(.semibold)
         case let .paragraph(text):
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(Array(Self.pieces(text).enumerated()), id: \.offset) { _, piece in inline(piece, textStyle) }
             }
-            .font(.system(textStyle))
+            .font(.allo(textStyle))
         case let .quote(text):
             HStack(alignment: .top, spacing: 10) {
                 Capsule().fill(.tertiary).frame(width: 3)
-                inline(text, textStyle).font(.system(textStyle)).foregroundStyle(.secondary)
+                inline(text, textStyle).font(.allo(textStyle)).foregroundStyle(.secondary)
             }
             .fixedSize(horizontal: false, vertical: true)
         case let .code(text):
@@ -57,13 +58,13 @@ struct MarkdownView: View {
                             Text(item.marker).foregroundStyle(.secondary).monospacedDigit()
                             inline(item.text, textStyle)
                         }
-                        .font(.system(textStyle))
+                        .font(.allo(textStyle))
                         .padding(.leading, Double(item.depth) * 16)
                     }
                 }
             }
         case let .table(table):
-            MarkdownTableView(table: table) { inline($0, textStyle, weight: $1) }.font(.system(textStyle))
+            MarkdownTableView(table: table) { inline($0, textStyle, weight: $1) }.font(.allo(textStyle))
         }
     }
 
@@ -88,7 +89,7 @@ struct MarkdownView: View {
                 .strikethrough(checked)
                 .foregroundStyle(checked ? .secondary : .primary)
         }
-        .font(.system(textStyle))
+        .font(.allo(textStyle))
         .padding(.leading, Double(item.depth) * 16)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(Text(MarkdownBlocks.plainText(CardLinks.tokensToText(item.text))))
@@ -115,32 +116,25 @@ struct MarkdownView: View {
     private func attributed(_ text: String, _ style: Font.TextStyle, _ weight: Font.Weight?) -> AttributedString {
         let options = AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)
         var result = (try? AttributedString(markdown: text, options: options)) ?? AttributedString(text)
-        // SF Rounded has no italic, and the app's rounded design overrides a text style's italic and monospaced
-        // design, so emphasis and code name their font at the text style's size: SF Pro Italic and SF Mono.
+        // A text style's italic and monospaced design don't reach a custom font, so emphasis and code name their
+        // font at the text style's size: Allo's oblique for the weight around it, and SF Mono.
         for run in result.runs {
             guard let intent = run.inlinePresentationIntent, !intent.isDisjoint(with: [.emphasized, .code]) else { continue }
             let code = intent.contains(.code)
-            // SF Mono sets larger than SF Pro at one size, so code steps down, as on the web.
-            var font = code ? Font.system(size: pointSize(style) * 0.9, design: .monospaced) : Font.system(size: pointSize(style)).italic()
-            if intent.contains(.stronglyEmphasized) {
-                font = font.bold()
-            } else if let weight {
-                font = font.weight(weight)
+            let size = Allo.pointSize(style, at: dynamicTypeSize)
+            let bold = intent.contains(.stronglyEmphasized)
+            let font: Font
+            if code {
+                // SF Mono sets larger than Allo at one size, so code steps down, as on the web.
+                let mono = Font.system(size: size * 0.9, design: .monospaced)
+                font = bold ? mono.bold() : weight.map { mono.weight($0) } ?? mono
+            } else {
+                font = .alloOblique(size: size, weight: bold ? .bold : weight ?? .regular)
             }
             result[run.range].font = font
             if code { result[run.range].backgroundColor = Color.primary.opacity(0.08) }
         }
         return result
-    }
-
-    private func pointSize(_ style: Font.TextStyle) -> CGFloat {
-        #if os(macOS)
-        NSFont.preferredFont(forTextStyle: style.platform).pointSize
-        #else
-        UIFont.preferredFont(forTextStyle: style.platform,
-                             compatibleWith: UITraitCollection(preferredContentSizeCategory: UIContentSizeCategory(dynamicTypeSize)))
-            .pointSize
-        #endif
     }
 
     private static let pieceLength = 40000
@@ -204,30 +198,6 @@ private struct KeyedItem: Identifiable {
             let key = "\(item.depth) \(item.text)"
             seen[key, default: 0] += 1
             return KeyedItem(id: "\(key) \(seen[key, default: 1])", item: item)
-        }
-    }
-}
-
-#if os(macOS)
-private typealias PlatformTextStyle = NSFont.TextStyle
-#else
-private typealias PlatformTextStyle = UIFont.TextStyle
-#endif
-
-private extension Font.TextStyle {
-    var platform: PlatformTextStyle {
-        switch self {
-        case .largeTitle: .largeTitle
-        case .title: .title1
-        case .title2: .title2
-        case .title3: .title3
-        case .headline: .headline
-        case .subheadline: .subheadline
-        case .callout: .callout
-        case .footnote: .footnote
-        case .caption: .caption1
-        case .caption2: .caption2
-        default: .body
         }
     }
 }

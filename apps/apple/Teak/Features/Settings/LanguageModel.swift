@@ -3,6 +3,7 @@ import Observation
 import SwiftUI
 import TeakCore
 import TeakSync
+import TeakUI
 
 /// Keeps the app on the account's language, as the web does. Settings → Language
 /// saves a new one to the account; a language picked in the system's per-app list
@@ -118,7 +119,7 @@ struct LanguageSection: View {
         Section {
             LanguagePicker()
         } footer: {
-            LanguageFooter()
+            LanguageFooter().font(.allo(.footnote))
         }
     }
 }
