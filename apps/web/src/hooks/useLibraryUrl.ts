@@ -68,27 +68,10 @@ export function useLibraryUrl({ folderId }: { folderId?: string } = {}) {
     openCardIdRef.current = cardIdFromUrl;
   }, [cardIdFromUrl]);
 
-  // Set while this page navigates to another one. A search write then
-  // would replace the URL under the move and cancel it: React flushes the
-  // search box's pending write right after the Enter that ran "trash".
-  const leavingRef = useRef<boolean>(false);
-  const leaveTo = useCallback(
-    (href: string) => {
-      leavingRef.current = true;
-      navigate({ href }).finally(() => {
-        leavingRef.current = false;
-      });
-    },
-    [navigate]
-  );
-
   // Router navigations commit in the order they're called, so an older
   // search can never land after a newer one.
-  const onSearchUrlStateChange = useCallback(
+  const writeSearchUrl = useCallback(
     (state: SearchUrlState, change: SearchUrlChange) => {
-      if (leavingRef.current) {
-        return;
-      }
       const query = searchUrlQuery(
         state,
         window.location.search,
@@ -112,6 +95,50 @@ export function useLibraryUrl({ folderId }: { folderId?: string } = {}) {
       router.history.flush();
     },
     [navigate, router]
+  );
+
+  // The move to another page in flight, if any. A search write then would
+  // replace the URL under the move and cancel it: React flushes the search
+  // box's pending write right after the Enter that ran "trash". The last
+  // write held back is applied if the move ends with this page still shown.
+  const leavingRef = useRef<{
+    held?: [SearchUrlState, SearchUrlChange];
+    id: number;
+    page: string;
+  } | null>(null);
+  const leaveCountRef = useRef(0);
+  const leaveTo = useCallback(
+    (href: string) => {
+      leaveCountRef.current += 1;
+      const leaving = {
+        id: leaveCountRef.current,
+        page: window.location.pathname,
+      };
+      leavingRef.current = leaving;
+      navigate({ href }).finally(() => {
+        // A later move owns the flag until it ends.
+        if (leavingRef.current?.id !== leaving.id) {
+          return;
+        }
+        const { held } = leavingRef.current;
+        leavingRef.current = null;
+        if (held && window.location.pathname === leaving.page) {
+          writeSearchUrl(...held);
+        }
+      });
+    },
+    [navigate, writeSearchUrl]
+  );
+
+  const onSearchUrlStateChange = useCallback(
+    (state: SearchUrlState, change: SearchUrlChange) => {
+      if (leavingRef.current) {
+        leavingRef.current.held = [state, change];
+        return;
+      }
+      writeSearchUrl(state, change);
+    },
+    [writeSearchUrl]
   );
 
   const onNavigateView = useCallback(
