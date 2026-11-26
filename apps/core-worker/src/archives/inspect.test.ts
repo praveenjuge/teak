@@ -31,6 +31,21 @@ describe("zip inspection over ranged reads", () => {
     expect(inspection.text).toBe("Hello World");
   });
 
+  test("keeps a word whole when Word splits it across runs", async () => {
+    const bucket = new FakeBucket();
+    bucket.objects.set("split.docx", {
+      bytes: zipSync({
+        "word/document.xml": new TextEncoder().encode(
+          '<w:body><w:p><w:r><w:t xml:space="preserve">Teak is a know</w:t></w:r><w:proofErr w:type="spellStart"/><w:r><w:rPr><w:b/></w:rPr><w:t>ledge</w:t></w:r><w:r><w:t xml:space="preserve"> hub</w:t></w:r></w:p><w:p><w:r><w:t>Line</w:t><w:br/><w:t>break</w:t></w:r></w:p></w:body>'
+        ),
+      }),
+    });
+
+    const inspection = await inspectZipRanged(bucket, "split.docx", "word");
+    expect(inspection.text).toBe("Teak is a knowledge hub Line break");
+    expect(inspection.facts.wordCount).toBe(7);
+  });
+
   test("counts pptx slides without reading them for word docs", async () => {
     const bytes = zipSync({
       "ppt/slides/slide1.xml": new TextEncoder().encode("<p><t>A</t></p>"),

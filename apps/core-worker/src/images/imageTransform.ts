@@ -426,7 +426,11 @@ export const handleImageRequest = async (
   );
 
   if (!transformed.ok) {
+    // URL transformations read AVIF only on Enterprise plans, so an AVIF
+    // original is served as stored; every browser and app Teak supports
+    // decodes it.
     const browserSafe = new Set([
+      "image/avif",
       "image/gif",
       "image/jpeg",
       "image/png",

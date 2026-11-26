@@ -175,6 +175,16 @@ describe("source item helpers", () => {
     expect(parseSourceDate("2024-03-01 10:30:00+00:00")).toBe(
       Date.parse("2024-03-01T10:30:00+00:00")
     );
+    // Postgres and Rails write the zone after a space.
+    expect(parseSourceDate("2024-01-02 10:00:00+00")).toBe(
+      Date.UTC(2024, 0, 2, 10)
+    );
+    expect(parseSourceDate("2024-01-02 10:00:00 UTC")).toBe(
+      Date.UTC(2024, 0, 2, 10)
+    );
+    expect(parseSourceDate("2024-01-02 10:00:00 -0500")).toBe(
+      Date.UTC(2024, 0, 2, 15)
+    );
     expect(parseSourceDate("not a date")).toBeUndefined();
     expect(parseSourceDate("0")).toBeUndefined();
     expect(parseSourceDate("")).toBeUndefined();

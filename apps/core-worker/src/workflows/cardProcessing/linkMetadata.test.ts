@@ -167,6 +167,32 @@ describe("link metadata", () => {
     });
   });
 
+  test("resolves the page's relative links against where a redirect landed", async () => {
+    const landed = "https://blog.example.org/posts/hello";
+    const { fakes, fetch, saved } = setup(linkCard("https://bit.ly/abc"), {
+      "fetch-link-page": await page(
+        `<html><head>
+          <title>Hello</title>
+          <meta property="og:image" content="cover.jpg">
+          <link rel="icon" href="/favicon.ico">
+        </head></html>`,
+        landed
+      ),
+      "store-remote-asset": { data: { stored: false } },
+    });
+
+    expect(await fetch()).toEqual({ status: "success" });
+    expect(saved()?.linkPreview).toMatchObject({
+      faviconUrl: "https://blog.example.org/favicon.ico",
+      finalUrl: landed,
+      imageUrl: "https://blog.example.org/posts/cover.jpg",
+      url: "https://bit.ly/abc",
+    });
+    expect(
+      fakes.calls.find((call) => call.op === "store-remote-asset")?.params.url
+    ).toBe("https://blog.example.org/posts/cover.jpg");
+  });
+
   test("stores a preview image its host rate-limited on a later try", async () => {
     let refusals = 2;
     const card = linkCard();

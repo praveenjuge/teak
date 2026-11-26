@@ -47,9 +47,12 @@ export const textFacts = (text: string): Record<string, number> => ({
     .length,
 });
 
+// Word and PowerPoint split one word across runs (a spell-check mark, a bold
+// letter), so only paragraph ends and breaks separate text.
 const decodeXmlText = (value: string): string =>
   value
-    .replace(/<[^>]+>/gu, " ")
+    .replace(/<\/[wa]:p>|<[wa]:(?:br|cr|tab)\b[^>]*>/gu, " ")
+    .replace(/<[^>]+>/gu, "")
     .replace(XML_ENTITY_REGEX, (entity) => XML_ENTITIES[entity] ?? entity)
     .replace(/\s+/gu, " ")
     .trim();

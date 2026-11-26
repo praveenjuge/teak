@@ -681,7 +681,8 @@ const fetchAndSave = async (
       });
     }
 
-    const scraped = parseLinkPreview(normalizedUrl, payload.result?.selectors);
+    // The page's relative links resolve against where redirects landed.
+    const scraped = parseLinkPreview(pageUrl, payload.result?.selectors);
     const spotifyTitle = await fetchSpotifyTitle(normalizedUrl, scraped.title, {
       pinnedFetch: job.deps.pinnedFetch,
       resolveDns: job.deps.resolveDns,

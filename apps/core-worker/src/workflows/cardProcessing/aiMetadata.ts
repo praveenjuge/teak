@@ -258,7 +258,8 @@ const WHISPER_HALLUCINATION_PHRASES = new Set([
 const SHORT_AUDIO_MAX_SECONDS = 30;
 const NON_WORD_CHARACTERS = /[^\p{L}\p{N}\s]/gu;
 const WHITESPACE_RUN = /\s+/gu;
-const SENTENCE_BREAK = /[.!?\n]+/u;
+// A full stop inside a word ("Amara.org") doesn't end a sentence.
+const SENTENCE_BREAK = /[!?\n]+|\.+(?=\s|$)/u;
 
 const normalizeTranscriptPhrase = (value: string) =>
   value
