@@ -318,7 +318,13 @@ export async function readExportDownloadUrl(
     return null;
   }
 
-  const url = await getR2Url(job.artifactKey);
+  // The whole account's data: sign for the advertised lifetime, not the
+  // week-long bucketed expiry card files use for caching.
+  const url = await getR2Url(
+    job.artifactKey,
+    {},
+    Math.floor(now / 1000) + DOWNLOAD_URL_TTL_SECONDS
+  );
   return { url, expiresInSeconds: DOWNLOAD_URL_TTL_SECONDS };
 }
 

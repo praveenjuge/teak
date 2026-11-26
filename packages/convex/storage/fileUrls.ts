@@ -76,7 +76,8 @@ export const fileDownloadResponsePolicy = (
 
 export const getR2Url = async (
   key: string,
-  response: DownloadResponsePolicy = {}
+  response: DownloadResponsePolicy = {},
+  expSeconds = bucketedSignatureExpiry()
 ) => {
   const signingSecret = env.FILES_SIGNING_SECRET;
   if (!signingSecret) {
@@ -87,7 +88,7 @@ export const getR2Url = async (
     signingSecret,
     key,
     response,
-    bucketedSignatureExpiry()
+    expSeconds
   );
 };
 
