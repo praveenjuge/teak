@@ -747,6 +747,10 @@ background.
 - `POST /v1/tags/delete` with `{ "tag": "old" }` removes a tag. The cards are
   kept.
 
+Folder rules and smart folders follow: a rename or merge rewrites the tag in
+`autoTags`, smart folder searches and auto-file searches, and a delete removes
+it from `autoTags`.
+
 A new name (`to`, `into`) is 1 to 64 characters; the tag you change (`from`, `tag`) can be up to 256. A tag no card has returns `404 NOT_FOUND`. One change runs at a time per account: starting another while one runs returns `409 TAG_OPERATION_RUNNING`.
 
 Poll `GET /v1/tags/operations/:operationId` for `status` (`running`,

@@ -291,6 +291,62 @@ describe("library-wide tag operations", () => {
     expect((await card(onlyTag))?.tags).toBeUndefined();
   });
 
+  test("folders follow a renamed, merged or deleted tag", async () => {
+    const { t, insert, start, runScheduled } = await setup();
+    await insert({ tags: ["proj", "urgent", "later"] });
+    await runScheduled();
+    const folder = (userId: string, fields: Partial<Doc<"folders">>) =>
+      t.run((ctx) =>
+        ctx.db.insert("folders", {
+          userId,
+          name: "Folder",
+          nameKey: "folder",
+          kind: "manual",
+          activeCardCount: 0,
+          createdAt: 1000,
+          updatedAt: 1000,
+          ...fields,
+        })
+      );
+    const work = await folder("owner", {
+      autoTags: ["Proj", "urgent"],
+      autoFileQuery: "tag:PROJ type:link",
+      hasRules: true,
+    });
+    const smart = await folder("owner", {
+      kind: "smart",
+      query: "(tag:proj OR tag:other) -tag:projector",
+    });
+    const triage = await folder("owner", {
+      autoTags: ["later"],
+      hasRules: true,
+    });
+    const strangers = await folder("stranger", {
+      autoTags: ["proj"],
+      hasRules: true,
+    });
+    const read = (id: Id<"folders">) => t.run((ctx) => ctx.db.get(id));
+
+    await start("rename", "proj", "project");
+    await runScheduled();
+    expect((await read(work))?.autoTags).toEqual(["project", "urgent"]);
+    expect((await read(work))?.autoFileQuery).toBe("tag:project type:link");
+    expect((await read(smart))?.query).toBe(
+      "(tag:project OR tag:other) -tag:projector"
+    );
+    expect((await read(strangers))?.autoTags).toEqual(["proj"]);
+
+    await start("merge", "urgent", "project");
+    await runScheduled();
+    expect((await read(work))?.autoTags).toEqual(["project"]);
+
+    await start("delete", "later");
+    await runScheduled();
+    const cleared = await read(triage);
+    expect(cleared?.autoTags).toBeUndefined();
+    expect(cleared?.hasRules).toBeUndefined();
+  });
+
   test("renaming onto an existing tag suggests a merge; a case-only rename is allowed", async () => {
     const { insert, card, start, runScheduled } = await setup();
     const id = await insert({ tags: ["design", "Web"] });
