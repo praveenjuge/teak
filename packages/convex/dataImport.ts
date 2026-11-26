@@ -219,15 +219,21 @@ export const reserveJob = internalMutation({
 
 export const attachMultipart = internalMutation({
   args: { jobId: v.id("importJobs"), uploadId: v.string() },
-  returns: v.null(),
+  returns: v.boolean(),
   handler: async (ctx, { jobId, uploadId }) => {
     const job = await ctx.db.get(jobId);
     if (!job) {
       throw new Error("Import job not found");
     }
     await assertAccountNotDeleting(ctx, job.userId);
+    // Cancel can land while R2 creates the upload, before there is an upload
+    // for `cancelImport` to abort: end the job here instead of attaching.
+    if (job.cancelRequested) {
+      await finishImportJob(ctx, { jobId, status: "canceled" });
+      return false;
+    }
     await ctx.db.patch(jobId, { uploadId, updatedAt: Date.now() });
-    return null;
+    return true;
   },
 });
 
