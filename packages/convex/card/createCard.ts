@@ -29,12 +29,13 @@ import { assertSafeExternalUrl } from "../shared/utils/safeUrl";
 import { queueObjectDeletion } from "../storage/objectDeletion";
 import { buildR2UserPrefix } from "../storage/r2";
 import { queueBackendEvent, queueCardOutcome } from "../telemetry/schedule";
+import { ensureCardUsageShards } from "./cardUsage";
 import { insertCard, patchCard } from "./cardWrites";
 import { findLiveCardByUrl, findTrashedCardByUrl } from "./findDuplicateCard";
 import { validateTextCardContent } from "./markdown";
 import { acceptPendingPageSnapshot } from "./pageSnapshots";
 import { isCardRunInFlight, queueCardProcessing } from "./processingRuns";
-import { authorizeCardCreation } from "./quota";
+import { authorizeCardSave } from "./quota";
 import { normalizeCardTags, updateCardFieldForUserHandler } from "./updateCard";
 
 // Older app versions send no `source`, so their cards report "unknown".
@@ -217,7 +218,7 @@ export const createCardForUserHandler = async (
   } = {}
 ): Promise<CreateCardOutcome> => {
   const tags = args.tags && normalizeCardTags(args.tags);
-  const { hasPremium } = await authorizeCardCreation(ctx, userId);
+  const { hasPremium } = await authorizeCardSave(ctx, userId);
 
   assertClientKeysInUserNamespace(userId, {
     fileKey: args.fileKey,
@@ -317,6 +318,9 @@ export const createCardForUserHandler = async (
       }
     }
   }
+
+  // Only a new card counts toward the free plan's cap.
+  await ensureCardUsageShards(ctx, userId, hasPremium);
 
   let resolvedColors = args.colors;
   if (!resolvedColors && cardType === "palette") {
