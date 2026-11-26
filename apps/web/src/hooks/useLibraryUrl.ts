@@ -70,7 +70,7 @@ export function useLibraryUrl({ folderId }: { folderId?: string } = {}) {
 
   // Router navigations commit in the order they're called, so an older
   // search can never land after a newer one.
-  const onSearchUrlStateChange = useCallback(
+  const writeSearchUrl = useCallback(
     (state: SearchUrlState, change: SearchUrlChange) => {
       const query = searchUrlQuery(
         state,
@@ -97,6 +97,50 @@ export function useLibraryUrl({ folderId }: { folderId?: string } = {}) {
     [navigate, router]
   );
 
+  // The move to another page in flight, if any. A search write then would
+  // replace the URL under the move and cancel it: React flushes the search
+  // box's pending write right after the Enter that ran "trash". The last
+  // write held back is applied if the move ends with this page still shown.
+  const leavingRef = useRef<{
+    held?: [SearchUrlState, SearchUrlChange];
+    id: number;
+    page: string;
+  } | null>(null);
+  const leaveCountRef = useRef(0);
+  const leaveTo = useCallback(
+    (href: string) => {
+      leaveCountRef.current += 1;
+      const leaving = {
+        id: leaveCountRef.current,
+        page: window.location.pathname,
+      };
+      leavingRef.current = leaving;
+      navigate({ href }).finally(() => {
+        // A later move owns the flag until it ends.
+        if (leavingRef.current?.id !== leaving.id) {
+          return;
+        }
+        const { held } = leavingRef.current;
+        leavingRef.current = null;
+        if (held && window.location.pathname === leaving.page) {
+          writeSearchUrl(...held);
+        }
+      });
+    },
+    [navigate, writeSearchUrl]
+  );
+
+  const onSearchUrlStateChange = useCallback(
+    (state: SearchUrlState, change: SearchUrlChange) => {
+      if (leavingRef.current) {
+        leavingRef.current.held = [state, change];
+        return;
+      }
+      writeSearchUrl(state, change);
+    },
+    [writeSearchUrl]
+  );
+
   const onNavigateView = useCallback(
     (nextView: LibraryView) => {
       // The search text belongs to the page being left; its filters stay.
@@ -113,9 +157,9 @@ export function useLibraryUrl({ folderId }: { folderId?: string } = {}) {
         // as one entry, which would drop this replace into the push below.
         router.history.flush();
       }
-      navigate({ href: LIBRARY_VIEW_PATHS[nextView] });
+      leaveTo(LIBRARY_VIEW_PATHS[nextView]);
     },
-    [navigate, router]
+    [leaveTo, navigate, router]
   );
 
   // The same search in the whole library, from a view that found nothing.
@@ -129,8 +173,8 @@ export function useLibraryUrl({ folderId }: { folderId?: string } = {}) {
         search.set(name, value);
       }
     }
-    navigate({ href: libraryHref(LIBRARY_VIEW_PATHS.all, search) });
-  }, [navigate]);
+    leaveTo(libraryHref(LIBRARY_VIEW_PATHS.all, search));
+  }, [leaveTo]);
 
   const cardEntryUrlRef = useRef<string | null>(null);
 
