@@ -18,14 +18,15 @@ interface StripRule {
 const BLOCK_RULES: readonly StripRule[] = [
   { name: "htmlComment", pattern: /<!--[\s\S]*?-->/g, replacement: " " },
   { name: "codeFence", pattern: /^\s*(?:```|~~~).*$/gm, replacement: " " },
+  // A destination may hold balanced parentheses, as in `Mercury_(planet)`.
   {
     name: "imageKeepingAlt",
-    pattern: /!\[([^\]]*)\]\([^)]*\)/g,
+    pattern: /!\[([^\]]*)\]\((?:[^()]|\([^()]*\))*\)/g,
     replacement: "$1",
   },
   {
     name: "inlineLinkKeepingLabel",
-    pattern: /\[([^\]]*)\]\([^)]*\)/g,
+    pattern: /\[([^\]]*)\]\((?:[^()]|\([^()]*\))*\)/g,
     replacement: "$1",
   },
   {
@@ -46,8 +47,20 @@ const LINE_MARKER_RULES: readonly StripRule[] = [
 
 const INLINE_RULES: readonly StripRule[] = [
   { name: "inlineCodeKeepingText", pattern: /`([^`]+)`/g, replacement: "$1" },
-  { name: "boldPair", pattern: /(\*\*|__)(.+?)\1/g, replacement: "$2" },
-  { name: "italicPair", pattern: /(\*|_)(.+?)\1/g, replacement: "$2" },
+  // As in CommonMark, emphasis hugs its text, and `_` never opens or closes
+  // inside a word, so `snake_case` and `2 * 3 * 4` stay as written.
+  {
+    name: "boldPair",
+    pattern:
+      /(?<![\p{L}\p{N}_])__(?=\S)(.+?)(?<=\S)__(?![\p{L}\p{N}_])|\*\*(?=\S)(.+?)(?<=\S)\*\*/gu,
+    replacement: "$1$2",
+  },
+  {
+    name: "italicPair",
+    pattern:
+      /(?<![\p{L}\p{N}_])_(?=\S)(.+?)(?<=\S)_(?![\p{L}\p{N}_])|(?<!\*)\*(?=[^\s*])(.+?)(?<=[^\s*])\*(?!\*)/gu,
+    replacement: "$1$2",
+  },
   { name: "strikethroughPair", pattern: /~~(.+?)~~/g, replacement: "$1" },
   { name: "midLineHeadingRun", pattern: /\s+#{1,6}\s+/g, replacement: " " },
   { name: "whitespaceRun", pattern: /\s+/g, replacement: " " },

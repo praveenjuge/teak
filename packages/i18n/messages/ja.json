@@ -1849,6 +1849,9 @@
         "type": "{type, select, text {テキスト} link {リンク} image {画像} video {動画} audio {音声} document {ドキュメント} palette {パレット} quote {引用} other {{type}}}",
         "favorites": "お気に入り",
         "archived": "アーカイブ済み",
+        "done": "完了",
+        "todo": "未完了",
+        "pinned": "ピン留め",
         "price": "価格 {bound}",
         "text": "テキスト「{text}」"
       }

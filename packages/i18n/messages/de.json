@@ -1849,6 +1849,9 @@
         "type": "{type, select, text {Texte} link {Links} image {Bilder} video {Videos} audio {Audios} document {Dokumente} palette {Paletten} quote {Zitate} other {{type}}}",
         "favorites": "Favoriten",
         "archived": "Archiviert",
+        "done": "Erledigt",
+        "todo": "Offen",
+        "pinned": "Angeheftet",
         "price": "Preis {bound}",
         "text": "Text „{text}“"
       }

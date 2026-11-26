@@ -183,6 +183,12 @@ describe("smart folder searches", () => {
       )
     ).toBe("Design · Links · github.com · “a b” · x");
     expect(suggestSmartFolderName("is:fav", foldersT)).toBe("Favorites");
+    expect(suggestSmartFolderName("is:archived", foldersT)).toBe("Archived");
+    expect(suggestSmartFolderName("type:link is:todo", foldersT)).toBe(
+      "Links · To do"
+    );
+    expect(suggestSmartFolderName("is:done", foldersT)).toBe("Done");
+    expect(suggestSmartFolderName("is:pinned", foldersT)).toBe("Pinned");
     expect(
       suggestSmartFolderName("price:>20 price:<100 type:link", foldersT)
     ).toBe("Price over 20 · Price under 100 · Links");

@@ -255,11 +255,27 @@ export function TagsScreen({
   const findRef = useRef<HTMLInputElement>(null);
   const [sort, setSort] = useState<TagSort>("count");
   const [limit, setLimit] = useState(TAG_PAGE_SIZE);
+  // The URL's `q` values this box wrote that the page hasn't passed back yet.
+  // Those echo typing; any other `q`, such as the sidebar's plain Tags link or
+  // Back, replaces the box's text.
+  const pendingQueries = useRef<string[]>([]);
   const changeQuery = (next: string) => {
     setQuery(next);
     setLimit(TAG_PAGE_SIZE);
-    onQueryChange?.(next);
+    if (onQueryChange) {
+      pendingQueries.current.push(next.trim() ? next : "");
+      onQueryChange(next);
+    }
   };
+  useEffect(() => {
+    const echoed = pendingQueries.current.indexOf(initialQuery);
+    if (echoed === -1) {
+      setQuery(initialQuery);
+      setLimit(TAG_PAGE_SIZE);
+    } else {
+      pendingQueries.current.splice(0, echoed + 1);
+    }
+  }, [initialQuery]);
   const [menuTag, setMenuTag] = useState<string | null>(null);
   const [dialog, setDialog] = useState<{
     mode: TagManagerMode;

@@ -293,3 +293,53 @@ test("starts from the URL's filter and reports each change to keep it", async ()
   expect(changes).toEqual(["ar"]);
   expect(rows().map(([text]) => text)).toEqual(["art 1 card"]);
 });
+
+test("follows the URL's filter when it changes from outside, not while typing", async () => {
+  summary = {
+    isComplete: true,
+    items: [
+      { name: "design", count: 4 },
+      { name: "art", count: 1 },
+    ],
+  };
+  const onQueryChange = () => undefined;
+  const show = (initialQuery: string) =>
+    act(() =>
+      root?.render(
+        <TestRouter router={testRouter("/tags")}>
+          <TagsScreen
+            initialQuery={initialQuery}
+            onQueryChange={onQueryChange}
+          />
+        </TestRouter>
+      )
+    );
+  await render({ initialQuery: "des", onQueryChange });
+  const find = document.querySelector<HTMLInputElement>(
+    'input[aria-label="Find a tag"]'
+  );
+  if (!find) {
+    throw new Error("No find box");
+  }
+
+  // The URL catches up one keystroke behind; the box keeps what was typed.
+  await typeInto(find, "a");
+  await typeInto(find, "ar");
+  await show("a");
+  expect(find.value).toBe("ar");
+  await show("ar");
+  expect(find.value).toBe("ar");
+
+  // The sidebar's Tags link drops `q`: every tag shows again.
+  await show("");
+  expect(find.value).toBe("");
+  expect(rows().map(([text]) => text)).toEqual([
+    "design 4 cards",
+    "art 1 card",
+  ]);
+
+  // Back to a filtered entry brings its filter back.
+  await show("des");
+  expect(find.value).toBe("des");
+  expect(rows().map(([text]) => text)).toEqual(["design 4 cards"]);
+});

@@ -1849,6 +1849,9 @@
         "type": "{type, select, text {文本} link {链接} image {图片} video {视频} audio {音频} document {文档} palette {调色板} quote {引用} other {{type}}}",
         "favorites": "收藏",
         "archived": "已归档",
+        "done": "已完成",
+        "todo": "待办",
+        "pinned": "置顶",
         "price": "价格 {bound}",
         "text": "文字“{text}”"
       }
