@@ -5,9 +5,9 @@ description: Drive the real Teak web app, REST API, CLI and MCP server the way a
 
 # Verify Teak
 
-Prove a Teak change in the running app, not by a passing build. Launch the stack, check it is healthy, drive the features the change touches through their user entry points, keep the evidence, and clean up what the run made. The recipes for each feature live in [`features/`](features/README.md); read its README first.
+Prove a Teak change in the running app, not by a passing build: launch, check health, drive the touched features through their user entry points, keep the evidence, clean up. Per-feature recipes live in [`features/`](features/README.md); read its README first.
 
-The primary surface is the web app at this checkout's `appOrigin` (port 3000 in the main checkout; each worktree has its own ports). Take every URL and port from `bun run dev --status` (`--json` for scripts: `stack.urls` and `ports`), never from a recipe. The REST API, CLI and MCP server are secondary surfaces with their own recipes, and so are the Apple and Android apps and Raycast, which run against the local E2E stack. The browser extension has a recipe too ([extension](features/extension.md)); the features README lists what it covers.
+The primary surface is the web app at this checkout's `appOrigin` (each worktree has its own ports). Take every URL and port from `bun run dev --status` (`--json` for scripts: `stack.urls` and `ports`), never from a recipe. The REST API, CLI, MCP server, browser extension, and the Apple, Android and Raycast apps (which run against the local E2E stack) have their own recipes.
 
 ## Launch
 
@@ -15,34 +15,34 @@ The primary surface is the web app at this checkout's `appOrigin` (port 3000 in 
 bun run dev --detach
 ```
 
-It sets up the checkout, starts the web app against the shared dev deployment (`dev:reminiscent-kangaroo-59`), signs in through WorkOS staging, and returns once the app is ready: about 50 seconds cold, 10 warm. Ready means the command returned and the doctor below passes. The first signed-in page load still compiles routes, so the card grid can show the "Loading cards" skeleton for up to a minute the first time.
+It starts the web app against the shared dev deployment (`dev:reminiscent-kangaroo-59`) with WorkOS staging sign-in and returns once ready (about 50 seconds cold, 10 warm); then run the doctor. The first signed-in load compiles routes, so "Loading cards" can show for up to a minute.
 
-- The account and its password are in `.agents/.state/stack.json` (`account.email`, `account.password`). A cloud session gets its own account, seeded with about 30 sample cards (`packages/convex/devSeed.ts`).
-- When the change touches `packages/convex`, the backend you test must be this checkout's. Start with `bun run dev --detach --push` to take over the push lease, and confirm with the doctor.
-- Don't start plain `bun run dev` as a background command: the agent tool stops it after 30 minutes.
-- For a run that must not share a backend (destructive or schema-changing work, or a session without `CONVEX_DEPLOY_KEY`), use a local backend instead: `bun run dev --stop`, then `bun run dev --local --detach` (a local Convex backend that pushes this checkout's backend as it changes, the WorkOS emulator and the Core Worker in Miniflare; `development.mdx`, "A local backend"). Its seeded account is in `stack.json` too, with a new password each start, and the emulator's sign-in buttons are both "Continue". Link previews, screenshots, transcripts and embeddings don't run there.
+- The account is in `.agents/.state/stack.json` (`account.email`, `account.password`). A cloud session gets its own account with about 30 sample cards (`packages/convex/devSeed.ts`).
+- When the change touches `packages/convex`, test this checkout's backend: start with `bun run dev --detach --push` (takes the push lease) and confirm with the doctor.
+- Don't run plain `bun run dev` in the background: the agent tool stops it after 30 minutes.
+- For destructive or schema-changing work, or without `CONVEX_DEPLOY_KEY`, use a local backend: `bun run dev --stop`, then `bun run dev --local --detach` (local Convex pushing this checkout, the WorkOS emulator, the Core Worker in Miniflare; `development.mdx`, "A local backend"). Its account is in `stack.json` with a new password each start, and both emulator sign-in buttons read "Continue". Link previews, screenshots, transcripts and embeddings don't run there.
 
 ## Doctor
 
-Run this before the first drive, after anything surprising, and after any failed drive:
+Run it before the first drive and after anything surprising or failed:
 
 ```bash
 bun .agents/skills/verify-teak/scripts/doctor.ts
 ```
 
-It is read-only. It checks that the recorded stack is alive and ready, that the web app answers (anonymous `/` redirects to sign-in), whether the dev deployment's live backend matches this checkout's `packages/convex`, and that the last push didn't fail schema validation. Exit 1 means don't drive. A `!` line about the backend means the live backend isn't this checkout's: fine for a frontend-only change, not for a backend one (relaunch with `--push`). When the doctor passes but the UI is stuck (a spinner, "We couldn't check your session"), reload or sign in again rather than driving on.
+Read-only. It checks the recorded stack is alive and ready, the web app answers (anonymous `/` redirects to sign-in), whether the live dev backend matches this checkout's `packages/convex`, and that the last push passed schema validation. Exit 1 means don't drive. A `!` backend line means the live backend isn't this checkout's: fine for frontend-only changes; for backend ones relaunch with `--push`. If the doctor passes but the UI is stuck (a spinner, "We couldn't check your session"), reload or sign in again before driving on.
 
 ## Drive
 
-**Web:** the `e2e` MCP server in `.mcp.json`. Open a session with `config: "packages/tests/e2e.config.ts"`. In a cloud session, against the dev stack, the config attaches to a Chromium it starts with a DevTools port, so a script can drive file choosers in the same browser (`apps/docs/content/docs/(open-source)/development.mdx`, "Cloud sessions in detail"); elsewhere it launches e2e's own Chromium.
+**Web:** the `e2e` MCP server in `.mcp.json`; open a session with `config: "packages/tests/e2e.config.ts"`. In a cloud session against the dev stack it attaches to a Chromium with a DevTools port, so a script can drive file choosers in the same browser (`apps/docs/content/docs/(open-source)/development.mdx`, "Cloud sessions in detail").
 
-- `observe` lists every node with its role and accessible name. Act with `tap`, `type`, `press`, `right_click`, `hover`, `select`, `upload`, `navigate`.
-- Target nodes by role and accessible name from the feature files. Never by coordinates unless a feature file says the control has no accessible node.
-- `locate` checks a locator against the live page and prints the line to use in a spec. Use it when you turn a proof into a regression test in `packages/tests`.
-- Node ids are valid only for the newest observation. Observe again after navigation.
-- Sign in through the hosted WorkOS page ([sign-in](features/sign-in.md)). Each `open_session` starts signed out.
+- `observe` lists nodes with role and accessible name; act with `tap`, `type`, `press`, `right_click`, `hover`, `select`, `upload`, `navigate`.
+- Target nodes by role and accessible name from the feature files, never by coordinates unless a feature file says the control has no accessible node.
+- `locate` checks a locator against the live page and prints the spec line; use it to turn a proof into a regression test in `packages/tests`.
+- Node ids are valid only for the newest observation; observe again after navigation.
+- Each `open_session` starts signed out; sign in through the hosted WorkOS page ([sign-in](features/sign-in.md)).
 
-**API, CLI and MCP:** mint a key for the seeded account with the helper, which keeps it in the ignored `.agents/.state/verify/api-key.json` and prints only its masked prefix:
+**API, CLI and MCP:** mint a key with the helper, which stores it in the ignored `.agents/.state/verify/api-key.json` and prints only a masked prefix:
 
 ```bash
 bun .agents/skills/verify-teak/scripts/api-key.ts mint     # then: export TEAK_API_KEY="$(jq -r .key .agents/.state/verify/api-key.json)"
@@ -50,41 +50,41 @@ bun .agents/skills/verify-teak/scripts/api-key.ts check    # 200 while the key w
 bun .agents/skills/verify-teak/scripts/api-key.ts revoke   # in cleanup
 ```
 
-The dev deployment serves the API and MCP at `https://reminiscent-kangaroo-59.convex.site` (`/v1/...`, `/mcp`). Run the CLI from this checkout so you test this branch's code ([api-cli-mcp](features/api-cli-mcp.md)). Never copy a key off the screen: prove keys with the helper.
+The dev deployment serves the API and MCP at `https://reminiscent-kangaroo-59.convex.site` (`/v1/...`, `/mcp`). Run the CLI from this checkout ([api-cli-mcp](features/api-cli-mcp.md)). Never copy a key off the screen; prove keys with the helper.
 
-**Data:** mark everything a run creates with a unique marker, `verify-<run-id>` (for example `verify-20261018-0427`), so concurrent runs on the shared account never collide and cleanup finds exactly what this run made. Never edit or delete seeded cards except through a recipe that restores them.
+**Data:** mark everything a run creates with `verify-<run-id>` (for example `verify-20261018-0427`) so concurrent runs on the shared account don't collide and cleanup finds exactly this run's data. Edit or delete seeded cards only through a recipe that restores them.
 
 ## Evidence
 
-Every run writes to `.agents/.state/verify/<run-id>/` (ignored by git, and kept by `bun run dev --stop`):
+Every run writes to `.agents/.state/verify/<run-id>/` (ignored by git, kept by `bun run dev --stop`):
 
-- `notes.md`: one line per step: feature id, entry point, the action, the handle used, and what you observed. Record the doctor output at the top.
-- Screenshots: the `e2e` `screenshot` result names its saved file (`[Image: source: …png]`); copy it into the run folder as `<feature-id>-<step>.png`.
-- Video, when a reviewer should watch the flow: `start_recording` and `stop_recording`, which returns the file's path; copy it into the run folder.
-- API, CLI and MCP: the command, stdout, stderr and exit code, saved with `tee`. Replace keys and tokens with `<redacted>`.
+- `notes.md`: the doctor output at the top, then one line per step: feature id, entry point, action, handle used, what you observed.
+- Screenshots: copy the file the `e2e` `screenshot` result names (`[Image: source: …png]`) in as `<feature-id>-<step>.png`.
+- Video, when a reviewer should watch the flow: `start_recording`, then `stop_recording` returns the path; copy it in.
+- API, CLI and MCP: command, stdout, stderr and exit code, saved with `tee`, keys and tokens replaced with `<redacted>`.
 
 What counts as proof:
 
-- The real user path: the button, shortcut or command a user would use. Not an internal setter, a test-only endpoint or a direct database write.
+- The real user path (the button, shortcut, command or endpoint a user would use), not an internal setter, test-only endpoint or direct database write.
 - The action and the resulting state, not only the final screen.
-- Side effects read back from a second view: reload the page, open the card from another route, or read it back through the API.
-- A bug fix reproduces the bug first, on the same path, then shows it gone.
-- A step you could not reach is reported with the route you tried and the missing precondition. Never report a skipped entry point as verified through another.
+- Side effects read back from a second view: a reload, another route, the API, or Local Explorer for background work.
+- A bug fix reproduces the bug first on the same path, then shows it gone.
+- An unreachable step is reported with the route tried and the missing precondition. Never report a skipped entry point as verified through another.
 
-Screenshots and video for a PR follow "Pull requests" in `apps/docs/content/docs/(open-source)/development.mdx`: only the seeded account and seeded or marked cards.
+Screenshots and video for a PR show only the seeded account and seeded or marked cards ("Pull requests" in `apps/docs/content/docs/(open-source)/development.mdx`).
 
 ## Cleanup
 
-1. Permanently delete every card the run created: search for the run marker, move the cards to Trash, then "Delete forever" ([card-actions](features/card-actions.md)), or `DELETE /v1/cards/<id>` then `?permanent=true` ([api-cli-mcp](features/api-cli-mcp.md)). Revoke every key the run made: `bun .agents/skills/verify-teak/scripts/api-key.ts revoke`, and in Settings any key you created there ([settings](features/settings.md)).
-2. Undo any seeded-card change a recipe made (a favorite toggled, a tag added).
+1. Permanently delete every card the run created: search the run marker, move them to Trash, then "Delete forever" ([card-actions](features/card-actions.md)), or `DELETE /v1/cards/<id>` then `?permanent=true` ([api-cli-mcp](features/api-cli-mcp.md)). Revoke every key: `bun .agents/skills/verify-teak/scripts/api-key.ts revoke`, plus any made in Settings ([settings](features/settings.md)).
+2. Undo any seeded-card change (a favorite toggled, a tag added).
 3. `close_session` every `e2e` session you opened.
-4. Stop the stack only if this run started it: `bun run dev --stop`. Never kill processes by name.
-5. Confirm `.agents/.state/verify/<run-id>/` still holds the evidence.
+4. Stop the stack only if this run started it (`bun run dev --stop`); never kill processes by name.
+5. Confirm the run folder still holds the evidence.
 
 ## Reporting back
 
-When another agent asked you to verify, you verify; you don't change product code. Use the real user path (the button, shortcut, command or endpoint a user would use), read every side effect back from a second view (a reload, another route, the API, or Local Explorer for background work), and for a bug reproduce it first on the same path, then show it gone. Return the run id, the doctor output, one line per step (feature id, entry point, action, what you observed), the evidence paths, and every step you could not reach with the precondition that was missing. Never report a skipped step as verified.
+When another agent asked you to verify, you verify; you don't change product code. Meet "What counts as proof" above, then return the run id, the doctor output, one line per step (feature id, entry point, action, what you observed), the evidence paths, and every step you could not reach with its missing precondition.
 
 ## Keeping the map honest
 
-The feature map is the maintained source for how to verify Teak. When a change adds or changes a user-facing feature, update or add its feature file in the same PR, and drive the new recipe once. When a recipe fails because the app changed on purpose, fix the recipe; when the app is wrong, report the bug and keep the recipe. `.agents/skills/maintain-verification-skill` audits the whole map: run it when recipes start failing or a release is near.
+The feature map is the source for how to verify Teak. A user-facing feature change updates its feature file in the same PR and drives the new recipe once. When a recipe fails because the app changed on purpose, fix the recipe; when the app is wrong, report the bug and keep the recipe. Run `.agents/skills/maintain-verification-skill` to audit the whole map when recipes start failing or before a release.
