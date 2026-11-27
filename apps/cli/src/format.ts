@@ -24,6 +24,7 @@ type CardLineInput =
       id: string;
       isHidden?: boolean;
       metadataTitle?: string | null;
+      savedAt?: number;
       tags?: string[];
       type: string;
     };
@@ -38,8 +39,15 @@ const cardText = (card: CardLineInput) =>
     .find(Boolean) ?? "";
 
 /**
+ * How long ago a card was last saved: a link saved again moves to the top of
+ * the newest-first listing, so its age starts over with it, as in Raycast.
+ */
+const savedAge = (card: CardLineInput) =>
+  relativeAge(Date.now() - (card.savedAt ?? card.createdAt));
+
+/**
  * One card per line. For a person: id, type, a 54-character snippet, up to
- * four tags and its age, aligned. For a pipe (`plain`): the same fields in
+ * four tags and how long ago it was last saved, aligned. For a pipe (`plain`): the same fields in
  * full, tab-separated, with the creation time in ISO UTC, so `cut -f` works.
  */
 export const formatCardLine = (card: CardLineInput, plain = false) => {
@@ -62,7 +70,7 @@ export const formatCardLine = (card: CardLineInput, plain = false) => {
     .slice(0, 4)
     .map((tag) => `#${tag}`)
     .join(" ");
-  const age = relativeAge(Date.now() - card.createdAt);
+  const age = savedAge(card);
   const hidden = card.isHidden ? "  hidden" : "";
   return `${card.id}  ${card.type.padEnd(8)}  ${snippet}  ${tags}  ${age}${hidden}`.trim();
 };
@@ -85,7 +93,7 @@ const cardCells = (card: CardLineInput) => {
       .slice(0, 4)
       .map((tag) => `#${tag}`)
       .join(" "),
-    `${relativeAge(Date.now() - card.createdAt)}${card.isHidden ? " hidden" : ""}`,
+    `${savedAge(card)}${card.isHidden ? " hidden" : ""}`,
   ];
 };
 
