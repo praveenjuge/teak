@@ -1,8 +1,10 @@
 import { defineConfig } from "cf/config";
 
-// teakvault.com is a static Blume build served as Workers static assets, with
-// no Worker code. `bun run deploy` uploads `dist/`, whose `_headers` and
-// `_redirects` Cloudflare reads. The Core Worker's routes on teakvault.com
+// teakvault.com is a static Blume build served as Workers static assets, plus
+// worker.ts, which answers `Accept: text/markdown`. `bun run deploy` runs
+// Wrangler with wrangler.jsonc, because `cf deploy dist` refuses a project
+// that has a Worker entrypoint. This file is for `cf` commands that need only
+// the assets. `dist/` has the `_headers` and `_redirects` Cloudflare reads. The Core Worker's routes on teakvault.com
 // (/api, /mcp and its two /.well-known files) run before this Custom Domain.
 export default defineConfig({
   worker: {
