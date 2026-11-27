@@ -95,7 +95,7 @@ export const SHOTS: Shot[] = [
     name: "pinned-cards",
     kind: "web",
     layout: "window",
-    alt: "The Pinned row above the grid, with three pinned cards, each with a pin in its corner",
+    alt: "The Pinned row above the grid, with three pinned cards and no captions",
   },
   {
     name: "folder",
