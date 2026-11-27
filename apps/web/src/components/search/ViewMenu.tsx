@@ -20,7 +20,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { CARD_DENSITIES, type CardDensity } from "../../lib/cardDensity";
 import { cardTypeIcon } from "../../lib/cardTypes";
 import type { LibrarySort } from "../../lib/searchUrlState";
 import { cn } from "../../lib/utils";
@@ -29,9 +28,7 @@ import type { CardTypesTranslator } from "../cards/cardTypeLabel";
 interface ViewMenuProps {
   activeTypes: readonly CardType[];
   canSortByRelevance?: boolean;
-  density?: CardDensity;
   onClearTypes?: () => void;
-  onDensityChange?: (density: CardDensity) => void;
   onSaveSearch?: () => void;
   onSortChange?: (sort: LibrarySort) => void;
   onToggleType?: (type: CardType) => void;
@@ -61,9 +58,7 @@ export const viewMenuLabel = (
 export function ViewMenu({
   activeTypes,
   canSortByRelevance = false,
-  density = "comfortable",
   onClearTypes,
-  onDensityChange,
   onSaveSearch,
   onSortChange,
   onToggleType,
@@ -178,24 +173,6 @@ export function ViewMenu({
                   )}
                 </DropdownMenuRadioItem>
               ) : null}
-            </DropdownMenuRadioGroup>
-          </>
-        ) : null}
-        {onDensityChange ? (
-          <>
-            {onToggleType || onSortChange ? <DropdownMenuSeparator /> : null}
-            <DropdownMenuLabel className="font-normal text-muted-foreground text-xs">
-              {t("viewMenu.density")}
-            </DropdownMenuLabel>
-            <DropdownMenuRadioGroup
-              onValueChange={(value) => onDensityChange(value as CardDensity)}
-              value={density}
-            >
-              {CARD_DENSITIES.map((option) => (
-                <DropdownMenuRadioItem key={option} value={option}>
-                  {t(`viewMenu.densities.${option}`)}
-                </DropdownMenuRadioItem>
-              ))}
             </DropdownMenuRadioGroup>
           </>
         ) : null}

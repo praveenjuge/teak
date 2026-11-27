@@ -1,17 +1,10 @@
-import { doneActionLabel } from "@teak/convex/shared/linkCategories";
 import { formatLinkPrice, isLinkPrice } from "@teak/convex/shared/price";
 import { urlHostForDisplay } from "@teak/convex/shared/utils/urlHost";
-import { useTranslations } from "@teak/i18n/react";
-import type { CSSProperties } from "react";
-import { CircleCheck } from "vadivam-react";
+import type { CSSProperties, ReactNode } from "react";
 import { cn } from "../../lib/utils";
 import { ResilientMediaImage, SiteFavicon } from "../media";
-import {
-  CARD_BADGE,
-  CARD_TILE,
-  mediaAspectRatio,
-  TEXT_TILE,
-} from "./cardDisplay";
+import { CardFooter } from "./CardFooter";
+import { CARD_FRAME, CARD_PREVIEW, mediaAspectRatio } from "./cardDisplay";
 import type { LinkCardImage } from "./linkCardImage";
 import type { CardWithUrls } from "./types";
 
@@ -29,40 +22,30 @@ export function LinkCardBody({
   card,
   image,
   isPriority = false,
+  marks,
   onImageError,
-  textInsets,
   title,
 }: {
   card: CardWithUrls;
   image: LinkCardImage | undefined;
   isPriority?: boolean;
+  marks?: ReactNode;
   onImageError: (failedUrl: string) => void;
-  textInsets: string;
   title: string;
 }) {
-  const t = useTranslations("cards.link");
   const hostname = urlHostForDisplay(card.url);
   const storedPrice = card.metadata?.linkCategory?.price;
   const priceLabel = isLinkPrice(storedPrice)
     ? formatLinkPrice(storedPrice)
     : undefined;
-  const titleIsUrl = title === card.url;
-  const displayTitle = titleIsUrl ? title.replace(URL_SCHEME_REGEX, "") : title;
-  const doneMark = card.completedAt !== undefined && (
-    <CircleCheck
-      aria-label={t("markedAs", {
-        verb: doneActionLabel(card.metadata?.linkCategory?.category),
-      })}
-      className="size-4 shrink-0 text-muted-foreground"
-      role="img"
-    />
-  );
+  const displayTitle =
+    title === card.url ? title.replace(URL_SCHEME_REGEX, "") : title;
 
   return (
-    <div>
+    <div className={CARD_FRAME}>
       {image ? (
         <div
-          className={cn(CARD_TILE, "card-grid:aspect-(--link-image-ratio)")}
+          className={cn(CARD_PREVIEW, "card-grid:aspect-(--link-image-ratio)")}
           style={
             {
               "--link-image-ratio": mediaAspectRatio(
@@ -87,60 +70,40 @@ export function LinkCardBody({
             src={image.src}
             storageKey={image.storageKey}
           />
-          {priceLabel ? <span className={CARD_BADGE}>{priceLabel}</span> : null}
         </div>
       ) : (
         <div
           className={cn(
-            TEXT_TILE,
-            "flex flex-col card-grid:gap-3 p-4",
-            priceLabel && "pb-11",
-            textInsets
+            CARD_PREVIEW,
+            "flex flex-col items-center justify-center gap-2.5 bg-muted p-4"
           )}
         >
           {hostname ? (
-            <SiteFavicon
-              className="size-[22px] rounded-md"
-              hostname={hostname}
-            />
-          ) : null}
-          <div className="mt-auto min-w-0">
-            <p
-              className={cn(
-                "text-balance break-words font-serif text-[21px] leading-[1.12] tracking-[-0.015em]",
-                priceLabel ? "line-clamp-2" : "line-clamp-3"
-              )}
-              dir="auto"
-            >
-              {displayTitle}
-            </p>
-            {hostname ? (
+            <>
+              <SiteFavicon
+                className="size-10 rounded-[10px]"
+                hostname={hostname}
+              />
               <p
-                className="mt-2 truncate text-muted-foreground text-xs"
+                className="max-w-full truncate text-[13px] text-muted-foreground"
                 dir="ltr"
               >
                 {hostname}
               </p>
-            ) : null}
-          </div>
-          {priceLabel ? <span className={CARD_BADGE}>{priceLabel}</span> : null}
+            </>
+          ) : null}
         </div>
       )}
-      <div
-        className="mt-2.5 flex min-w-0 items-center gap-2 px-0.5"
-        data-link-name=""
-      >
-        {hostname ? (
-          <SiteFavicon className="size-4 rounded" hostname={hostname} />
-        ) : null}
-        <p
-          className="min-w-0 flex-1 truncate font-medium text-[13px] leading-snug"
-          dir="auto"
-        >
-          {displayTitle}
-        </p>
-        {doneMark}
-      </div>
+      <CardFooter
+        detail={priceLabel}
+        icon={
+          hostname ? (
+            <SiteFavicon className="size-4 rounded" hostname={hostname} />
+          ) : null
+        }
+        marks={marks}
+        title={displayTitle}
+      />
     </div>
   );
 }

@@ -35,7 +35,6 @@ import type {
   CardView,
   SelectionAction,
 } from "../../lib/cardActions";
-import type { CardGridLayout } from "../../lib/cardDensity";
 import { nearestRemainingCardIds } from "../../lib/cardNeighbors";
 import { copyText } from "../../lib/clipboard";
 import type { FolderSummary } from "../../lib/folders";
@@ -53,10 +52,8 @@ import { ConfirmDialog } from "../ui/confirm-dialog";
 import { FirstPaintGrid } from "./FirstPaintGrid";
 import {
   columnsForWidth,
+  GRID_COLUMNS_TEMPLATE,
   GRID_GUTTER,
-  gridColumnsTemplate,
-  MAX_COLUMNS,
-  MIN_COLUMN_WIDTH,
 } from "./gridColumns";
 import { useBulkDeleteForever, useSelectAllCards } from "./gridSelection";
 
@@ -83,7 +80,7 @@ const MEASURING_ALONE_STYLE = {
   visibility: "hidden",
 } as const;
 
-const FALLBACK_COLUMNS = { xs: 1, sm: 2, md: 3, lg: 5, xl: 5, xxl: 5 };
+const FALLBACK_COLUMNS = { xs: 2, sm: 3, md: 4, lg: 5, xl: 5, xxl: 5 };
 /** How far below the screen the next cards start to load. */
 const LOAD_MORE_ROOT_MARGIN = "200px 0px";
 const PRIORITY_CARD_COUNT = 10;
@@ -101,12 +98,6 @@ export interface MasonryGridHandle {
   returnFocusTo: (cardId: string) => boolean;
 }
 
-const DEFAULT_LAYOUT: CardGridLayout = {
-  gutter: GRID_GUTTER,
-  maxColumns: MAX_COLUMNS,
-  minColumnWidth: MIN_COLUMN_WIDTH,
-};
-
 export interface MasonryGridProps {
   /** The composer, first in the grid; none during a search or in Trash. */
   addCardForm?: ReactNode;
@@ -115,8 +106,6 @@ export interface MasonryGridProps {
   folder?: BulkBarFolder;
   hasMore?: boolean;
   isLoadingMore?: boolean;
-  /** The gap, the most columns and the narrowest column: the card density. */
-  layout?: CardGridLayout;
   onAddToFolderDone?: (added: boolean) => void;
   onBulkAction?: RunBulkCardAction;
   /** A card action from a card's menu (`grid`) or its key (`shortcut`). */
@@ -153,9 +142,7 @@ export const MasonryGrid = memo(function MasonryGrid({
   onLoadMore,
   hasMore = false,
   isLoadingMore = false,
-  layout = DEFAULT_LAYOUT,
 }: MasonryGridProps) {
-  const { gutter, maxColumns, minColumnWidth } = layout;
   const t = useTranslations("grids.masonry");
   const tDialog = useTranslations("cards.deleteForeverDialog");
   const inTrash = view === "trash";
@@ -201,19 +188,12 @@ export const MasonryGrid = memo(function MasonryGrid({
     }
     const observer = new ResizeObserver(([entry]) => {
       if (entry) {
-        setMeasuredColumns(
-          columnsForWidth(
-            entry.contentRect.width,
-            gutter,
-            minColumnWidth,
-            maxColumns
-          )
-        );
+        setMeasuredColumns(columnsForWidth(entry.contentRect.width));
       }
     });
     observer.observe(grid);
     return () => observer.disconnect();
-  }, [gutter, maxColumns, minColumnWidth]);
+  }, []);
   const resolvedColumns = measuredColumns ?? FALLBACK_COLUMNS;
   // The masonry stacks every item in one corner until it has measured them,
   // so it stays out of sight until its first layout. On a server-rendered
@@ -891,12 +871,8 @@ export const MasonryGrid = memo(function MasonryGrid({
       >
         {firstPaint ? (
           <FirstPaintGrid
-            gridTemplateColumns={gridColumnsTemplate(
-              gutter,
-              minColumnWidth,
-              maxColumns
-            )}
-            gutter={gutter}
+            gridTemplateColumns={GRID_COLUMNS_TEMPLATE}
+            gutter={GRID_GUTTER}
             items={masonryItems}
             renderItem={renderItem}
           />
@@ -906,7 +882,7 @@ export const MasonryGrid = memo(function MasonryGrid({
             className={isSelectionMode ? "select-none" : ""}
             columns={resolvedColumns}
             fresh
-            gutter={gutter}
+            gutter={GRID_GUTTER}
             itemRender={renderItem}
             items={masonryItems}
             onLayoutChange={measuring ? endMeasuring : undefined}

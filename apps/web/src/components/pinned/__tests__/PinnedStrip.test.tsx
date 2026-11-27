@@ -65,6 +65,7 @@ describe("PinnedStrip", () => {
     expect(markup).toContain("press Alt with the left or right arrow");
     // Pinned cards move in the row, so they don't start the folder drag.
     expect(markup).not.toContain('draggable="true"');
-    expect(markup.match(/aria-label="Pinned"/g)).toHaveLength(3);
+    // The row says they're pinned, so no card carries a pin mark.
+    expect(markup).not.toContain('aria-label="Pinned"');
   });
 });

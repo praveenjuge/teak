@@ -128,12 +128,7 @@ function DeckCard({ card }: { card: CardWithUrls }) {
       className="max-h-(--revisit-card-height)"
       style={{ width: deckCardWidth(card) }}
     >
-      <CardBody
-        card={card}
-        isPriority
-        link={{ image, onImageError, title }}
-        textInsets=""
-      />
+      <CardBody card={card} isPriority link={{ image, onImageError, title }} />
     </div>
   );
 }

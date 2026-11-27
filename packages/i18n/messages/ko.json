@@ -1057,8 +1057,7 @@
       "bulkDescription": "{count, plural, other {카드 #개와 파일이 영구적으로 삭제됩니다.}} 이 작업은 되돌릴 수 없습니다."
     },
     "body": {
-      "emptyNote": "빈 메모",
-      "recording": "녹음"
+      "emptyNote": "빈 메모"
     },
     "link": {
       "markedAs": "{verb, select, read {읽음으로 표시됨} watched {시청함으로 표시됨} listened {들음으로 표시됨} bought {구매함으로 표시됨} cooked {요리함으로 표시됨} played {플레이함으로 표시됨} other {완료로 표시됨}}"
@@ -1091,8 +1090,7 @@
     },
     "trash": {
       "retention": "휴지통의 카드는 {days, plural, other {#일}} 후 영구 삭제됩니다."
-    },
-    "pinnedMark": "고정됨"
+    }
   },
   "grids": {
     "masonry": {
@@ -1395,12 +1393,7 @@
       },
       "nothingToRevisit": "다시 볼 카드가 없습니다",
       "saveAsSmartFolder": "스마트 폴더로 저장…",
-      "reshuffle": "다시 셔플",
-      "density": "밀도",
-      "densities": {
-        "comfortable": "여유 있게",
-        "compact": "좁게"
-      }
+      "reshuffle": "다시 셔플"
     },
     "dates": {
       "today": "오늘",

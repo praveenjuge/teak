@@ -1057,8 +1057,7 @@
       "bulkDescription": "{count, plural, one {This permanently deletes # card and its files.} other {This permanently deletes # cards and their files.}} This can’t be undone."
     },
     "body": {
-      "emptyNote": "Empty note",
-      "recording": "Recording"
+      "emptyNote": "Empty note"
     },
     "link": {
       "markedAs": "{verb, select, read {Marked as read} watched {Marked as watched} listened {Marked as listened} bought {Marked as bought} cooked {Marked as cooked} played {Marked as played} other {Marked as done}}"
@@ -1091,8 +1090,7 @@
     },
     "trash": {
       "retention": "Cards in Trash are deleted forever after {days, plural, one {# day} other {# days}}."
-    },
-    "pinnedMark": "Pinned"
+    }
   },
   "grids": {
     "masonry": {
@@ -1395,12 +1393,7 @@
       },
       "nothingToRevisit": "Nothing to revisit here",
       "saveAsSmartFolder": "Save as smart folder…",
-      "reshuffle": "Reshuffle",
-      "density": "Density",
-      "densities": {
-        "comfortable": "Comfortable",
-        "compact": "Compact"
-      }
+      "reshuffle": "Reshuffle"
     },
     "dates": {
       "today": "Today",

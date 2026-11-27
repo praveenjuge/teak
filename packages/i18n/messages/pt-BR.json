@@ -1057,8 +1057,7 @@
       "bulkDescription": "{count, plural, one {Isso exclui permanentemente # card e os arquivos dele.} other {Isso exclui permanentemente # cards e os arquivos deles.}} Isso não pode ser desfeito."
     },
     "body": {
-      "emptyNote": "Nota vazia",
-      "recording": "Gravação"
+      "emptyNote": "Nota vazia"
     },
     "link": {
       "markedAs": "{verb, select, read {Marcado como lido} watched {Marcado como assistido} listened {Marcado como ouvido} bought {Marcado como comprado} cooked {Marcado como preparado} played {Marcado como jogado} other {Marcado como concluído}}"
@@ -1091,8 +1090,7 @@
     },
     "trash": {
       "retention": "Os cards na lixeira são excluídos permanentemente após {days, plural, one {# dia} other {# dias}}."
-    },
-    "pinnedMark": "Fixado"
+    }
   },
   "grids": {
     "masonry": {
@@ -1395,12 +1393,7 @@
       },
       "nothingToRevisit": "Nada para revisitar aqui",
       "saveAsSmartFolder": "Salvar como pasta inteligente…",
-      "reshuffle": "Embaralhar de novo",
-      "density": "Densidade",
-      "densities": {
-        "comfortable": "Confortável",
-        "compact": "Compacta"
-      }
+      "reshuffle": "Embaralhar de novo"
     },
     "dates": {
       "today": "Hoje",

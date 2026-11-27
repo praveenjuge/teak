@@ -160,7 +160,7 @@ function ScrubPreview({
         />
       ) : null}
 
-      {isScrubbing ? null : <PlayOverlay durationLabel={durationLabel} />}
+      {isScrubbing ? <PlayOverlay durationLabel={durationLabel} /> : null}
     </div>
   );
 }
@@ -286,7 +286,7 @@ function HoverVideoPreview({
         </video>
       ) : null}
 
-      {isHovering ? null : <PlayOverlay durationLabel={durationLabel} />}
+      {isHovering ? <PlayOverlay durationLabel={durationLabel} /> : null}
     </div>
   );
 }

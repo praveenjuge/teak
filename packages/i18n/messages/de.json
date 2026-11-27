@@ -1057,8 +1057,7 @@
       "bulkDescription": "{count, plural, one {Dadurch werden # Karte und ihre Dateien dauerhaft gelöscht.} other {Dadurch werden # Karten und ihre Dateien dauerhaft gelöscht.}} Dies kann nicht rückgängig gemacht werden."
     },
     "body": {
-      "emptyNote": "Leere Notiz",
-      "recording": "Aufnahme"
+      "emptyNote": "Leere Notiz"
     },
     "link": {
       "markedAs": "{verb, select, read {Als gelesen markiert} watched {Als gesehen markiert} listened {Als gehört markiert} bought {Als gekauft markiert} cooked {Als gekocht markiert} played {Als gespielt markiert} other {Als erledigt markiert}}"
@@ -1091,8 +1090,7 @@
     },
     "trash": {
       "retention": "Karten im Papierkorb werden nach {days, plural, one {# Tag} other {# Tagen}} endgültig gelöscht."
-    },
-    "pinnedMark": "Angeheftet"
+    }
   },
   "grids": {
     "masonry": {
@@ -1395,12 +1393,7 @@
       },
       "nothingToRevisit": "Hier gibt es nichts wiederzusehen",
       "saveAsSmartFolder": "Als intelligenten Ordner speichern…",
-      "reshuffle": "Neu mischen",
-      "density": "Dichte",
-      "densities": {
-        "comfortable": "Großzügig",
-        "compact": "Kompakt"
-      }
+      "reshuffle": "Neu mischen"
     },
     "dates": {
       "today": "Heute",

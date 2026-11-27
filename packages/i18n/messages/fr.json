@@ -1057,8 +1057,7 @@
       "bulkDescription": "{count, plural, one {Cette action supprime définitivement # fiche et ses fichiers.} other {Cette action supprime définitivement # fiches et leurs fichiers.}} Elle est irréversible."
     },
     "body": {
-      "emptyNote": "Note vide",
-      "recording": "Enregistrement"
+      "emptyNote": "Note vide"
     },
     "link": {
       "markedAs": "{verb, select, read {Marquée comme lue} watched {Marquée comme vue} listened {Marquée comme écoutée} bought {Marquée comme achetée} cooked {Marquée comme cuisinée} played {Marquée comme jouée} other {Marquée comme terminée}}"
@@ -1091,8 +1090,7 @@
     },
     "trash": {
       "retention": "Les fiches de la corbeille sont supprimées définitivement après {days, plural, one {# jour} other {# jours}}."
-    },
-    "pinnedMark": "Épinglée"
+    }
   },
   "grids": {
     "masonry": {
@@ -1395,12 +1393,7 @@
       },
       "nothingToRevisit": "Rien à revoir ici",
       "saveAsSmartFolder": "Enregistrer comme dossier intelligent…",
-      "reshuffle": "Mélanger à nouveau",
-      "density": "Densité",
-      "densities": {
-        "comfortable": "Confortable",
-        "compact": "Compacte"
-      }
+      "reshuffle": "Mélanger à nouveau"
     },
     "dates": {
       "today": "Aujourd’hui",
