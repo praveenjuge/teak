@@ -5,19 +5,19 @@ description: Change Teak's Convex backend in packages/convex the way the reposit
 
 # Teak Convex backend
 
-Before editing, read `packages/convex/_generated/ai/guidelines.md` and "Convex backend" under "Working in each workspace" in `apps/docs/content/docs/(open-source)/architecture.mdx`. For a new field, table, index, public API operation, backfill or workflow step, read `apps/docs/content/docs/(open-source)/adding-a-feature.mdx`. Load the vendored `convex` skills when the task needs them.
+Before editing, read `packages/convex/_generated/ai/guidelines.md` and "Convex backend" in `apps/docs/content/docs/(open-source)/architecture.mdx`; for a new field, table, index, public API operation, backfill or workflow step, also `apps/docs/content/docs/(open-source)/adding-a-feature.mdx`. Load the vendored `convex` skills as needed.
 
 ## Rules
 
-- Schema changes need explicit approval for any migration or backfill; propose them, don't run them.
+- Propose any migration or backfill a schema change needs; run it only with explicit approval.
 - Import backend APIs from `@teak/convex`, data types from `@teak/convex/_generated/dataModel`, shared constants from `@teak/convex/shared/constants`.
 - A public API operation ships on the API, MCP, SDK and CLI together (`scripts/repo/public-parity.ts`).
-- Card processing runs on the Core Worker's Workflows, started with `queueCardProcessing` (`packages/convex/card/processingRuns.ts`) through the workflow dispatch outbox (`workflowDispatch/outbox.ts`; each kind's spec lives beside its domain and is listed in `workflowDispatch.ts`). Object deletions go through `queueObjectDeletion` (`storage/objectDeletion.ts`) only. Keep the processing-revision guard on every write the Worker makes through the workflow gateway.
+- Card processing runs on the Core Worker's Workflows, started with `queueCardProcessing` (`packages/convex/card/processingRuns.ts`) through the dispatch outbox (`workflowDispatch/outbox.ts`; each kind's spec sits beside its domain, listed in `workflowDispatch.ts`). Delete objects only through `queueObjectDeletion` (`storage/objectDeletion.ts`). Keep the processing-revision guard on every Worker write through the workflow gateway.
 
 ## Prove the change
 
 1. `bun run --cwd packages/convex test:unit` (Bun tests in `__tests__/`, mirroring the source path) and `test:edge` (`convex-test` files listed in `vitest.config.ts`), then `bun run --cwd packages/convex typecheck` and `lint`.
-2. Backend behavior is only live on the dev deployment while this checkout holds the push lease: `bun run dev --stop && bun run dev --detach --push`, then `bun .agents/skills/verify-teak/scripts/doctor.ts` must show this checkout's backend before you verify. `bun run dev --local --detach` avoids the shared deployment for schema and destructive work.
+2. Your backend is live on the dev deployment only while this checkout holds the push lease: `bun run dev --stop && bun run dev --detach --push`, then `bun .agents/skills/verify-teak/scripts/doctor.ts` must show this checkout's backend. For schema or destructive work use `bun run dev --local --detach`.
 3. Drive the affected feature through `.agents/skills/verify-teak` and keep the evidence.
 
-Report what changed, the commands you ran with their results, and any step you could not reach.
+Report what changed, the commands run with results, and any step you couldn't reach.

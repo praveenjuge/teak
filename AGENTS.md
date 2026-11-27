@@ -4,7 +4,7 @@ Teak is a personal knowledge hub for collecting, remembering, and rediscovering 
 
 ## Start here
 
-The public docs in `apps/docs/content/docs` are the only source for how Teak is built, run, tested and contributed to. Read the page for your task from this checkout (not teakvault.com), so you read your branch's version. Sections marked `<Visibility for="agents">` are written for you.
+The public docs in `apps/docs/content/docs` are the only source for how Teak is built, run, tested and contributed to. Read the page for your task from this checkout, not teakvault.com. Sections marked `<Visibility for="agents">` are for you.
 
 | Before you | Read |
 | --- | --- |
@@ -16,36 +16,33 @@ The public docs in `apps/docs/content/docs` are the only source for how Teak is 
 | touch deployment config, Worker bindings or secrets | `apps/docs/content/docs/(open-source)/self-hosting.mdx` |
 | open a pull request or post on GitHub | "Pull requests" in `apps/docs/content/docs/(open-source)/development.mdx` |
 
-- Before your first change in a session, read "Rules every change keeps" in `architecture.mdx`: they hold for every change, whatever its size.
-- Use Bun. Read the pinned version and available commands from `package.json`; do not duplicate that inventory here.
+- Before your first change in a session, read "Rules every change keeps" in `architecture.mdx`.
+- Use Bun; `package.json` has the pinned version and commands.
 - Read the nearest nested `AGENTS.md` before changing a workspace: the web app's points at TanStack Start's bundled docs, and the Convex one carries tool-written rules (in `packages/convex`, read `_generated/ai/guidelines.md` first).
 - Run the app with `bun run dev --detach`; `bun run dev --status` prints the URLs and sign-in, and `bun run dev --stop` stops it. Never bind production credentials locally.
 - New English text goes into all seven other catalogs in the same PR.
-- Inspect the current implementation and tests before choosing a pattern. Treat repository code and configuration as the source of truth.
-- Keep changes focused. Preserve unrelated work already in the tree.
 
 ## Teak's own deployments
 
-`.agents` holds only what isn't for the public site: Teak's own deployments, credentials, runbooks and records. `.agents/README.md` lists every file and when to read it. In particular, read `.agents/guides/analytics.md` before adding an event or touching telemetry, and `.agents/guides/environment.md` before touching a credential on Teak's own deployments.
+`.agents` holds what isn't for the public site: Teak's own deployments, credentials, runbooks and records; `.agents/README.md` lists every file and when to read it. Read `.agents/guides/analytics.md` before adding an event or touching telemetry, and `.agents/guides/environment.md` before touching a credential on Teak's own deployments.
 
 ## Verification
 
-Every change ends with proof, every time. These rules are not optional and not "when practical":
+Every change ends with proof:
 
-- **Prove it works.** Before you call any task done, follow `.agents/skills/principle-prove-it-works/SKILL.md`: check the real artifact (run the feature, read the stored value, inspect the diff), not a proxy. A passing build, typecheck or test run alone is not proof.
-- **Verify in the running app.** For any change a user can observe (web, API, CLI, MCP, or backend behavior behind them), follow `.agents/skills/verify-teak/SKILL.md`: launch, run its doctor, drive every feature the change touches through the recipes in its `features/`, keep the evidence, clean up. A bug fix reproduces the bug first. Put the evidence in the PR's Proof section, and say in Verification which features you drove and anything you could not reach.
-- **Map what you build.** A change that adds or changes a user-facing feature adds or updates its file in `.agents/skills/verify-teak/features/` in the same PR, and drives the new recipe once. `scripts/repo/verify-feature-map.test.ts` checks the map's shape.
-- `create-verification-skill` and `maintain-verification-skill` in `.agents/skills` (vendored from pstack) built that map and audit it; run the second when recipes drift from the app. They are written for Cursor: in Teak a generated or maintained verification skill lives in `.agents/skills/verify-<app>/`, never `.cursor/skills/`.
+- **Prove it works.** Before calling a task done, follow `.agents/skills/principle-prove-it-works/SKILL.md`: check the real artifact (run the feature, read the stored value, inspect the diff). A passing build, typecheck or test run alone is not proof.
+- **Verify in the running app.** For any change a user can observe (web, API, CLI, MCP, or the backend behind them), follow `.agents/skills/verify-teak/SKILL.md` and drive every touched feature through its `features/` recipes. Put the evidence in the PR's Proof section, and list in Verification the features you drove and anything you couldn't reach.
+- **Map what you build.** A new or changed user-facing feature updates its file in `.agents/skills/verify-teak/features/` in the same PR and drives the new recipe once (`scripts/repo/verify-feature-map.test.ts` checks the map's shape).
+- `create-verification-skill` and `maintain-verification-skill` (vendored from pstack) built and audit that map; run the second when recipes drift from the app. They are written for Cursor: in Teak a verification skill lives in `.agents/skills/verify-<app>/`, never `.cursor/skills/`.
 
-- Add or update deterministic tests for changed behavior. Run the narrowest relevant checks first, then the repository checks warranted by the change.
-- Test user-observable behavior rather than implementation details.
+- Add or update deterministic tests of user-observable behavior. Run the narrowest checks first, then the repository checks the change warrants.
 - End-to-end tests (web, API, CLI, MCP) belong in `packages/tests` and run against a local stack with the WorkOS emulator (`testing.mdx`, "End-to-end suite").
 - Never bypass git hooks with `--no-verify`. Fix the failing check.
-- The `e2e` MCP server in `.mcp.json` drives a real browser against the local app; run the `packages/tests` specs with `bunx e2e run` (the e2e skill in `.agents/skills/e2e/` covers both, but never run its `e2e feedback`; see `testing.mdx`).
+- The `e2e` MCP server in `.mcp.json` drives a real browser against the local app; run the `packages/tests` specs with `bunx e2e run` (the `e2e` skill covers both; never run its `e2e feedback`, see `testing.mdx`).
 
 ## Release pointers
 
-To release everything, load the `teak-release` skill. Before any release, complete the shared preparation in `.agents/runbooks/releases.md` (one next-patch version change across every manifest, confirmed by the lockstep validator). Then read the relevant product runbook and follow it exactly:
+To release everything, load the `teak-release` skill. Before any release, do the shared preparation in `.agents/runbooks/releases.md` (one next-patch version change across every manifest, confirmed by the lockstep validator), then follow the product runbook exactly:
 
 - Apple (iPhone, iPad, Mac): `apps/apple/release.md`
 - Android: `apps/android/release.md`
@@ -53,7 +50,7 @@ To release everything, load the `teak-release` skill. Before any release, comple
 - CLI and SDK: "CLI" and "Public SDK publication" in `.agents/runbooks/releases.md`
 - Store screenshots (iPhone, iPad, Mac, Play): `scripts/store-assets/README.md`
 
-All package versions move in lockstep. Release tasks use the next patch version unless the canonical runbook says otherwise. Use `gh` for GitHub releases, pull requests, issues, and workflow inspection.
+All package versions move in lockstep, to the next patch unless the runbook says otherwise. Use `gh` for GitHub releases, pull requests, issues and workflows.
 
 <!-- BEGIN:turborepo-agent-rules -->
 

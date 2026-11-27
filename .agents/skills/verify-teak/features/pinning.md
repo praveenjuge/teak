@@ -1,24 +1,23 @@
 # Pinned cards
 
-A user pins up to 12 cards to keep them in a "Pinned" row above Everything: from a card's right-click or "More actions" menu ("Pin to top", "Unpin"), the `P` key on a focused or open card, the API, MCP, SDK or CLI. A new pin goes first; dragging a pinned card (or `Alt` with an arrow key) puts the row in another order, and pinned cards leave the grid below. The row shows only on Everything with no search, filter or other sort; elsewhere a pinned card ranks as usual and shows a pin in its corner, and `is:pinned` finds the pinned cards. Archiving or trashing a card unpins it; marking a link done keeps the pin. Pinning a 13th card is refused. Only the web app pins: the Apple and Android apps show pinned cards in their normal place and only suggest `is:pinned` in search.
+A user pins up to 12 cards into a "Pinned" row above Everything from a card's menus, the `P` key, the API, MCP, SDK or CLI, and reorders the row by dragging or `Alt` with an arrow key. Elsewhere a pinned card ranks as usual with a pin in its corner. Only the web app pins: the Apple and Android apps show pinned cards in their normal place and only suggest `is:pinned` in search.
 
 ## Sub-features
 
-- `pin-toggle` pins and unpins from the grid's right-click and "More actions" menus ("Pin to top P", "Unpin P"), the open card's "More actions" menu, and `P` on a focused or open card. Archived cards and cards in Trash have no pin item, and `P` does nothing there or with cards selected.
-- `pin-strip` shows the region "Pinned" (a heading "Pinned" only screen readers get, list "Pinned cards") above the grid on Everything, newest pin first. The row sits in a soft rounded panel with a small round pin badge on its top-left edge, and the cards in it show no pin of their own. Pinned cards don't appear twice. Every card in the row is one tile of the same height (168 px): images, videos and link previews crop to it, and links and documents drop their footer, so no card in the row has a caption. The row hides for any search, filter, Favorites, Archive, Trash, a folder, or a sort other than Newest; the row is gone with no pins.
-- `pin-mark` shows a pin ("Pinned") in a pinned card's corner outside the row (a search, Favorites, a folder), beside the heart when it is also a favorite.
-- `pin-reorder` moves a card in the row by dragging the card itself (a short move first, so a click still opens it; on touch, a press-and-hold, so a swipe still scrolls the row), or with `Alt+←` / `Alt+→` on a focused pinned card, which keeps focus on it and says "Moved to position N of M." The order survives a reload, and the `?` sheet lists "Move a pinned card left or right".
+- `pin-toggle` pins and unpins from the grid's right-click and "More actions" menus ("Pin to top P", "Unpin P"), the open card's "More actions" menu, and `P` on a focused or open card. Archived and trashed cards have no pin item; `P` does nothing there or with a selection.
+- `pin-strip` shows the region "Pinned" (a screen-reader-only heading "Pinned", list "Pinned cards") above the grid on Everything, newest pin first; pinned cards leave the grid and show no pin of their own in the row. Each row card is one 168 px tile: images, videos and link previews crop to it, and links and documents drop their footer, so none has a caption. The row hides for any search, filter, Favorites, Archive, Trash, a folder, a sort other than Newest, or no pins.
+- `pin-mark` shows a pin ("Pinned") in a pinned card's corner outside the row, beside the heart on a favorite.
+- `pin-reorder` moves a card in the row by dragging it (a short move first, so a click still opens it; on touch, a press-and-hold, so a swipe still scrolls), or with `Alt+←` / `Alt+→` on a focused pinned card, which keeps focus and says "Moved to position N of M." The order survives a reload, and the `?` sheet lists "Move a pinned card left or right".
 - `pin-limit` refuses a 13th pin with the toast "You can pin up to 12 cards. Unpin one first." and pins nothing.
-- `pin-lifecycle` unpins a card that is archived or moved to Trash (one card or a selection); Undo on that toast pins it again in its old place in the row (pins made since stay first), while unarchiving it later from Archive or restoring it from Trash doesn't; marking a link done keeps the pin.
-- `pin-search` finds pinned cards with `is:pinned` (also `is:pin`, `is:pins`), leaves them out with `-is:pinned`, works inside `OR` and smart folders, and suggests "Pinned" after `is:` on the web and in the Apple and Android apps.
+- `pin-lifecycle` unpins a card that is archived or moved to Trash (one or a selection); Undo on that toast re-pins it in its old place (newer pins stay first), while a later unarchive or restore doesn't; marking a link done keeps the pin.
+- `pin-search` finds pinned cards with `is:pinned` (also `is:pin`, `is:pins`), excludes them with `-is:pinned`, works inside `OR` and smart folders, and suggests "Pinned" after `is:` on the web, Apple and Android.
 - `pin-api` pins with `PATCH /v1/cards/:id/pin`, lists with `GET /v1/cards?pinned=true` (pin order), reorders with `PUT /v1/cards/pinned/order`; MCP `teak_v1_set_card_pinned`, `teak_v1_list_pinned_cards`, `teak_v1_reorder_pinned_cards`; CLI `teak pin`, `teak cards pins`, `teak cards pins order`; WebMCP `teak_set_pinned`. Cards carry `isPinned`.
-- `pin-export` writes `isPinned` (and `pinPosition` for a pinned card) to `cards.json` and an `isPinned` column to `cards.csv`; a Teak archive import pins those cards again, in order, up to 12.
+- `pin-export` writes `isPinned` (and `pinPosition` for a pinned card) to `cards.json` and an `isPinned` column to `cards.csv`; a Teak archive import re-pins those cards in order, up to 12.
 
 ## How to get to it (user POV)
 
-- Everything (`/`) → right-click a card → "Pin to top", or focus it and press `p`.
-- An open card → "More actions" → "Pin to top" / "Unpin", or `p`.
-- The "Pinned" row above the grid → drag a card, or focus one and press `Alt+←` / `Alt+→`.
+- A card on Everything (`/`) or open → right-click or "More actions" → "Pin to top" / "Unpin", or `p`.
+- The "Pinned" row → drag a card, or focus one and press `Alt+←` / `Alt+→`.
 - Search box → `is:pinned`.
 - `teak pin <id>`, `teak cards pins`, `GET /v1/cards?pinned=true`, MCP `teak_v1_list_pinned_cards`.
 
@@ -26,27 +25,27 @@ A user pins up to 12 cards to keep them in a "Pinned" row above Everything: from
 
 Preconditions:
 
-- A stack running this checkout's backend: the schema changed, so use `bun run dev --local --detach` (or `--push` on the shared deployment), then the doctor.
-- Make three marked notes, `verify-<run-id> one`, `two`, `three`, from the composer or `POST /v1/cards`. For the cap, make 13 more with `POST /v1/cards/bulk` (`operation: "create"`).
-- Mint a key (`scripts/api-key.ts mint`) for the API, CLI and MCP steps.
+- A stack running this checkout's backend (the schema changed): `bun run dev --local --detach` (or `--push` on the shared deployment), then the doctor.
+- Three marked notes, `verify-<run-id> one`, `two`, `three`, from the composer or `POST /v1/cards`; for the cap, 13 more with `POST /v1/cards/bulk` (`operation: "create"`).
+- A key (`scripts/api-key.ts mint`) for the API, CLI and MCP steps.
 
 Steps:
 
-- **Pin from the menu.** On Everything, `right_click` "Text: verify-<run-id> one" → "Pin to top". The region "Pinned" appears above the grid with that card, and the grid no longer lists it. Proof: `GET $SITE/v1/cards?pinned=true` has it with `isPinned: true`.
-- **Pin with P.** Focus "Text: verify-<run-id> two" in the grid, `press` "p": it moves into "Pinned", before "one". Open "three", `press` "p" in the dialog, close it: "Pinned" reads three, two, one.
-- **Reorder.** `focus` the first card in "Pinned cards", `press` "Alt+ArrowRight" twice: the row reads two, one, three, focus stays on the moved card, and the status reads "Moved to position 3 of 3." Reload: the same order. `drag` a pinned card onto another too; the card doesn't open when it's dropped. Proof: `teak cards pins` prints the same order.
-- **Where the row shows.** Type `verify-<run-id>` in the search box: the row hides and the three notes list with a pin in their corner. Pick View → "Oldest": the row hides. Open Favorites: no row.
-- **Search.** `is:pinned verify-<run-id>` lists the three; `verify-<run-id> -is:pinned` lists none of them; typing `is:` suggests "Pinned".
-- **Cap.** Pin the 13 bulk cards through the API (`PATCH /v1/cards/<id>/pin` `{"isPinned":true}`) until it answers `400 PIN_LIMIT_REACHED`, then `press` "p" on another grid card: the toast "You can pin up to 12 cards. Unpin one first." appears and the row is unchanged.
-- **Lifecycle.** Pin three notes, then archive the middle one (`e`): it leaves the row. `tap` "Undo" on "Archived 1 card": after a reload it is pinned again between the other two. Archive it again and unarchive it from Archive: it isn't pinned. Move the last pin to Trash (`Backspace`) and `tap` "Undo" on "Moved 1 card to Trash": it is back last in the row. Move one to Trash and restore it from Trash: not pinned.
-- **API, CLI, MCP.** `PUT $SITE/v1/cards/pinned/order` with every pinned id reversed: 200 with `items` in that order, and the web row follows without a reload. The same call with one id missing: `400 INVALID_INPUT`. `bun apps/cli/src/index.ts unpin <id>` prints the card with "pinned" gone. MCP `teak_v1_set_card_pinned`, `teak_v1_list_pinned_cards` and `teak_v1_reorder_pinned_cards` do the same.
-- **Export.** Export from Settings → Import & export; `cards.json` has `isPinned: true` and a `pinPosition` on each pinned card.
+- **Pin from the menu.** On Everything, `right_click` "Text: verify-<run-id> one" → "Pin to top": it moves from the grid into the region "Pinned". Proof: `GET $SITE/v1/cards?pinned=true` has it with `isPinned: true`.
+- **Pin with P.** Focus "Text: verify-<run-id> two", `press` "p": it moves into "Pinned", before "one". Open "three", `press` "p" in the dialog, close it: "Pinned" reads three, two, one.
+- **Reorder.** `focus` the first card in "Pinned cards", `press` "Alt+ArrowRight" twice: the row reads two, one, three, focus stays on it, and the status reads "Moved to position 3 of 3." Reload: same order. `drag` one onto another; it doesn't open when dropped. Proof: `teak cards pins` prints the same order.
+- **Where the row shows.** Search `verify-<run-id>`: the row hides and the three notes show a corner pin. View → "Oldest": the row hides. Favorites: no row.
+- **Search.** `is:pinned verify-<run-id>` lists the three; `verify-<run-id> -is:pinned` lists none; typing `is:` suggests "Pinned".
+- **Cap.** Pin the 13 bulk cards (`PATCH /v1/cards/<id>/pin` `{"isPinned":true}`) until it answers `400 PIN_LIMIT_REACHED`, then `press` "p" on another grid card: the toast "You can pin up to 12 cards. Unpin one first." appears and the row is unchanged.
+- **Lifecycle.** With three pins, archive the middle one (`e`): it leaves the row. `tap` "Undo" on "Archived 1 card": after a reload it is back between the other two. Archive it again, unarchive it from Archive: not pinned. Trash the last pin (`Backspace`), `tap` "Undo" on "Moved 1 card to Trash": back last in the row. Trash one, restore it from Trash: not pinned.
+- **API, CLI, MCP.** `PUT $SITE/v1/cards/pinned/order` with every pinned id reversed: 200 with `items` in that order; the web row follows live. With one id missing: `400 INVALID_INPUT`. `bun apps/cli/src/index.ts unpin <id>` prints the card without "pinned". MCP `teak_v1_set_card_pinned`, `teak_v1_list_pinned_cards` and `teak_v1_reorder_pinned_cards` do the same.
+- **Export.** Settings → Import & export; `cards.json` has `isPinned: true` and a `pinPosition` on each pinned card.
 - **End to end (local stack).** `bun run --cwd packages/tests e2e src/journey/03-api.e2e.ts src/journey/04-cli.e2e.ts src/journey/05-mcp.e2e.ts`.
 - **Clean up.** Unpin everything (`teak cards pins`, then `teak unpin <id>`), then delete the run's cards permanently.
 
 ## Gotchas
 
-- Strip cards aren't in the grid, so the grid's arrow keys don't move into them; Tab reaches each pinned card.
-- The row reads its cards on its own: right after pinning, the grid can drop the card a moment before the row shows it.
-- A card hidden by a `secret` or `hidden` tag still counts toward the 12 but doesn't show in the row.
-- A pinned card can't be dragged onto a sidebar folder (the drag moves it in the row instead); add it from its menu.
+- Strip cards aren't in the grid, so its arrow keys don't reach them; Tab does.
+- The row loads separately: right after pinning, the grid can drop the card a moment before the row shows it.
+- A card hidden by a `secret` or `hidden` tag counts toward the 12 but doesn't show in the row.
+- A pinned card can't be dragged onto a sidebar folder (the drag reorders the row instead); add it from its menu.

@@ -59,7 +59,7 @@ const deviceCards: AppCard[] = [
   {
     platform: "ios",
     name: "iPhone & iPad",
-    copy: "Save photos, voice notes, and links from the share sheet. They show up on every other device in seconds.",
+    copy: "Save photos, voice notes, and links from the share sheet, synced in seconds.",
     iconAlt: "Apple icon",
     iconClass: "dark:invert",
     iconSrc: "/platform-icons/apple.svg",
@@ -82,7 +82,7 @@ const deviceCards: AppCard[] = [
   {
     platform: "android",
     name: "Android",
-    copy: "Share into Teak from any app, or select text and choose Save to Teak. Uploads keep going in the background.",
+    copy: "Share into Teak from any app, or select text and choose Save to Teak. Uploads continue in the background.",
     iconAlt: "Android icon",
     iconSrc: "/platform-icons/android.svg",
     href: PLAY_STORE_URL,
@@ -112,7 +112,7 @@ const browserCards: AppCard[] = [
   {
     platform: "web",
     name: "Web App",
-    copy: "Search your whole library, write notes in Markdown, and drop in files from any desktop browser.",
+    copy: "Search your library, write Markdown notes, and drop in files from any browser.",
     iconAlt: "Teak icon",
     iconSrc: "/icon.png",
     href: WEB_APP_URL,
@@ -121,7 +121,7 @@ const browserCards: AppCard[] = [
   {
     platform: "chrome",
     name: "Chrome Extension",
-    copy: "Save tabs, screenshots, or selected text in a click. Teak grabs the metadata for you.",
+    copy: "Save tabs, screenshots, or selected text in a click.",
     iconAlt: "Google Chrome icon",
     iconSrc: "/platform-icons/chrome.svg",
     href: CHROME_STORE_URL,
@@ -135,7 +135,7 @@ const browserCards: AppCard[] = [
   {
     platform: "firefox",
     name: "Firefox Extension",
-    copy: "Everything the Chrome extension does, in Firefox: save pages, images, and text, and search Teak from the address bar.",
+    copy: "Save pages, images, and text, and search Teak from the address bar.",
     iconAlt: "Firefox icon",
     iconSrc: "/platform-icons/firefox.svg",
     href: FIREFOX_ADDONS_URL,
@@ -148,7 +148,7 @@ const browserCards: AppCard[] = [
   },
   {
     name: "Safari Extension",
-    copy: "Save the page you're on from Safari's toolbar. It comes with the Mac app, so there's nothing else to install.",
+    copy: "Save the page you're on from Safari's toolbar. It comes with the Mac app.",
     iconAlt: "Safari icon",
     iconSrc: "/platform-icons/safari.svg",
     href: MAC_APP_STORE_URL,
@@ -167,7 +167,7 @@ const developerCards: DeveloperCard[] = [
       alt: "Model Context Protocol logo",
       class: "dark:invert",
     },
-    copy: "Let AI assistants search, save, and manage your cards over the remote MCP server.",
+    copy: "Let AI assistants search, save, and manage your cards.",
     meta: "Remote server",
     shell: false,
     snippet: "https://teakvault.com/mcp",
@@ -216,14 +216,14 @@ const groups = [
     id: "devices",
     title: "On your devices",
     description:
-      "Native apps that capture from the share sheet, the menu bar, your launcher, and everywhere in between.",
+      "Native apps that capture from the share sheet, menu bar and launcher.",
     cards: deviceCards,
   },
   {
     id: "browser",
     title: "In your browser",
     description:
-      "Open your library anywhere, and save the page you're on without switching tabs.",
+      "Open your library anywhere, and save pages without switching tabs.",
     cards: browserCards,
   },
 ];
