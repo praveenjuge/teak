@@ -443,6 +443,21 @@ describe("card table", () => {
     );
   });
 
+  test("a link saved again is as old as its last save, not its first", () => {
+    const createdAt = Date.now() - 400 * 24 * 60 * 60 * 1000;
+    const resaved = {
+      ...row("card_re", "https://example.com/resaved"),
+      createdAt,
+      savedAt: Date.now() - 2 * 60 * 1000,
+    };
+    const lines = formatCardTable([resaved], false).split("\n");
+    expect(lines[1]).toEndWith("  2m");
+    expect(formatCardLine(resaved)).toEndWith("  2m");
+    expect(formatCardTable([resaved], true)).toContain(
+      `\t${new Date(createdAt).toISOString()}`
+    );
+  });
+
   test("a pipe gets tab-separated rows and no header", () => {
     const out = formatCardTable([row("card_a", "short")], true);
     expect(out.startsWith("card_a\ttext\tshort\t")).toBe(true);
