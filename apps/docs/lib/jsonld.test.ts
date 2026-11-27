@@ -1,7 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { ORGANIZATION_ID, SITE_URL } from "@teak/convex/shared/organization";
 import { AUDIENCE_PAGES, buildAudiencePageSchemas } from "./audience-pages";
-import { buildPageSchemas, SITE_DESCRIPTION } from "./jsonld";
+import {
+  buildPageSchemas,
+  buildProductSchema,
+  SITE_DESCRIPTION,
+} from "./jsonld";
 
 interface SchemaNode {
   "@type": string;
@@ -79,6 +83,23 @@ describe("audience page structured data", () => {
         name: "Save without filing",
         item: url,
       },
+    ]);
+  });
+});
+
+describe("pricing product structured data", () => {
+  // Google's merchant listings mark a Product with offers invalid without it.
+  test("Product carries the image it's given and an offer per price", () => {
+    const image = `${SITE_URL}/hero-image.png`;
+    const product = buildProductSchema("Teak Pro", "Unlimited cards.", image, [
+      { name: "Monthly", price: "19.00" },
+      { name: "Yearly", price: "190.00" },
+    ]);
+
+    expect(product).toMatchObject({ "@type": "Product", image });
+    expect(product.offers.map((offer) => offer.price)).toEqual([
+      "19.00",
+      "190.00",
     ]);
   });
 });
