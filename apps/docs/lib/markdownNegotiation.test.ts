@@ -237,3 +237,44 @@ describe("withVaryAccept", () => {
     expect(withVaryAccept(original)).toBe(original);
   });
 });
+
+describe("worker fetch", () => {
+  test("passes a Markdown request through negotiation", async () => {
+    const { default: worker } = await import("../worker");
+    const assets = assetsWith({
+      "/docs/testing.md": { body: "# Testing\n", contentType: MARKDOWN_CT },
+    });
+    const response = await worker.fetch(
+      request("/docs/testing", "text/markdown"),
+      { ASSETS: assets }
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Content-Type")).toBe(MARKDOWN_CT);
+    expect(response.headers.get("Vary")).toBe("Accept");
+  });
+
+  test("marks a plain HTML response with Vary: Accept", async () => {
+    const { default: worker } = await import("../worker");
+    const assets = assetsWith({
+      "/docs/testing": { body: "<html></html>", contentType: "text/html" },
+    });
+    const response = await worker.fetch(request("/docs/testing", "text/html"), {
+      ASSETS: assets,
+    });
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Vary")).toBe("Accept");
+  });
+
+  test("passes other assets through unchanged", async () => {
+    const { default: worker } = await import("../worker");
+    const assets = assetsWith({
+      "/llms.txt": { body: "# teak\n", contentType: "text/plain" },
+    });
+    const response = await worker.fetch(request("/llms.txt", "text/markdown"), {
+      ASSETS: assets,
+    });
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Content-Type")).toBe("text/plain");
+    expect(response.headers.get("Vary")).toBeNull();
+  });
+});
