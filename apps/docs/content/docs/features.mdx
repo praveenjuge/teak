@@ -9,7 +9,7 @@ related:
 
 ## Card types
 
-Teak has eight card types. Each gets automatic processing and a rich preview.
+Teak has eight card types, each with automatic processing and a rich preview.
 
 ![Cards of every type side by side: a note, photos, palettes, quotes, links, a voice memo and a PDF](./images/card-types.webp)
 
@@ -24,9 +24,9 @@ Teak has eight card types. Each gets automatic processing and a rich preview.
 | **Palette** | Color swatches | Hex value per color |
 | **Quote** | Highlighted passages | Source context |
 
-When you save text, Teak picks the type: a quotation with who said it becomes a quote even without quote marks, a list of colors becomes a palette, and code or dialogue that only looks like one stays a note.
+For text, a quotation with its speaker becomes a quote even without quote marks, a list of colors becomes a palette, and look-alike code or dialogue stays a note.
 
-Open a palette to change its colors. **Add color** takes a color from the picker or a hex code, and each swatch's **×** (or right-click **Remove color**) takes one out, with **Undo**. A palette holds 1 to 12 colors. Click a swatch to copy its hex code.
+A palette holds 1 to 12 colors. **Add color** takes one from the picker or a hex code; a swatch's **×** (or right-click **Remove color**) removes it, with **Undo**. Click a swatch to copy its hex.
 
 :::note[Upload limits]
 Files (images, video, audio, documents, source files, Markdown, ZIP archives and design files) can be up to 100 MB. `.md` and `.markdown` files become editable notes, up to 512 KiB of UTF-8 text. [Teak archive imports](/docs/import#limits) have their own limits.
@@ -38,73 +38,73 @@ Save from the web app, the [browser extensions](/docs/extension), the [Mac](/doc
 
 ### Saving links
 
-Paste a link on the home page to save it as a link card. Paste a list of links, one per line, and Teak saves each as its own card (up to 100 at a time).
+Paste a link on the home page to save it. Paste up to 100 links, one per line, for one card each.
 
 ### Saving something again
 
-Saving a link you already have doesn't make a second card, wherever you save it. Teak moves that card to the top of your library and brings it back from Archive if it was there. Two addresses count as the same link when they differ only by `http` or `https`, `www.`, a trailing slash, a `#fragment` or tracking parameters (`utm_*`, `fbclid`, `gclid`).
+Saving a link again, from anywhere, makes no second card: Teak moves the existing card to the top of your library and out of Archive. Addresses that differ only by `http` or `https`, `www.`, a trailing slash, a `#fragment` or tracking parameters (`utm_*`, `fbclid`, `gclid`) are the same link.
 
-- Only a link saved on its own counts. A link with words around it, a note or a file is saved as a new card.
-- Tags and notes sent with it aren't added to the card you already have. Add them to that card instead.
-- A card in Trash doesn't count: saving its link again makes a new card.
-- The card's **Details** keep **Added**, the date you first saved it, and show **Saved again** with the last time you saved it.
+- Only a bare link counts; a link with words around it, a note or a file becomes a new card.
+- Tags and notes sent with it aren't added to the existing card; add them there.
+- Cards in Trash don't count: their link makes a new card.
+- **Details** keep **Added**, the first save date, and show **Saved again** with the latest.
 
 ### Saving while offline or when a save fails
 
-If you lose your connection, Teak says so. A note you save meanwhile appears at once and is saved when you're back online. If a voice recording can't be saved, it stays in the recording window so you can try again or download it.
+Teak tells you when you're offline. Notes saved offline appear right away and sync when you reconnect. A voice recording that fails to save stays in the recording window to retry or download.
 
 ### Save by email
 
-Turn on **Settings → Integrations → Save by email**, then send or forward anything to `save@in.teakvault.com` from the email address you sign in to Teak with.
+Turn on **Settings → Integrations → Save by email**, then send or forward anything to `save@in.teakvault.com` from the address you sign in to Teak with.
 
 ![An email forwarded to save@in.teakvault.com, and the link card and attachment it became in Teak](./images/save-by-email.webp)
 
-- An email that's just a link, with at most a sentence or two, becomes a link card, and the sentence becomes its note. Anything else becomes a note headed with the subject. Tracking images, redirect wrappers and "Fwd:" headers are removed.
-- Attachments become their own cards, with the same formats as uploads, up to about 18 MB per email.
+- An email of just a link and at most a sentence or two becomes a link card with the sentence as its note; anything else becomes a note headed with the subject, minus tracking images, redirect wrappers and "Fwd:" headers.
+- Attachments become their own cards, in upload formats, up to about 18 MB per email.
 - Every card is tagged `email`.
-- Mail from any other address, or that fails its domain's sender checks (DMARC), is refused. Forwarding from a work account only works if that's the address you sign in with.
-- Mail past 60 emails an hour, or once a free account has 200 cards, is dropped without a reply.
+- Mail from other addresses, or failing its domain's sender checks (DMARC), is refused, so a work account forwards only if you sign in with it.
+- Mail past 60 an hour, or once a free account has 200 cards, is dropped without a reply.
 
 ## Reading
 
 ### Saved copies of pages
 
-Teak keeps a private copy of every link you save, so the page outlives the site. The copy is one file with the page's text, styles, fonts and images, up to 20 MB. Video, audio and scripts aren't kept, and a page too large to keep whole is kept as text only. If a saved page disappears, opening it shows Teak's copy.
+Teak keeps a private copy of every saved page, so it outlives the site: one file of text, styles, fonts and images, up to 20 MB, without video, audio or scripts. Larger pages are kept as text. If the page disappears, opening it shows Teak's copy.
 
-- Saving from the Chrome or Firefox extension keeps the page as you saw it, including pages you're signed in to. Passwords, payment card numbers and one-time codes are left out.
-- The card's **Details** show **Archived copy** with its size, **Text only**, **Saving a copy…**, or **Couldn't save a copy** with the reason.
+- The Chrome and Firefox extensions save the page as you saw it, even signed in, minus passwords, payment card numbers and one-time codes.
+- **Details** show **Archived copy** with its size, **Text only**, **Saving a copy…**, or **Couldn't save a copy** with the reason.
 - [Refresh details](#refresh-details) saves a new copy, unless the link has [highlights](#highlights).
 
 ### Read
 
-On the web, a link card with an article in its saved copy shows **Preview · Read** above it. **Read** shows the article's text and images in one clean layout, with the site, author and reading time above it and **Open original ↗** below. Press `R` to switch.
+On the web, a link whose saved copy holds an article shows **Preview · Read** (`R` switches). **Read** lays out the article's text and images cleanly, with site, author and reading time above and **Open original ↗** below.
 
 ![A saved Wikipedia article open on Read, its text in one calm layout beside the card's notes, highlights and details](./images/reader.webp)
 
-- Articles, news and research open on **Read**; other links open on **Preview**.
-- A page counts as an article when its main text has at least 120 words (300 when the page doesn't look like an article, such as a shop or a home page).
-- A wiki article opens on its text, with the fact box's picture on top and its facts as a short list after the opening paragraphs.
-- While the article is prepared, **Read** says **Preparing the article…**. If it fails, **Try again** refreshes the card.
-- Search finds links by words in their article, and the summary of a long article is written from the article.
-- The API, MCP, SDK and CLI return a link's article as Markdown ([Read a card's text](/docs/api#read-a-cards-text)).
+- Articles, news and research open on **Read**; other links on **Preview**.
+- An article needs at least 120 words of main text (300 on pages that don't look like articles, such as shops or home pages).
+- Wiki articles show the fact box's picture on top and its facts as a short list after the opening paragraphs.
+- **Read** says **Preparing the article…** until ready; on failure, **Try again** refreshes the card.
+- Search covers the article's words, and a long article's summary is written from it.
+- The API, MCP, SDK and CLI return the article as Markdown ([Read a card's text](/docs/api#read-a-cards-text)).
 
 ### Highlights
 
-In **Read**, select some text and choose **Highlight**, or press `H`. On a phone or tablet, **Highlight** appears in a bar at the bottom.
+In **Read**, select text and choose **Highlight** or press `H`. On a phone or tablet, **Highlight** is in a bottom bar.
 
 ![A highlighted passage in Read, with the card's details listing its highlights](./images/highlights.webp)
 
-1. The highlighted passage, painted in **Read**.
+1. The highlighted passage in **Read**.
 2. **Highlights · 1** in the card's details, with the highlight's note. Click it to jump to the passage.
 
-- Click a highlight to add a note (up to 2,000 characters) or to **Remove highlight**, with **Undo**.
-- A highlight that overlaps another joins it, keeping the older note. A highlight can be up to 5,000 characters, and a card can have up to 200.
-- A highlight Teak can't find in the saved article says **Not found in the saved article**; you can still remove it.
-- A highlighted link keeps its saved copy and article: refreshing it or saving it again keeps them, and its URL can't be changed until the highlights are removed.
-- Highlights from [Instapaper, Omnivore and Raindrop.io imports](/docs/import) say **Waiting for the article…** until Teak has prepared it.
+- Click a highlight to add a note (up to 2,000 characters) or **Remove highlight**, with **Undo**.
+- Overlapping highlights join, keeping the older note. Each holds up to 5,000 characters, 200 per card.
+- One missing from the saved article says **Not found in the saved article** and can still be removed.
+- A highlighted link keeps its saved copy and article when refreshed or saved again, and its URL is locked until highlights are removed.
+- Highlights from [Instapaper, Omnivore and Raindrop.io imports](/docs/import) say **Waiting for the article…** until it's prepared.
 - Highlights aren't searched. They're in your [export](/docs/export), and the [API](/docs/api#highlights), MCP, SDK and CLI can list, add, note and remove them.
 
-Read and highlights are on the web only; the Mac, iPhone, iPad and Android apps don't show them yet.
+Read and highlights aren't in the Mac, iPhone, iPad or Android apps yet.
 
 ## Your library
 
@@ -113,103 +113,103 @@ Read and highlights are on the web only; the Mac, iPhone, iPad and Android apps 
 On the web, the sidebar holds:
 
 - **New**, under the Teak logo: a note or link (`N`), file uploads (`U`), or an audio recording.
-- **Everything**, **Favorites** and **Tags**, then your folders (with their color and card count; smart folders show a search icon), then **Archive**, **Trash** and **Settings**. Each is a page you can bookmark or share. Drag a card onto a folder to add it.
+- **Everything**, **Favorites**, **Tags**, your folders (with color and card count; smart folders show a search icon), **Archive**, **Trash** and **Settings**, each a shareable page. Drop a card on a folder to add it.
 
-Every page has the same header: its name on the left, the search box in the middle, and its buttons, such as **View**, on the right. **View** narrows the page to card types (pick several to combine them), changes the order, and saves the search as a smart folder. Selecting cards swaps the header for the selection's actions.
+Each page's header has its name, the search box, and buttons such as **View**, which filters by card types, changes the order, and saves smart folders. Selecting cards swaps in their actions.
 
 ![The View menu open beside the search box, with card types, sort order, Shuffle, Revisit and Save as smart folder](./images/view-menu.webp)
 
-Drag the sidebar's edge to resize it (double-click to reset), or collapse it to icons with the button at its top (`⌘B`, `Ctrl+B` on Windows and Linux). Teak remembers both on each device. On a phone, the sidebar opens as a drawer from the header, and **+** adds a note or link, uploads files or records audio.
+Drag the sidebar's edge to resize it (double-click resets), or collapse it to icons with its top button (`⌘B`, `Ctrl+B` on Windows and Linux); each device remembers both. On a phone it's a drawer, and **+** adds a note or link, uploads files or records audio.
 
 ### Grid
 
-Cards show in a masonry grid, two columns wide on a phone and up to five on a wide screen. Notes, quotes, palettes and voice memos are tiles of one size, and photos and videos keep their own shape; none of them has a caption. A note shows its first line as a heading, and a voice memo shows its length. Links and documents name themselves in a row along the bottom of the card: a link shows its picture (or its site's icon and address) above its site's icon, title and price, and a document shows its first page above its name and file type. A heart for a favorite and a check for a [done](#read-watch-and-buy) link sit in the bottom right corner of every card. A video shows its length while the pointer rests on it. Rest the pointer on a card to open its link, favorite it, or open **More** (`⋯`); on touch screens the **⋯** menu always shows.
+The masonry grid has two columns on a phone, up to five on wide screens, and no captions. Notes, quotes, palettes and voice memos are same-size tiles; photos and videos keep their shape. Notes show their first line as a heading, voice memos their length. Links show their picture (or site icon and address) over site icon, title and price; documents, their first page over name and file type. Bottom right, a heart marks favorites and a check [done](#read-watch-and-buy) links. Hover a video for its length, or any card to open its link, favorite it, or open **More** (`⋯`), always shown on touch screens.
 
-Click a card to open it. The details beside it show where it's from and its type (click the type to see every card of that type), its title (click a link's title to rename it), and one main button: **Open** for a link or **Download** for a file. Next to it are **Favorite**, the [done button](#read-watch-and-buy) for a link, **Copy**, **Folder** and **More** (`⋯`): Save PDF, More like this, Refresh details, Pin to top, Archive and Move to Trash. These stay pinned while you scroll.
+Click a card to open its details: source, type (click for all cards of it), title (click a link's to rename it), and **Open** for a link or **Download** for a file. Beside that, pinned while scrolling: **Favorite**, a link's [done button](#read-watch-and-buy), **Copy**, **Folder** and **More** (`⋯`) with Save PDF, More like this, Refresh details, Pin to top, Archive and Move to Trash.
 
-Below them come the card's notes, folders, tags, summary, colors and **Details**, all editable in place. Notes save as you type, and a tag is added when you press `Enter`. Tags Teak added fold under **suggested tags**: **Keep** one to make it your own, or **Remove** it. **Details** shows when you added the card, when you saved it again, and its size; to change a link's address, click the pencil beside its **URL**.
+Below, edit notes, folders, tags, summary, colors and **Details** in place. Notes save as you type; `Enter` adds a tag. Teak's tags fold under **suggested tags** to **Keep** or **Remove**. **Details** shows when you added and last saved the card, and its size; the pencil beside a link's **URL** changes it.
 
-Use the arrows beside the card, or `←` and `→`, to step through cards in the grid's order. On a phone the card opens as a sheet, with its actions in a bar along the bottom. A card in Trash shows **Restore** and **Delete forever** instead of its buttons.
+Step through cards with the arrows beside the card, or `←` and `→`. On a phone, cards open as a sheet with a bottom action bar. Trashed cards show **Restore** and **Delete forever**.
 
-To act on many cards, click the circle in a card's corner (or right-click it and choose **Select**), then click more. The bar at the top archives them, and **More** favorites them, adds them to a folder, adds or removes tags, copies their links or moves them to Trash. In Archive the main action is **Unarchive**; in Trash, **Restore**. Archive, Unarchive and Move to Trash offer **Undo**, and cards that couldn't be changed stay selected with **Retry**.
+To select cards, click the circle in a card's corner (or right-click and choose **Select**), then click more. The top bar archives them; **More** favorites, adds to a folder, adds or removes tags, copies links or moves to Trash. Archive's main action is **Unarchive**; Trash's, **Restore**. Archive, Unarchive and Move to Trash offer **Undo**, and failed cards stay selected with **Retry**.
 
 #### Pinned cards
 
-Pin up to 12 cards to keep them at the top of **Everything**: choose **Pin to top** from a card's menu, or press `P`. Pinned cards sit in a **Pinned** row above the grid, newest pin first. Drag to reorder them (on a touch screen, hold first), or focus one and press `Alt` with `←` or `→`. Pinning a 13th card is refused; unpin one first.
+Pin up to 12 cards to the top of **Everything** with **Pin to top** in a card's menu, or `P`, into a **Pinned** row above the grid, newest first. Drag to reorder (hold first on touch screens), or focus one and press `Alt` with `←` or `→`. A 13th pin is refused; unpin one first.
 
 ![The Pinned row above the grid, with three pinned cards and no captions](./images/pinned-cards.webp)
 
-- The row shows only on **Everything** with no search or filter and the **Newest** order. Elsewhere a pinned card stays where it ranks. Cards in the row show no caption.
-- Search `is:pinned` to list them.
-- Archiving a card or moving it to Trash unpins it; **Undo** on that toast pins it again in its old place. Favorites and pins are separate.
+- The row, without captions, shows only on **Everything** in **Newest** order with no search or filter. Elsewhere pinned cards stay where they rank.
+- `is:pinned` lists them.
+- Archiving or trashing unpins a card; **Undo** on that toast restores its pin and place. Favorites and pins are separate.
 - Pin on the web, or with `PATCH /v1/cards/:cardId/pin` and `isPinned: true` in the [API](/docs/api#pinned-cards), MCP, SDK or CLI. The Mac, iPhone, iPad and Android apps can search `is:pinned` but don't pin or show the row.
 
 ## Notes
 
-Notes are written in Markdown. In a checklist, ticked items move below the open ones, and unticking one moves it back (on the web, `⌘Z` undoes the move). Every app shows checkboxes you can tick.
+Notes are Markdown. In a checklist, ticked items move below open ones and move back when unticked (on the web, `⌘Z` undoes the move). Every app shows tickable checkboxes.
 
 ### Link cards
 
-Type `[[` in a note on the web, and Teak offers up to 8 of your cards that match what you type next (your newest cards when you haven't typed yet). Pick one with the arrow keys and `Enter`, or click it. A card tagged `secret` or `hidden` is offered only when you type that tag, such as `[[diary #secret`.
+Type `[[` in a note on the web to pick, with the arrow keys and `Enter` or a click, from up to 8 cards matching what you type next (newest cards until then). Cards tagged `secret` or `hidden` appear only when you type the tag, such as `[[diary #secret`.
 
 ![A note linking two cards, each shown as a pill with the card's type and title](./images/note-links.webp)
 
-- The link shows as a pill with the card's type and current title. Click it, or select it and press `Enter`, to open the card.
-- A link to a card in Trash, a deleted card or a card that isn't yours shows as **Missing card**. Restoring the card from Trash brings the link back. Links inside code stay plain text.
-- A card that notes link to shows **Linked from** in its details, with up to 50 of those notes, most recently updated first. Notes in Trash or tagged `secret` or `hidden` aren't listed.
-- Card tiles show a link as its title, and search finds a note by a linked card's title (the title when you linked it).
-- On Mac, iPhone and iPad, and in exports, the API, MCP and the CLI, a link is written `[[Title|teak:<card-id>]]`.
+- The link is a pill with the card's type and current title. Click it, or select it and press `Enter`, to open the card.
+- Links to trashed, deleted or others' cards show **Missing card**; restoring a trashed card brings its links back. Links inside code stay plain text.
+- A linked card's details show **Linked from** with up to 50 notes, most recently updated first, except notes in Trash or tagged `secret` or `hidden`.
+- Tiles show a link as its title, and search finds a note by a linked card's title as of linking.
+- On Mac, iPhone and iPad, and in exports, the API, MCP and CLI, a link is written `[[Title|teak:<card-id>]]`.
 
 ### Tables in notes
 
-In a note on the web, type `/table` to add a table. `Tab` moves to the next cell (and adds a row from the last one), `Shift+Tab` moves back, and `Enter` moves down. Point at the table, or press `Alt+F10` in a cell, for the **⋯** menu that adds or deletes rows and columns, or deletes the table.
+In a note on the web, type `/table`. `Tab` moves to the next cell (adding a row from the last), `Shift+Tab` back, `Enter` down. Point at the table, or press `Alt+F10` in a cell, for the **⋯** menu to add or delete rows, columns or the table.
 
 ![A note with a type scale table: style, size, line height and tracking](./images/note-table.webp)
 
-A cell holds one line of text with bold, italic, code and links (not `[[` card links), up to 20 columns and 200 rows. Tables are saved as Markdown. A pasted Markdown table becomes a table too, unless it aligns its columns or sits in a quote or list. The other apps show tables but can't edit them.
+Cells hold one line with bold, italic, code and links (not `[[` card links); tables hold up to 20 columns and 200 rows, saved as Markdown. Pasted Markdown tables convert unless they align columns or sit in a quote or list. Other apps show tables without editing.
 
 ### Focus mode
 
-Press `⌘E` (`Ctrl+E` on Windows and Linux), or click the expand button at the top right of a note, to write with only your note on screen. The **Close** and **Save** bar fades while you type, and the word count appears when you pause. Press `Esc` or `⌘E` to leave; your edits stay, and the keyboard is back on the open card. With the slash menu or the link editor open, `Esc` closes just that first.
+Press `⌘E` (`Ctrl+E` on Windows and Linux), or the expand button at a note's top right, to see only your note. The **Close** and **Save** bar fades as you type; the word count shows when you pause. `Esc` or `⌘E` leaves, keeping edits and focus on the card; `Esc` first closes an open slash menu or link editor.
 
 ## Search and organization
 
 ### Smart search
 
-Search finds cards by meaning, not just exact words: `cozy reading nook` finds a photo of an armchair by a window with books, a misspelled `typograhpy` still finds your type notes, and a search in another language finds cards saved in English. Cards that match your words appear first, and cards related by meaning join them a moment later. When no card holds your words, Teak shows the closest cards by meaning instead of nothing, so `flowers` still finds a photo of a lily. Above the results, Teak says how many of each it found; **Hide related** leaves out the second group.
+Search finds cards by meaning: `cozy reading nook` finds a photo of an armchair by a window with books, a misspelled `typograhpy` finds your type notes, and other languages find English cards. Cards with your words come first, related ones a moment later; with no word match, `flowers` still finds a lily. Teak counts each group; **Hide related** drops the second.
 
-Search covers titles, descriptions, tags, notes, transcripts, the text inside files, and the words in images:
+Search covers titles, descriptions, tags, notes, transcripts, file text, and words in images:
 
-- **Documents:** the text of PDFs, Word and PowerPoint files, and text and code files. For a long document, search covers its first 32 KB of text (roughly 5,000 words). Teak keeps the text of the first 500 pages, and the API, MCP and CLI return all of it. A scanned PDF without a text layer is read from its first 3 pages.
-- **Audio and video:** the speech, transcribed. For links, a Vimeo video's captions, and a podcast episode whose page links to its audio (up to 100 MB), become the card's transcript.
-- **Images:** the words in images and video thumbnails, such as a receipt's invoice number or a screenshot of code. Teak uses them only for search.
+- **Documents:** PDFs, Word, PowerPoint, text and code files, searched up to the first 32 KB (roughly 5,000 words). Teak keeps the first 500 pages' text, all returned by the API, MCP and CLI. Scanned PDFs without text are read from their first 3 pages.
+- **Audio and video:** transcribed speech, plus, for links, Vimeo captions and podcast episodes whose page links to the audio (up to 100 MB).
+- **Images:** words in images and video thumbnails, such as a receipt's invoice number or a code screenshot, used only for search.
 
 ![Searching "architecture" finds buildings, stairs and interiors by their AI tags, and saved links by their words](./images/search.webp)
 
 | Token | Examples | Effect |
 | --- | --- | --- |
 | **Color name** | `red`, `blue`, `teal` | Dominant palette color |
-| **Hex color** | `#FF5733`, `#3B82F6` | Exact color match. Use `tag:fff` for a tag that looks like a color |
+| **Hex color** | `#FF5733`, `#3B82F6` | Exact color. `tag:fff` finds a tag that looks like a color |
 | **Visual style** | `minimal`, `dark`, `cinematic`, `typographic`, `3d`, `hand-drawn` | Images and videos with that look |
 | **Date** | `today`, `this week`, `january`, `last year` | Date saved (or saved again) |
-| **Quick view** | `favorites` / `fav`, `archive`, `trash` / `bin` / `deleted` | Opens that page; type it again to go back to Everything |
-| **Tag** | `tag:design`, `#design`, `tag:"web design"` | Cards with that tag, ignoring case |
-| **Type** | `type:link`, `type:images`, `type:notes`, `type:pdf` | Cards of that type. Everyday words work too: `note`, `pdf`, `doc`, `photo`, `picture`, `color`, `voice`, `memo`, `url`, `bookmark`, `movie` |
-| **State** | `is:fav`, `is:archived`, `is:pinned` | Only favorites, archived or pinned cards |
-| **Done** | `is:done`, `is:todo` | Links you [marked done](#read-watch-and-buy), or the ones you haven't |
-| **Site** | `site:github.com` | Links from that website, and text saved from its pages. `www.` and case don't matter; subdomains aren't included |
-| **Folder** | `folder:Inbox`, `folder:"Reading list"` | Cards in that folder (not a smart folder) |
-| **Price** | `price:<100`, `price:>=10`, `price:=0` | Product links by price, whatever the currency |
-| **Text in image** | `text:4411`, `text:"total due"` | Images, videos, links and scanned PDFs whose own words contain that text, ignoring case and line breaks |
-| **Phrase** | `"design system"` | Those words together, in that order, including inside documents |
-| **Similar** | `like:<card id>` | Cards closest in meaning to that card ([Find similar](#find-similar)) |
-| **Mood** | `mood:"moody brutalist"` | Images whose look matches ([Search images by mood](#search-images-by-mood)) |
-| **Exclude** | `-figma`, `-"brand guide"`, `-tag:old`, `-is:archived` | Leaves out cards that match. Works before anything except `like:` and `mood:` |
-| **Either** | `tag:fonts OR tag:type` | Cards that match either side. `OR` must be uppercase |
-| **Group** | `(site:github.com OR site:gitlab.com) -is:archived` | Parentheses decide what `OR` and `-` apply to |
+| **Quick view** | `favorites` / `fav`, `archive`, `trash` / `bin` / `deleted` | Opens that page; type it again for Everything |
+| **Tag** | `tag:design`, `#design`, `tag:"web design"` | That tag, any case |
+| **Type** | `type:link`, `type:images`, `type:notes`, `type:pdf` | That type. Also `note`, `pdf`, `doc`, `photo`, `picture`, `color`, `voice`, `memo`, `url`, `bookmark`, `movie` |
+| **State** | `is:fav`, `is:archived`, `is:pinned` | Favorites, archived or pinned only |
+| **Done** | `is:done`, `is:todo` | Links [marked done](#read-watch-and-buy), or not |
+| **Site** | `site:github.com` | Links from that site, and text saved from it. Ignores `www.` and case; excludes subdomains |
+| **Folder** | `folder:Inbox`, `folder:"Reading list"` | That folder (not smart folders) |
+| **Price** | `price:<100`, `price:>=10`, `price:=0` | Product links by price, any currency |
+| **Text in image** | `text:4411`, `text:"total due"` | Images, videos, links and scanned PDFs whose own words contain it, ignoring case and line breaks |
+| **Phrase** | `"design system"` | Those words in order, including in documents |
+| **Similar** | `like:<card id>` | Closest in meaning to that card ([Find similar](#find-similar)) |
+| **Mood** | `mood:"moody brutalist"` | Images with that look ([Search images by mood](#search-images-by-mood)) |
+| **Exclude** | `-figma`, `-"brand guide"`, `-tag:old`, `-is:archived` | Leaves out matches. Works before anything but `like:` and `mood:` |
+| **Either** | `tag:fonts OR tag:type` | Either side. `OR` must be uppercase |
+| **Group** | `(site:github.com OR site:gitlab.com) -is:archived` | Parentheses scope `OR` and `-` |
 | **Keyword** | anything else | Full-text match |
 
-Filters combine. Tags, folders, image text and prices must all match, so `price:>20 price:<100` is a range; several types or sites match any of them. A space joins what must all match, and `OR` joins the sides around it, so `design -figma OR sketch` means `(design -figma) OR sketch`. A `-` inside a word, as in `to-do`, is part of the word. A filter Teak doesn't know, like `type:banana`, is searched as text, and a folder you don't have shows **No folder named …**.
+Several tags, folders, image texts or prices must all match, so `price:>20 price:<100` is a range; several types or sites match any. Spaces join terms that must all match and `OR` joins its sides, so `design -figma OR sketch` means `(design -figma) OR sketch`. A `-` inside a word, as in `to-do`, is part of it. Unknown filters like `type:banana` are searched as text; a missing folder shows **No folder named …**.
 
 ```
 minimal dark
@@ -219,99 +219,99 @@ site:github.com tag:design "design system"
 tag:fonts OR tag:type
 ```
 
-As you type, the search box suggests filters, your tags and folders, and the sites you save most. Pick one and it becomes a removable pill; **Backspace** in an empty box removes the last one. **Enter** turns a date at the start or end of your search into a pill, so `kestrel last week` searches "kestrel" among cards saved last week. When nothing matches, Teak suggests a spelling from your own tags, folders and titles and lets you drop one filter at a time, and a search of only words can become a note with **Save as a note**. In Favorites, Archive, Trash or a folder, **Search everything** runs the same search across your whole library.
+The search box suggests filters, your tags and folders, and your most-saved sites; picks become removable pills, and **Backspace** in an empty box removes the last. **Enter** turns a date at either end into a pill: `kestrel last week` searches "kestrel" in last week's cards. With no results, Teak suggests spellings from your tags, folders and titles, lets you drop filters one at a time, and offers **Save as a note** for a words-only search. In Favorites, Archive, Trash or a folder, **Search everything** widens to your whole library.
 
-The Mac, iPhone, iPad and Android apps support the same search syntax and find the same cards.
+The Mac, iPhone, iPad and Android apps use the same syntax and find the same cards.
 
 #### Find similar
 
-Choose **More like this** from a card's **⋯** menu to see the cards closest to it in meaning, of any type. The search box shows a **Similar to** pill; add filters to narrow it, or save it as a smart folder. A card saved a moment ago may need a few seconds before its similar cards show up.
+**More like this** in a card's **⋯** menu shows the cards of any type closest to it in meaning, as a **Similar to** pill you can filter or save as a smart folder. A just-saved card may take a few seconds.
 
 #### Search images by mood
 
-`mood:"moody brutalist"` lists images whose look matches the words: their description, tags, visual style and any text in them. It reads only images, so `mood:` with `type:link` finds nothing.
+`mood:"moody brutalist"` lists images whose description, tags, visual style and text match. It reads only images: `mood:` with `type:link` finds nothing.
 
 ### Sort and share a search
 
-Cards are ordered by the date you saved them, newest first ([saving a link again](#saving-something-again) moves it to the top), and imported bookmarks keep their original dates. A search with words starts in **Best match**. Change the order in the **View** menu: **Newest first**, **Oldest first**, **Shuffle** or **Revisit**.
+Cards are ordered newest saved first ([saving a link again](#saving-something-again) moves it up); imported bookmarks keep their original dates. Searches with words start in **Best match**. **View** offers **Newest first**, **Oldest first**, **Shuffle** and **Revisit**.
 
-- **Shuffle** shows your cards in a random order that stays put while you scroll. **Reshuffle** (the dice beside **View**) picks a new one; Back returns to the previous. A tag or folder with more than 2,000 cards shuffles its newest 2,000.
-- **Revisit** shows 20 random cards from what's on screen, one at a time. Press `←` or `A` to archive a card and `→` or `K` to keep it (or swipe on a touch screen); `Space` opens it, `Z` takes back the last archive, and `Esc` leaves. **Revisit 20 more** continues the same shuffle, and **Start over** reshuffles. It isn't offered in Archive or Trash.
+- **Shuffle** orders cards randomly, stable while you scroll. **Reshuffle** (the dice beside **View**) picks a new order; Back returns to the last. Tags or folders over 2,000 cards shuffle their newest 2,000.
+- **Revisit**, outside Archive and Trash, shows 20 random cards from the view, one at a time. `←` or `A` archives, `→` or `K` keeps (or swipe), `Space` opens, `Z` undoes the last archive, `Esc` leaves. **Revisit 20 more** continues; **Start over** reshuffles.
 
 ![Revisit showing one card at a time, with Archive and Keep](./images/revisit.webp)
 
-Your search, order and card types stay in the address bar, so reloading, Back and Forward, and links you share bring back the same view. A very broad search is sorted within its 400 best matches; add a type, date or more words to narrow it.
+Search, order and card types live in the address bar, so reloads, history and shared links restore the view. Very broad searches sort only their 400 best matches; add a type, date or words to narrow.
 
 ### Folders
 
-Folders group cards by project, trip or anything else. A card can be in several folders, and removing it from a folder never deletes it.
+Folders group cards by project, trip or anything. A card can be in several; removing it never deletes it.
 
 ![A folder of architecture and interior references, with its color and card count in the header](./images/folder.webp)
 
-- **Create:** click **+** next to **Folders** in the sidebar, type a name and press `Enter`. Names are unique ignoring case. Typing a new name in **Add to folder…** creates one too.
-- **Add cards:** drag cards onto a folder, choose **Add to folder…** from a card's menu, or select cards and use **More › Add to folder…**. Inside a folder, **Add cards** picks more.
-- **Move or remove:** inside a folder, a card's menu has **Remove from this folder**, and a selection has **Move to folder…**.
-- **Rename, recolor or delete:** right-click a folder in the sidebar or use its **…** menu. Deleting a folder keeps its cards, and **Undo** brings it back for a few seconds.
+- **Create:** click **+** next to **Folders** in the sidebar, type a name and press `Enter`, or type a new name in **Add to folder…**. Names are unique ignoring case.
+- **Add cards:** drag cards onto a folder, or use **Add to folder…** in a card's menu or a selection's **More**. Inside a folder, **Add cards** picks more.
+- **Move or remove:** inside a folder, a card's menu has **Remove from this folder**; a selection has **Move to folder…**.
+- **Rename, recolor or delete:** right-click a folder in the sidebar or use its **…** menu. Deleting keeps the cards; **Undo** restores the folder for a few seconds.
 
-Archived and trashed cards stay out of a folder and its count. You can have up to 500 folders, smart folders included, and a card can be in up to 50. Folders are also in the [API](/docs/api#folders), [CLI](/docs/cli) and [MCP](/docs/mcp).
+Archived and trashed cards stay out of folders and counts. You can have up to 500 folders, smart folders included; a card can be in up to 50. Folders are also in the [API](/docs/api#folders), [CLI](/docs/cli) and [MCP](/docs/mcp).
 
 #### Smart folders
 
-A smart folder saves a search, so it fills itself with every card that matches, including cards you save later. Search for what you want, open **View** and choose **Save as smart folder…**. It keeps the search's filters, card types and the page you're on (Favorites, Archive or a folder), but not colors, styles or dates.
+A smart folder is a saved search that fills itself with every match, future cards included. Search, then choose **Save as smart folder…** in **View**. It keeps filters, card types and the page (Favorites, Archive or a folder), not colors, styles or dates.
 
-Smart folders show a search icon. Their search shows as faded pills, and anything you type narrows it. Edit it with the pencil beside the name. You can't add cards by hand. For example, `folder:"Reading list" is:fav` shows your favorite cards in Reading list, and follows that folder if you rename it.
+Smart folders show a search icon and their search as faded pills; typing narrows it, and the pencil beside the name edits it. You can't add cards by hand. `folder:"Reading list" is:fav` shows favorites in Reading list, even after a rename.
 
 #### Folder rules
 
-A folder can tag and collect cards for you. Choose **Edit…** from a folder's menu, or the pencil beside its name, then **Add a rule**:
+A folder can tag and collect cards for you. Choose **Edit…** from its menu, or the pencil beside its name, then **Add a rule**:
 
-- **Add these tags:** every card put in the folder gets these tags, however it's added (up to 10).
-- **Auto-file cards that match:** a search, such as `tag:typography` or `site:figma.com type:link`. Matching cards are filed in the folder, with its tags, once Teak has processed them. `like:` and `mood:` can't be used.
+- **Add these tags:** every card put in the folder, however it's added, gets these tags (up to 10).
+- **Auto-file cards that match:** a search, such as `tag:typography` or `site:figma.com type:link`. Once processed, matching cards are filed in the folder with its tags. `like:` and `mood:` can't be used.
 
-Saving a rule also applies it to the cards you already have (archived ones included, not Trash) and says how many it updated, with **Undo**. **Undo last run** stays in the folder's Edit dialog for a day. Rules only add: a card you take out of the folder, or a tag you remove, stays out. Up to 50 folders can have rules, and smart folders can't. Rules are also in the [API](/docs/api#folder-rules), [CLI](/docs/cli) and [MCP](/docs/mcp).
+Saving a rule also applies it to existing cards (archived included, not Trash) and reports how many changed, with **Undo**; **Undo last run** stays in the folder's Edit dialog for a day. Rules only add: a card you take out, or a tag you remove, stays out. Up to 50 folders can have rules; smart folders can't. Rules are also in the [API](/docs/api#folder-rules), [CLI](/docs/cli) and [MCP](/docs/mcp).
 
 ### Tags and filters
 
-Teak tags cards automatically, and you can add your own. Filter by type from **View**, by tag from the **Tags** page, or by anything else in the search box. Active filters show as pills in the search box, and **×** clears them all.
+Teak tags cards automatically; add your own too. Filter by type in **View**, by tag on the **Tags** page, or by anything in the search box. Active filters show as pills; **×** clears them.
 
 ![The Tags page listing every tag with how many cards carry it](./images/tags.webp)
 
-**Tags** in the sidebar lists every tag with how many cards outside Archive and Trash carry it. Tags match ignoring case, so `Design` and `design` are one tag. Click a tag to see its cards. A tag's **⋯** menu changes it on every card, including archived and trashed cards and tags Teak added:
+**Tags** lists every tag with its count of cards outside Archive and Trash; click one for its cards. Tags ignore case: `Design` and `design` are one. A tag's **⋯** menu changes it on every card, archived, trashed and Teak-tagged included:
 
-- **Rename…** gives it a new name, or merges it into a tag that already has that name.
+- **Rename…** renames it, or merges it into an existing tag of that name.
 - **Merge into…** replaces it with another tag.
-- **Delete…** removes it from every card. The cards are kept.
+- **Delete…** removes it from every card, keeping the cards.
 
-Folders follow the change: a rename or merge updates folders' auto-tags and searches, and a delete removes the tag from auto-tags. Changes run in the background, one at a time. Merges and deletes can't be undone, so Teak asks first.
+Renames and merges update folders' auto-tags and searches; deletes remove it from auto-tags. Changes run in the background, one at a time. Teak confirms merges and deletes, which can't be undone.
 
 ### Archive
 
-Archive a card to keep it out of your library without deleting it: right-click it, or open it and choose **Archive**. Archived cards stay out of search, Favorites, folders and tag counts, but count toward your card limit. Open **Archive** in the sidebar and choose **Unarchive** to bring one back.
+Archive a card to hide it without deleting: right-click it, or open it and choose **Archive**. Archived cards stay out of search, Favorites, folders and tag counts, but count toward your card limit. **Unarchive** in **Archive** restores one.
 
 ### Trash
 
-Deleted cards go to Trash, where you can restore them or delete them forever. Cards left in Trash are deleted after 30 days. **Empty Trash**, at the top of Trash, deletes everything in it at once, after confirming. A card moved to Trash from Archive goes back to Archive when restored.
+Deleted cards go to Trash to restore or delete forever; after 30 days they're deleted. **Empty Trash**, at the top, deletes everything after confirming. A card trashed from Archive returns there when restored.
 
 ### Hidden cards
 
-Tag a card `secret` or `hidden` to hide it from your library, Favorites, Archive, Trash, folders, search and Shuffle, on every app and in the API. To see hidden cards, search for the tag: `#secret` or `tag:hidden` (searching the word `secret` doesn't). A smart folder whose search names the tag shows them too. Remove the tag to bring a card back. Tags Teak adds never hide a card, and hidden cards still count toward your card limit.
+Tag a card `secret` or `hidden` to hide it from your library, Favorites, Archive, Trash, folders, search and Shuffle, in every app and the API. Search `#secret` or `tag:hidden` (not the bare word), or use a smart folder naming the tag, to see them; remove the tag to unhide. Teak's own tags never hide a card, and hidden cards count toward your limit.
 
 ### Read, watch and buy
 
-Mark a link done when you've finished with it: open it and click the done button beside **Favorite**, or press `D`. It says **Mark as read** for articles, news, books and papers, **Mark as watched** for films and shows, **Mark as listened** for podcasts and music, **Mark as bought** for products, **Mark as cooked** for recipes, **Mark as played** for games, and **Mark as done** for anything else. The link's card shows a check at the end of its footer, beside the heart if it's a favorite.
+Mark a finished link (only links) done with the button beside **Favorite**, or `D`: **Mark as read** for articles, news, books and papers, **Mark as watched** for films and shows, **Mark as listened** for podcasts and music, **Mark as bought** for products, **Mark as cooked** for recipes, **Mark as played** for games, **Mark as done** otherwise. Its footer then ends with a check, beside any favorite heart.
 
-Search `is:todo` for what's left (articles, news, books, films, shows, podcasts, music, products, recipes, courses, events, apps and games you haven't marked done) and `is:done` for what you've finished. Both work in smart folders, so `is:todo folder:"Reading list"` is what's left to read there. Only links can be marked done.
+`is:todo` finds unfinished articles, news, books, films, shows, podcasts, music, products, recipes, courses, events, apps and games; `is:done`, finished links. Both work in smart folders: `is:todo folder:"Reading list"` is what's left to read there.
 
 ## Keyboard shortcuts
 
-On the web you can use Teak without a mouse. Press `?` to see every shortcut; menus, tooltips and the sidebar show them too. Shortcuts don't fire while you type in a field. On Windows and Linux, use `Ctrl` for `⌘`.
+On the web, Teak works without a mouse. `?` lists every shortcut, and menus, tooltips and the sidebar show them. Shortcuts don't fire while typing. On Windows and Linux, use `Ctrl` for `⌘`.
 
-With a card focused in the grid (the grid is one Tab stop):
+With a card focused in the grid (one Tab stop):
 
 | Keys | Action |
 | --- | --- |
 | Arrow keys, `J` / `K` | Move between cards |
-| `Enter` | Open the card |
+| `Enter` | Open |
 | `F` | Favorite or unfavorite |
 | `P` | Pin or unpin |
 | `Alt` `←` / `Alt` `→` | Move a pinned card in the Pinned row |
@@ -319,7 +319,7 @@ With a card focused in the grid (the grid is one Tab stop):
 | `E` | Archive or unarchive |
 | `Delete` (`⌫` on a Mac) | Move to Trash |
 | `X` | Select or deselect |
-| `⌘C` | Copy the note's text, the link or the image |
+| `⌘C` | Copy the note's text, link or image |
 | `Esc` | Clear the selection |
 
 With cards selected, `F`, `T`, `E` and `Delete` act on all of them.
@@ -334,10 +334,10 @@ With a card open:
 | `O` or `⌘Enter` | Open the link, or download the file |
 | `C` | Copy the text, link or image |
 | `D` | Mark a link done |
-| `R` | Switch between **Preview** and **Read** |
-| `H` | Highlight the selected text in **Read** |
+| `R` | Switch **Preview** and **Read** |
+| `H` | Highlight selected text in **Read** |
 | `⌘E` | Focus mode |
-| `Esc` | Close the card |
+| `Esc` | Close |
 
 Anywhere:
 
@@ -347,19 +347,19 @@ Anywhere:
 | `N` | New note |
 | `U` | Upload files |
 | `G` then `E`, `F`, `A`, `T`, `L` or `S` | Go to Everything, Favorites, Archive, Trash, Tags or Settings |
-| `Alt` `T` (`⌥` `T` on a Mac) | Focus notifications, for example to **Undo** |
+| `Alt` `T` (`⌥` `T` on a Mac) | Focus notifications, such as to **Undo** |
 | `⌘K` | Command palette |
 | `?` | Show shortcuts |
 
 ### Command palette
 
-Press `⌘K` on any page, type to filter, and press `Enter`:
+Press `⌘K` anywhere, type to filter, then `Enter`:
 
 ![The command palette, with Navigate, Actions and their keyboard shortcuts](./images/command-palette.webp)
 
 - **Go to** any page, Settings page, folder or smart folder.
-- **Find a card:** after two characters, it lists up to 8 matching cards (search filters work). **Search all** shows every match.
-- **Run an action:** New note, Upload files, Import, Export, Toggle theme, Shuffle, Keyboard shortcuts, Sign out, and Empty Trash while Trash is open.
+- **Find a card:** after two characters, up to 8 matches (filters work); **Search all** shows every match.
+- **Run an action:** New note, Upload files, Import, Export, Toggle theme, Shuffle, Keyboard shortcuts, Sign out, and Empty Trash while in Trash.
 
 ## AI enrichment
 
@@ -369,27 +369,27 @@ Teak processes every card after you save it:
 
 | Feature | What it does |
 | --- | --- |
-| **Tags** | Adds tags for what it sees, beside yours |
-| **Summary** | Writes a short description so you can scan without opening the card |
+| **Tags** | Tags what it sees, beside yours |
+| **Summary** | A short description to scan without opening the card |
 | **Category** | Sorts links into article, news, book, movie, TV, podcast, music, product, recipe, course, research, event, software, design, place, typeface, social post, app, game or code repository |
-| **Colors** | Pulls dominant colors from images, for color search |
-| **Transcripts** | Turns speech in audio, video, Vimeo captions and podcast episodes into searchable text |
-| **Text in images** | Reads words in images, thumbnails, link screenshots and scanned PDFs, for search |
-| **Thumbnails** | Makes previews for video and documents |
+| **Colors** | Dominant image colors, for color search |
+| **Transcripts** | Searchable text from speech in audio, video, Vimeo captions and podcast episodes |
+| **Text in images** | Words in images, thumbnails, link screenshots and scanned PDFs, for search |
+| **Thumbnails** | Previews for video and documents |
 
-Summaries and tags are written in the language of what you save: a Japanese article gets a Japanese summary and Japanese tags. When something mixes languages, its main language wins. Items with no text, such as a photo without words, get English tags. Visual styles such as `minimal` stay in English so `mood:` works everywhere. Your own tags are never changed.
+Summaries and tags use the language of what you save (its main one if mixed): a Japanese article gets a Japanese summary and tags. Items with no text, such as a photo without words, get English tags. Visual styles such as `minimal` stay English so `mood:` works everywhere. Your own tags are never changed.
 
 ### Refresh details
 
-If a summary or tags miss the mark, or a link's preview is out of date, choose **Refresh details** from the card's **More** menu or right-click it. Teak processes the card again: it reads the link's page again (and saves a new copy of it), redoes the transcript, and rewrites the summary and tags. Your own tags and notes stay, and so does a [highlighted](#highlights) link's saved copy and article. If the page can't be reached, the card keeps its preview. You can refresh a card once a minute, and up to six cards a minute.
+If a summary or tags miss, or a link's preview is stale, choose **Refresh details** from the card's **More** or right-click menu. Teak rereads the link's page (saving a new copy), redoes the transcript, and rewrites the summary and tags. Your tags and notes stay, as do a [highlighted](#highlights) link's saved copy and article, and an unreachable page keeps its preview. Refresh a card at most once a minute, and six cards a minute.
 
 ### Replace a link's image
 
-To use your own preview image for a link, drop an image on the preview, paste one with `⌘V` while no text field has focus, or click **Replace** beside **Image** in **Details**. Use a JPEG, PNG, WebP, GIF or AVIF image under 20 MB. Your image stays through **Refresh details**. **Undo** puts the previous image back for two minutes, and **Reset** returns to the one Teak found.
+Drop an image on a link's preview, paste one with `⌘V` outside text fields, or click **Replace** beside **Image** in **Details**: JPEG, PNG, WebP, GIF or AVIF under 20 MB. It survives **Refresh details**. **Undo** restores the previous image for two minutes; **Reset** returns to Teak's.
 
 ### Edit a link
 
-To change the address a link card points to, choose **Edit link…** from its **⋯** menu. It takes `http` and `https` links only. Teak then reads the new page for its preview, summary and tags, and saves a fresh copy. Your own tags and notes stay. A link with highlights can't be edited until you remove them.
+To change a link's address (`http` or `https`), choose **Edit link…** from its **⋯** menu. Teak reads the new page for preview, summary and tags, and saves a fresh copy; your tags and notes stay. Links with highlights can't be edited until you remove them.
 
 ### Card details
 
@@ -397,19 +397,19 @@ Teak shows what a page says about itself:
 
 ![A Wikipedia link's details: its description, when it was last edited, and the saved copy of the page](./images/link-details.webp)
 
-1. Facts the site adds: for Wikipedia, the article's short description and when it was last edited.
-2. **Archived copy**: the size of Teak's saved copy of the page.
+1. Facts the site adds, here Wikipedia's short description and last edit.
+2. **Archived copy**: the saved copy's size.
 
-- **Links:** author and publish date beside the site name, and a product's price as a tag ("$24.99", "Free").
-- **Photos:** camera, exposure, aperture, focal length, ISO and when it was taken. Teak never shows a photo's location.
-- **Places, apps and games:** address, cuisine, price range and rating; platform, category and rating; or platform, genre, rating and release date.
+- **Links:** author and publish date beside the site name; a product's price as a tag ("$24.99", "Free").
+- **Photos:** camera, exposure, aperture, focal length, ISO and capture time, never location.
+- **Places:** address, cuisine, price range and rating. **Apps:** platform, category and rating. **Games:** platform, genre, rating and release date.
 - **GitHub repositories:** stars, forks and language.
-- **Wikipedia:** the short description, last edit date, lead image and whether it's a disambiguation page.
-- **arXiv:** authors, publish date, subject and DOI. **Save PDF** saves the paper's PDF as its own document card (it counts toward your card limit); saving it again opens the card you have.
+- **Wikipedia:** short description, last edit date, lead image and whether it's a disambiguation page.
+- **arXiv:** authors, publish date, subject and DOI. **Save PDF** saves the paper as its own document card (counting toward your limit), or opens it if saved.
 - **YouTube:** channel, length and upload date.
 - **Spotify and Apple Music:** name, artist, kind (track, album, playlist or episode) and cover art.
-- **Books:** a page with its ISBN in its data (as on Goodreads), or an Amazon book link with a 10-digit ISBN, gets its author, page count, publisher, date and cover from Open Library.
-- **Social posts:** posts from X, Instagram, Bluesky, Mastodon, Reddit, TikTok, Threads, LinkedIn and Substack Notes keep their text, author and date. Bluesky, Mastodon and Reddit posts keep up to 10 photos and a video when one is offered as a file. Private, deleted and login-only posts are saved like any page.
+- **Books:** pages with an ISBN in their data (as on Goodreads), or Amazon links with a 10-digit ISBN, get author, page count, publisher, date and cover from Open Library.
+- **Social posts:** X, Instagram, Bluesky, Mastodon, Reddit, TikTok, Threads, LinkedIn and Substack Notes keep text, author and date; Bluesky, Mastodon and Reddit also keep up to 10 photos and a video file. Private, deleted and login-only posts save like any page.
 
 ## Apps and access
 
@@ -417,17 +417,17 @@ Your library syncs in real time across every [Teak app](/apps). Agents and scrip
 
 ### Language
 
-The web app, browser extension and the Mac, iPhone, iPad and Android apps are in English, Español, Português (Brasil), Deutsch, Français, 日本語, 한국어 and 简体中文. Choose one in **Settings → Appearance → Language** on the web, or **Settings → Language** in the apps. Your choice is saved to your account, so every browser and device you sign in on follows it. Teak starts in English and never guesses from your browser.
+Teak's web app, extension and apps are in English, Español, Português (Brasil), Deutsch, Français, 日本語, 한국어 and 简体中文. Choose in **Settings → Appearance → Language** on the web, or **Settings → Language** in the apps; it's saved to your account, so every device follows. Teak starts in English, never guessing from your browser.
 
 ![Settings → Appearance with the language menu open, listing Teak's eight languages](./images/language.webp)
 
-- The apps also follow the language you set for Teak in your device's settings: **Settings → Apps → Teak → Language** on iPhone, iPad and Android 13 or newer, or **System Settings → General → Language & Region → Applications** on a Mac. Changing it there saves it to your account too.
-- The extension follows your choice once you sign in. The Safari extension's popup follows Safari's language.
-- Search words stay in English: qualifiers such as `is:fav`, `type:image` and `tag:`, `OR`, and dates such as `today`.
-- Link facts, price labels, import errors, the API, MCP, CLI, Raycast and these docs are in English.
+- The apps also follow, and save to your account, Teak's language in **Settings → Apps → Teak → Language** on iPhone, iPad and Android 13 or newer, or **System Settings → General → Language & Region → Applications** on a Mac.
+- The extension follows your choice once signed in; the Safari popup follows Safari.
+- Search words stay English: qualifiers such as `is:fav`, `type:image` and `tag:`, `OR`, and dates such as `today`.
+- Link facts, price labels, import errors, the API, MCP, CLI, Raycast and these docs are English only.
 
 ### Install the web app
 
-In Chrome or Edge, choose **Install Teak** from the address bar or the browser's menu to open Teak in its own window. In Safari on a Mac, choose **File → Add to Dock**; on iPhone and iPad, **Share → Add to Home Screen**. The installed app still needs a connection.
+In Chrome or Edge, choose **Install Teak** from the address bar or browser menu for its own window. In Safari, choose **File → Add to Dock** on a Mac, or **Share → Add to Home Screen** on iPhone and iPad. It still needs a connection.
 
-Installed in Chrome on Android or ChromeOS, Teak appears in the system share sheet. Shared links and text open a note ready to save, and shared photos, videos and files upload.
+Installed via Chrome on Android or ChromeOS, Teak joins the share sheet: shared links and text open a note ready to save; shared photos, videos and files upload.

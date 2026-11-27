@@ -9,7 +9,7 @@ related:
   - /docs/delete-account
 ---
 
-Download a portable ZIP of your cards and their original files, with a bookmarks file your browser can import and a spreadsheet of every card. Exporting doesn't change anything in your library. Exports run from Settings in the web app.
+Download a ZIP of your cards and original files, plus a bookmarks file for your browser and a spreadsheet of every card. Exporting changes nothing in your library. Exports run from Settings in the web app.
 
 ## Start an export
 
@@ -17,13 +17,13 @@ Download a portable ZIP of your cards and their original files, with a bookmarks
 
 <Steps>
   <Step title="Open Export">
-    Open the Teak web app and go to **Settings → Import & export**.
+    In the Teak web app, go to **Settings → Import & export**.
   </Step>
   <Step title="Start export">
-    Switch to the **Export** tab and choose **Start export**, then keep working while Teak prepares the archive in the background.
+    Switch to the **Export** tab and choose **Start export**. Keep working while Teak prepares the archive.
   </Step>
   <Step title="Download">
-    When the export is ready, choose **Download archive**.
+    When it's ready, choose **Download archive**.
   </Step>
 </Steps>
 
@@ -31,40 +31,38 @@ You can cancel an export while it's preparing. Canceled and failed exports don't
 
 ## What the archive includes
 
-Each export is a ZIP with every card outside Trash, archived cards included:
+The ZIP holds every card outside Trash, archived ones included:
 
 | File | What it holds |
 |---|---|
-| `cards.json` | Every card with its type, content, title, link, notes, tags, AI tags and summary, folders, favorite, pinned (`pinPosition`) and archive state, when a link was marked done (`completedAt`), its `highlights`, and when it was first saved (`createdAt`) and last saved (`savedAt`). This is the file Teak imports back. |
-| `files/` | The original file attached to each image, video, audio, and document card. |
-| `bookmarks.html` | Your links in the bookmark format Chrome, Firefox and Safari import, with each folder as a bookmarks folder and tags where the browser supports them. |
-| `cards.csv` | One row per card for Excel, Numbers or Google Sheets: `id`, `type`, `title`, `url`, `content`, `notes`, `tags`, `aiTags`, `aiSummary`, `folders`, `isFavorited`, `isArchived`, `isPinned`, `createdAt`, `sourceUrl`, `sourceTitle` and `highlights`. Cells that start with `=`, `+`, `-` or `@` begin with an apostrophe, so they never run as formulas. |
-| `manifest.json` | When the archive was made, its card and file counts, and its format version. |
+| `cards.json` | Every card's type, content, title, link, notes, tags, AI tags and summary, folders, favorite, pinned (`pinPosition`) and archive state, done time (`completedAt`), `highlights`, and first (`createdAt`) and last (`savedAt`) save times. Teak imports this file back. |
+| `files/` | The original file of each image, video, audio, and document card. |
+| `bookmarks.html` | Your links in the bookmark format Chrome, Firefox and Safari import, with folders as bookmark folders and tags where supported. |
+| `cards.csv` | One row per card for Excel, Numbers or Google Sheets: `id`, `type`, `title`, `url`, `content`, `notes`, `tags`, `aiTags`, `aiSummary`, `folders`, `isFavorited`, `isArchived`, `isPinned`, `createdAt`, `sourceUrl`, `sourceTitle` and `highlights`. Cells starting with `=`, `+`, `-` or `@` get a leading apostrophe so they never run as formulas. |
+| `manifest.json` | Creation time, card and file counts, and format version. |
 
-Trash, transcripts, generated previews and account data aren't included. You can [import the archive](/docs/import) back into Teak; a card whose file was missing or over 20 MiB fails to import.
+Trash, transcripts, generated previews and account data aren't included. [Import the archive](/docs/import) back into Teak; a card whose file is missing or over 20 MiB fails to import.
 
 ## Limits
 
 | Limit | Details |
 |---|---|
 | Frequency | One successful export every 7 days. |
-| Active jobs | One export can prepare at a time. |
-| Download window | Ready archives stay available for 7 days. |
-| Library size | Exports support up to 10,000 cards outside Trash or an estimated 5 GB archive. |
-
-Download your latest export from **Settings → Import & export** while it's available.
+| Active jobs | One export at a time. |
+| Download window | 7 days after the archive is ready, from **Settings → Import & export**. |
+| Library size | Up to 10,000 cards outside Trash, or an estimated 5 GB archive. |
 
 ## Troubleshooting
 
 <Accordion>
   <AccordionItem title='I see "Available in..."'>
-    You made an export in the last 7 days. Wait for the time shown, then start another.
+    You exported in the last 7 days. Wait for the time shown.
   </AccordionItem>
   <AccordionItem title="My export failed">
-    Try again from **Settings → Import & export**. Failed exports don't count toward the weekly limit.
+    Try again from **Settings → Import & export**; failed exports don't count toward the limit.
   </AccordionItem>
   <AccordionItem title="Some files are unavailable">
-    Those cards are still in `cards.json`, but their original files couldn't be read when the export was built.
+    Those cards are in `cards.json`, but their original files couldn't be read during the export.
   </AccordionItem>
   <AccordionItem title="The archive is too large">
     Delete cards you don't need, then try again.

@@ -67,7 +67,7 @@ describe("audience page structured data", () => {
       expect(entry.acceptedAnswer.text).not.toContain("`");
     }
     expect(entries.map((entry) => entry.acceptedAnswer.text)).toContain(
-      "Yes. Tag a card secret or hidden and it leaves your library, search, folders and Shuffle on every app. Search #secret or tag:hidden to see those cards again."
+      "Yes. Tag it secret or hidden to hide it from your library, search, folders and Shuffle on every app. Search #secret or tag:hidden to see it."
     );
   });
 

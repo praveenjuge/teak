@@ -5,13 +5,13 @@ mode: wide
 icon: rocket
 ---
 
-Make your first two Teak API calls without leaving this page. Each request below has a **Try it** panel that sends a real request to your library, plus copyable samples in several languages.
+Make your first two Teak API calls from this page. Each request has a **Try it** panel that calls your real library, plus copyable samples in several languages.
 
 ## 1. Create an API key
 
 ![Settings → Integrations with Save by email, apps and extensions, and an API key](../images/api-keys.webp)
 
-In Teak, open **Settings → Integrations → API keys** and create a key. Keys start with `teakapi_`; treat one like a password. Paste it into the **Authorization** field of a Try it panel below, or export it for the code samples:
+Create a key in **Settings → Integrations → API keys**. Keys start with `teakapi_`; treat them like passwords. Paste one into a Try it panel's **Authorization** field, or export it for the samples:
 
 ```bash
 export TEAK_API_KEY=teakapi_...
@@ -19,13 +19,13 @@ export TEAK_API_KEY=teakapi_...
 
 ## 2. Check your key
 
-`GET /v1/me` returns the account the key belongs to. A `401` means the key is invalid or revoked.
+`GET /v1/me` returns the key's account. A `401` means the key is invalid or revoked.
 
 <Operation source="reference" id="get-me" />
 
 ## 3. Save your first card
 
-`POST /v1/cards` saves text or a URL. Teak detects links, quotes, and palettes automatically, then tags and summarizes the card in the background.
+`POST /v1/cards` saves text or a URL. Teak detects links, quotes, and palettes, then tags and summarizes the card in the background.
 
 <Operation source="reference" id="create-card" />
 
@@ -39,6 +39,6 @@ export TEAK_API_KEY=teakapi_...
     Every operation, field, and schema.
   </Card>
   <Card title="MCP" href="/docs/mcp" icon="bot">
-    Give an AI client the same card operations.
+    The same card operations for AI clients.
   </Card>
 </CardGroup>
