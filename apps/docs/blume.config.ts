@@ -1,10 +1,12 @@
 import { DEFAULT_TEAK_DEV_API_URL } from "@teak/convex/devUrls";
+import { openApiSpec } from "@teak/convex/publicApi/openApi/spec";
 import {
   ORGANIZATION_LOGO,
   ORGANIZATION_SAME_AS,
 } from "@teak/convex/shared/organization";
 import { defineConfig } from "blume";
 import { openapi } from "blume/reference";
+import { legacyReferenceRedirects } from "./lib/referenceRedirects";
 
 const devConvexSite =
   process.env.TEAK_DEV_API_URL?.trim() || DEFAULT_TEAK_DEV_API_URL;
@@ -167,7 +169,9 @@ export default defineConfig({
     sitemap: true,
     // public/robots.txt replaces Blume's allow-all file: it also keeps
     // crawlers off the Core Worker's signed-in API and MCP routes, which the
-    // API reference's code samples print as plain URLs.
+    // API reference's code samples print as plain URLs, and off the
+    // addresses Google reads out of Blume's page data (the playground's
+    // `/v1/...` path templates and this file's `./public/fonts/...` paths).
     robots: false,
     structuredData: true,
     organization: {
@@ -182,6 +186,8 @@ export default defineConfig({
     { from: "/docs/index.md", to: "/docs.md", status: 301 },
     { from: "/docs/skills", to: "/docs/ai-agents", status: 301 },
     { from: "/changelog/09-*", to: "/changelog/september-2026", status: 301 },
+    { from: "/authors/*", to: "/blog", status: 301 },
+    ...legacyReferenceRedirects(openApiSpec),
   ],
   markdown: {
     externalLinks: true,
