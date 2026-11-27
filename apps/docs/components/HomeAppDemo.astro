@@ -9,6 +9,8 @@ import {
   DEMO_CARD_TYPES,
   DEMO_COLUMNS,
   type DemoCard,
+  noteParts,
+  SHORT_NOTE,
 } from "../lib/home-demo-cards";
 
 interface Props {
@@ -46,30 +48,39 @@ const cardsById = Object.fromEntries(
 );
 
 // The web app's sidebar (apps/web/src/components/sidebar/AppSidebar.tsx).
-const sidebarLinks = [
-  { icon: "layout-grid", label: "Everything" },
+const sidebarTop = [
+  { icon: "plus", label: "New" },
+  { icon: "layout-grid", label: "Everything", active: true },
   { icon: "heart", label: "Favorites" },
   { icon: "hash", label: "Tags" },
+];
+const sidebarFolders = [
+  { color: "oklch(0.65 0.22 0)", icon: "folder-search", label: "Moodboard" },
+  {
+    color: "oklch(0.62 0.14 250)",
+    count: 12,
+    icon: "folder",
+    label: "Reading list",
+  },
+];
+const sidebarBottom = [
   { icon: "archive", label: "Archive" },
   { icon: "trash-2", label: "Trash" },
   { icon: "settings", label: "Settings" },
 ];
-const sidebarFolders = [
-  { color: "oklch(0.7 0.17 50)", label: "Moodboard" },
-  { color: "oklch(0.62 0.14 250)", label: "Reading list" },
-];
 
-// The web app's card tiles (apps/web/src/components/cards/cardDisplay.ts).
-const tileClass =
-  "relative block aspect-[4/3] w-full overflow-hidden rounded-2xl border bg-card";
+// The web app's cards (apps/web/src/components/cards/cardDisplay.ts): one
+// frame; links and documents name themselves in a footer inside it, every
+// other card is just its tile.
+const frameClass =
+  "relative block w-full overflow-hidden rounded-[14px] border border-border/80 bg-card";
+const tileClass = `${frameClass} aspect-[4/3]`;
+const previewClass = "relative block aspect-[4/3] w-full overflow-hidden";
+const footerClass =
+  "flex h-10 min-w-0 items-center gap-2 border-t border-border/80 pr-2 pl-3";
+const footerTitleClass = "min-w-0 flex-1 truncate text-[13px] font-medium";
 const badgeClass =
   "pointer-events-none absolute bottom-2.5 left-2.5 flex h-[22px] items-center gap-1.5 rounded-full bg-gray-950/60 px-2 text-[11.5px] font-semibold whitespace-nowrap text-white tabular-nums backdrop-blur-md";
-const quoteSize = (text: string) => {
-  if (text.length < 40) {
-    return "text-[23px]";
-  }
-  return text.length < 95 ? "text-[19px]" : "text-[15px]";
-};
 const mediaRatio = ({ width, height }: { width: number; height: number }) =>
   Math.min(Math.max(width / height, 3 / 4), 16 / 9);
 const hostOf = (url?: string) =>
@@ -96,23 +107,35 @@ const chipClass =
 
     <div class="demo-viewport @container" data-demo-viewport>
       <aside class="demo-sidebar" aria-hidden="true">
-        <span class="flex items-center justify-between px-2 pb-4">
+        <span class="flex items-center justify-between px-2 pb-3">
           <img alt="" class="h-5 w-auto" height="18" src="/logos/logo-light.svg" width="52" />
-          <Icon class="text-muted-foreground" name="plus" size={16} />
+          <Icon class="text-muted-foreground" name="panel-left" size={16} />
         </span>
-        {sidebarLinks.map(({ icon, label }, index) => (
-          <span class:list={["demo-nav", { "demo-nav-active": index === 0 }]}>
+        {sidebarTop.map(({ active, icon, label }) => (
+          <span class:list={["demo-nav", { "demo-nav-active": active }]}>
             <Icon name={icon} size={15} />
             {label}
           </span>
         ))}
-        <span class="demo-nav-heading">Folders</span>
-        {sidebarFolders.map(({ color, label }) => (
+        <span class="demo-nav-heading">
+          Folders
+          <Icon name="plus" size={13} />
+        </span>
+        {sidebarFolders.map(({ color, count, icon, label }) => (
           <span class="demo-nav">
-            <span class="demo-folder-dot" style={`background: ${color}`}></span>
-            {label}
+            <Icon color={color} name={icon} size={15} />
+            <span class="flex-1">{label}</span>
+            {count && <span class="text-[11px] text-muted-foreground tabular-nums">{count}</span>}
           </span>
         ))}
+        <span class="mt-auto flex flex-col gap-0.5">
+          {sidebarBottom.map(({ icon, label }) => (
+            <span class="demo-nav">
+              <Icon name={icon} size={15} />
+              {label}
+            </span>
+          ))}
+        </span>
       </aside>
       <div class="demo-main @container px-4 text-sm text-foreground">
         <form aria-label="Search cards" class="demo-header" data-demo-search>
@@ -130,7 +153,7 @@ const chipClass =
             />
             <kbd class="demo-kbd max-[420px]:hidden">/</kbd>
           </label>
-          <span aria-hidden="true" class="inline-flex size-9 shrink-0 items-center justify-center rounded-full"><Icon name="sliders-horizontal" size={16} /></span>
+          <span aria-hidden="true" class="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-full px-2.5 text-muted-foreground"><Icon name="sliders-horizontal" size={16} /><span class="max-[640px]:hidden">View</span></span>
         </form>
 
         <div class="demo-filters pb-5" data-demo-filters hidden>
@@ -159,7 +182,8 @@ const chipClass =
             <div class="demo-col">
               {columnIndex === 0 && (
                 <div class="demo-item" data-demo-note-item>
-                  <form class="relative flex min-h-36 w-full flex-col overflow-hidden rounded-2xl border bg-card text-card-foreground focus-within:border-primary focus-within:ring-1 focus-within:ring-primary" data-demo-note>
+                  <form class="relative flex min-h-36 w-full flex-col overflow-hidden rounded-[14px] border border-border/80 bg-card text-card-foreground focus-within:border-primary focus-within:ring-1 focus-within:ring-primary" data-demo-note>
+                    <kbd aria-hidden="true" class="demo-kbd pointer-events-none absolute top-3 right-3">N</kbd>
                     <textarea
                       aria-label="Write a note"
                       class="min-h-36 w-full flex-1 resize-none bg-transparent px-3.5 py-3 text-sm leading-relaxed outline-none placeholder:text-muted-foreground"
@@ -183,46 +207,52 @@ const chipClass =
                     data-type={card.type}
                     type="button"
                   >
-                    <span class="demo-heart absolute top-3 right-3 z-10">
-                      <Icon class="fill-destructive text-destructive" name="heart" size={16} />
-                    </span>
-
-                    {card.type === "text" && (
-                      <span class={`${tileClass} flex flex-col p-4`}>
-                        <span class="min-h-0 flex-1 overflow-hidden text-[13.5px] leading-relaxed font-medium [mask-image:linear-gradient(to_bottom,#000_55%,transparent_92%)]">{card.content}</span>
-                      </span>
-                    )}
+                    {card.type === "text" && (() => {
+                      const { body, heading } = noteParts(card.content);
+                      return (
+                        <span class={`${tileClass} flex flex-col p-4`}>
+                          {!heading && body.length <= SHORT_NOTE ? (
+                            <span class="flex flex-1 items-center text-[17px] leading-snug font-semibold tracking-[-0.01em] text-balance break-words">{body}</span>
+                          ) : (
+                            <span class="min-h-0 flex-1 space-y-1.5 overflow-hidden [mask-image:linear-gradient(to_bottom,#000_65%,transparent)]">
+                              {heading && <span class="line-clamp-2 block text-[17px] leading-snug font-semibold tracking-[-0.01em] break-words">{heading}</span>}
+                              <span class:list={["block text-[13px] leading-relaxed whitespace-pre-line break-words", { "text-muted-foreground": heading }]}>{body}</span>
+                            </span>
+                          )}
+                        </span>
+                      );
+                    })()}
 
                     {card.type === "quote" && (
-                      <span class={`${tileClass} flex flex-col justify-center px-4 pt-4 pb-3`}>
-                        <span aria-hidden="true" class="h-5 font-serif text-[42px] leading-[0.6] text-primary select-none">&ldquo;</span>
-                        <span class={`line-clamp-5 font-serif leading-[1.22] tracking-[-0.01em] text-pretty ${quoteSize(card.content ?? "")}`}>{card.content}</span>
+                      <span class={`${tileClass} flex flex-col justify-center p-4`}>
+                        <span aria-hidden="true" class="h-4 text-[40px] leading-[0.75] font-bold text-primary select-none">&ldquo;</span>
+                        <span class="line-clamp-4 text-[17px] leading-snug font-medium tracking-[-0.01em] text-pretty">{card.content}</span>
                       </span>
                     )}
 
                     {card.type === "link" && (
-                      <span class="block">
+                      <span class={frameClass}>
                         {card.image ? (
-                          <span class={tileClass}>
-                            <img alt="" class="h-full w-full object-cover object-top-left" decoding="async" height={card.image.height} src={card.image.src} width={card.image.width} />
+                          <span class={previewClass} style={`aspect-ratio: ${mediaRatio(card.image)}`}>
+                            <img alt="" class="h-full w-full object-cover object-top" decoding="async" height={card.image.height} src={card.image.src} width={card.image.width} />
                           </span>
                         ) : (
-                          <span class={`${tileClass} flex flex-col p-4`}>
-                            {card.favicon && <img alt="" class="size-[22px] rounded-md" height="22" src={card.favicon} width="22" />}
-                            <span class="mt-auto line-clamp-3 font-serif text-[21px] leading-[1.12] tracking-[-0.015em] text-balance">{card.title}</span>
-                            <span class="mt-2 truncate text-xs text-muted-foreground">{hostOf(card.url)}</span>
+                          <span class={`${previewClass} flex flex-col items-center justify-center gap-2.5 bg-muted p-4`}>
+                            {card.favicon && <img alt="" class="size-10 rounded-[10px]" height="40" src={card.favicon} width="40" />}
+                            <span class="max-w-full truncate text-[13px] text-muted-foreground">{hostOf(card.url)}</span>
                           </span>
                         )}
-                        <span class="mt-2.5 flex min-w-0 items-center gap-2 px-0.5">
+                        <span class={footerClass}>
                           {card.favicon && <img alt="" class="size-4 shrink-0 rounded" height="16" src={card.favicon} width="16" />}
-                          <span class="min-w-0 flex-1 truncate text-[13px] font-medium">{card.title}</span>
+                          <span class={footerTitleClass}>{card.title}</span>
+                          <span class="demo-heart"><Icon name="heart" size={12} /></span>
                         </span>
                       </span>
                     )}
 
                     {(card.type === "image" || card.type === "video") && card.image && (
                       <span
-                        class="demo-media relative block h-full w-full overflow-hidden rounded-2xl bg-muted outline-1 -outline-offset-1 outline-black/5 dark:outline-white/10"
+                        class="demo-media relative block h-full w-full overflow-hidden rounded-[14px] bg-muted outline-1 -outline-offset-1 outline-black/5 dark:outline-white/10"
                         style={`aspect-ratio: ${mediaRatio(card.image)}; background-color: ${card.colors?.[0] ?? "transparent"}`}
                       >
                         <img alt={card.content ?? card.title} class="h-full w-full object-cover" decoding="async" height={card.image.height} src={card.image.src} width={card.image.width} />
@@ -236,28 +266,32 @@ const chipClass =
                     )}
 
                     {card.type === "audio" && (
-                      <span class={`${tileClass} flex flex-col p-4 pb-11`}>
-                        <span class="line-clamp-2 text-sm leading-snug font-semibold">{card.title}</span>
-                        <span class="mt-auto flex items-center gap-3">
-                          <span class="flex size-9 shrink-0 items-center justify-center rounded-full bg-foreground text-background">
-                            <Icon class="demo-filled" name="play" size={14} />
-                          </span>
-                          <span class="flex h-12 min-w-0 flex-1 items-center justify-between gap-px overflow-hidden">
-                            {Array.from({ length: AUDIO_WAVE_BARS }, (_, index) => (
-                              <span class="block shrink-0 rounded-full bg-foreground/40" style={`width: 2px; height: ${getAudioWaveHeight(card.id, index)}`}></span>
-                            ))}
-                          </span>
+                      <span class={`${tileClass} flex items-center gap-3 bg-muted px-4`}>
+                        <span class="flex size-9 shrink-0 items-center justify-center rounded-full bg-foreground text-background">
+                          <Icon class="demo-filled" name="play" size={14} />
                         </span>
-                        <span class={badgeClass}>M4A <span aria-hidden="true">·</span> {card.duration}</span>
+                        <span class="flex h-12 min-w-0 flex-1 items-center justify-between gap-px overflow-hidden">
+                          {Array.from({ length: AUDIO_WAVE_BARS }, (_, index) => (
+                            <span class="block shrink-0 rounded-full bg-foreground/40" style={`width: 2px; height: ${getAudioWaveHeight(card.id, index)}`}></span>
+                          ))}
+                        </span>
+                        <span class="shrink-0 text-xs text-muted-foreground tabular-nums">{card.duration}</span>
                       </span>
                     )}
 
                     {card.type === "document" && card.image && (
-                      <span class={`${tileClass} flex items-end justify-center pt-4`}>
-                        <span class="relative block w-[50%] overflow-hidden rounded-t-[4px] bg-white shadow-[0_10px_30px_-10px_rgb(0_0_0/0.35),0_0_0_1px_rgb(0_0_0/0.06)]" style={`aspect-ratio: ${Math.max(card.image.width / card.image.height, 3 / 4)}`}>
-                          <img alt={`Preview of ${card.title}`} class="h-full w-full object-cover object-top" decoding="async" height={card.image.height} src={card.image.src} width={card.image.width} />
+                      <span class={frameClass}>
+                        <span class={`${previewClass} flex items-end justify-center bg-muted pt-4`}>
+                          <span class="relative block w-[50%] overflow-hidden rounded-t-[4px] bg-white shadow-[0_10px_30px_-10px_rgb(0_0_0/0.35),0_0_0_1px_rgb(0_0_0/0.06)]" style={`aspect-ratio: ${Math.max(card.image.width / card.image.height, 3 / 4)}`}>
+                            <img alt={`Preview of ${card.title}`} class="h-full w-full object-cover object-top" decoding="async" height={card.image.height} src={card.image.src} width={card.image.width} />
+                          </span>
                         </span>
-                        <span class={badgeClass}>PDF</span>
+                        <span class={footerClass}>
+                          <Icon class="shrink-0 text-muted-foreground" name="file" size={16} />
+                          <span class={footerTitleClass}>{card.title}</span>
+                          <span class="shrink-0 text-xs text-muted-foreground">PDF</span>
+                          <span class="demo-heart"><Icon name="heart" size={12} /></span>
+                        </span>
                       </span>
                     )}
 
@@ -266,6 +300,12 @@ const chipClass =
                         {card.colors?.map((hex) => (
                           <span class="block min-w-0 flex-1" style={`background-color: ${hex}`} title={hex}></span>
                         ))}
+                      </span>
+                    )}
+
+                    {card.type !== "link" && card.type !== "document" && (
+                      <span class="pointer-events-none absolute right-2 bottom-2 z-10">
+                        <span class="demo-heart"><Icon name="heart" size={12} /></span>
                       </span>
                     )}
                   </button>
@@ -286,23 +326,51 @@ const chipClass =
           <Icon name="x" size={24} />
         </button>
         <div class="demo-modal">
-          <p class="sr-only" id="demo-modal-title" data-demo-modal-title></p>
           <div class="demo-modal-preview" data-demo-modal-preview></div>
-          <div class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto bg-muted/50 p-4 @3xl:gap-5">
-            <div>
-              <p class="text-sm leading-none font-medium">Summary</p>
-              <p class="mt-1.5 rounded-xl border bg-background px-3 py-2.5 whitespace-pre-wrap" data-demo-modal-summary></p>
-            </div>
-            <div class="flex flex-wrap gap-1" data-demo-modal-badges></div>
-            <div class="flex flex-wrap gap-1" data-demo-modal-actions>
-              <button class={chipClass} data-demo-modal-favorite type="button">
-                <Icon name="heart" size={14} />
-                <span>Favorite</span>
-              </button>
-              <a class={`${chipClass} no-underline`} data-demo-modal-link href="https://app.teakvault.com" rel="noopener noreferrer" target="_blank">
-                <Icon name="external-link" size={14} />
-                <span>Open Link</span>
+          <div class="demo-modal-details">
+            <div class="flex flex-col gap-3 border-b border-border/80 p-5">
+              <button class="demo-modal-type" data-demo-modal-type type="button"></button>
+              <h2 class="text-lg leading-snug font-semibold text-balance" data-demo-modal-title id="demo-modal-title"></h2>
+              <a class="demo-modal-main" data-demo-modal-link href="https://app.teakvault.com" rel="noopener noreferrer" target="_blank">
+                <Icon name="external-link" size={16} />
+                <span>Open</span>
               </a>
+              <a class="demo-modal-main" data-demo-modal-download download hidden href="https://app.teakvault.com">
+                <Icon name="download" size={16} />
+                <span>Download</span>
+              </a>
+              <div class="grid grid-cols-4">
+                <button class="demo-modal-action" data-demo-modal-favorite type="button">
+                  <Icon name="heart" size={18} />
+                  <span>Favorite</span>
+                </button>
+                <button class="demo-modal-action" data-demo-modal-copy type="button">
+                  <Icon name="copy" size={18} />
+                  <span>Copy</span>
+                </button>
+                <a class="demo-modal-action" href="https://app.teakvault.com" rel="noopener noreferrer" target="_blank">
+                  <Icon name="folder-plus" size={18} />
+                  <span>Folder</span>
+                </a>
+                <a class="demo-modal-action" href="https://app.teakvault.com" rel="noopener noreferrer" target="_blank">
+                  <Icon name="ellipsis" size={18} />
+                  <span>More</span>
+                </a>
+              </div>
+            </div>
+            <div class="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-5">
+              <section class="flex flex-col gap-2" data-demo-modal-tags-section>
+                <p class="demo-modal-label">Tags</p>
+                <div class="flex flex-wrap gap-1.5" data-demo-modal-badges></div>
+              </section>
+              <section class="flex flex-col gap-2">
+                <p class="demo-modal-label"><Icon name="sparkles" size={13} /> Summary</p>
+                <p class="leading-relaxed whitespace-pre-wrap" data-demo-modal-summary></p>
+              </section>
+              <section class="flex flex-col gap-2" data-demo-modal-colors-section hidden>
+                <p class="demo-modal-label">Colors</p>
+                <div class="flex flex-wrap gap-1.5" data-demo-modal-colors></div>
+              </section>
             </div>
           </div>
         </div>
@@ -411,16 +479,12 @@ const chipClass =
   }
 
   .demo-nav-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     padding: 1.25rem 0.625rem 0.375rem;
     color: var(--muted-foreground);
     font-size: 0.6875rem;
-  }
-
-  .demo-folder-dot {
-    width: 0.5rem;
-    height: 0.5rem;
-    margin-inline: 0.25rem;
-    border-radius: 9999px;
   }
 
   .demo-main {
@@ -472,8 +536,9 @@ const chipClass =
     }
   }
 
+  /* The web app's grid: one 16px gap at every width. */
   .demo-grid {
-    --demo-gap: 1.5rem;
+    --demo-gap: 1rem;
     display: flex;
     gap: var(--demo-gap);
   }
@@ -527,10 +592,6 @@ const chipClass =
   }
 
   @container (max-width: 37.49rem) {
-    .demo-grid {
-      --demo-gap: 1rem;
-    }
-
     .demo-grid,
     .demo-grid[data-filtered] {
       columns: 2;
@@ -543,7 +604,7 @@ const chipClass =
     width: 100%;
     overflow: hidden;
     padding: 0;
-    border-radius: 1rem;
+    border-radius: 14px;
     color: var(--card-foreground);
     font: inherit;
     text-align: left;
@@ -554,6 +615,36 @@ const chipClass =
   .demo-card:focus-visible {
     outline: 2px solid var(--primary);
     outline-offset: 2px;
+  }
+
+  /* The favorite mark: a small round chip in the card's bottom right corner,
+     or at the end of a link's or document's footer. */
+  .demo-heart {
+    display: flex;
+    width: 1.5rem;
+    height: 1.5rem;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    background: color-mix(in oklch, var(--background) 90%, transparent);
+    box-shadow:
+      0 1px 2px rgb(0 0 0 / 0.08),
+      0 0 0 1px rgb(0 0 0 / 0.05);
+    color: var(--destructive);
+    backdrop-filter: blur(12px);
+  }
+
+  .dark .demo-heart,
+  [data-theme="dark"] .demo-heart {
+    box-shadow:
+      0 1px 2px rgb(0 0 0 / 0.08),
+      0 0 0 1px rgb(255 255 255 / 0.1);
+  }
+
+  .demo-heart svg {
+    width: 0.75rem;
+    height: 0.75rem;
   }
 
   .demo-card:not([data-favorite]) .demo-heart {
@@ -570,7 +661,8 @@ const chipClass =
     transform-origin: 50% 40%;
   }
 
-  .demo-card[data-type="video"]:hover .demo-play {
+  /* A video shows its length only while the pointer is on it. */
+  .demo-card[data-type="video"]:not(:hover) .demo-play {
     display: none;
   }
 
@@ -623,6 +715,7 @@ const chipClass =
     animation: demo-zoom 180ms ease-out;
   }
 
+  /* The web app's card view: the card on a soft ground, its details beside it. */
   .demo-modal-preview {
     display: flex;
     min-height: 0;
@@ -631,7 +724,80 @@ const chipClass =
     align-items: center;
     justify-content: center;
     overflow: hidden;
-    padding: 1rem;
+    margin: 1rem;
+    padding: 1.5rem;
+    border-radius: 0.75rem;
+    background: color-mix(in oklch, var(--muted) 70%, var(--background));
+  }
+
+  .demo-modal-details {
+    display: flex;
+    min-height: 0;
+    flex: 1;
+    flex-direction: column;
+    font-size: 0.875rem;
+  }
+
+  .demo-modal-type,
+  .demo-modal-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    color: var(--muted-foreground);
+    font-size: 0.8125rem;
+  }
+
+  .demo-modal-type {
+    align-self: flex-start;
+    padding: 0;
+    cursor: pointer;
+  }
+
+  .demo-modal-type:hover {
+    color: var(--foreground);
+  }
+
+  .demo-modal-main {
+    display: inline-flex;
+    height: 2.5rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 9999px;
+    background: var(--foreground);
+    color: var(--background);
+    font-weight: 500;
+    text-decoration: none;
+  }
+
+  .demo-modal-main[hidden] {
+    display: none;
+  }
+
+  .demo-modal-action {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.375rem 0;
+    border-radius: 0.5rem;
+    color: var(--muted-foreground);
+    font-size: 0.75rem;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  .demo-modal-action:hover {
+    background: var(--muted);
+    color: var(--foreground);
+  }
+
+  .demo-modal-action :global(svg) {
+    color: var(--foreground);
+  }
+
+  .demo-modal-action.demo-filled :global(svg) {
+    color: var(--destructive);
   }
 
   @container (min-width: 48rem) {
@@ -645,7 +811,11 @@ const chipClass =
 
     .demo-modal-preview {
       flex: 2;
-      border-right: 1px solid var(--border);
+    }
+
+    .demo-modal-details {
+      max-width: 22rem;
+      border-left: 1px solid var(--border);
     }
   }
 
