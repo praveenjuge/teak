@@ -158,6 +158,60 @@ describe("library URL", () => {
     expect(await back()).toBe("/?sort=oldest");
   });
 
+  test("a typed search that settles while a quick command leaves the page doesn't cancel the move", async () => {
+    render("");
+    screenProps.onNavigateView("trash");
+    // The search box's own write for "trash", flushed by React right after
+    // the Enter that started the move, then the emptied box.
+    screenProps.onSearchUrlStateChange(
+      { q: "trash", sort: "newest", types: [] },
+      { sortChanged: false, tagChanged: false, typesChanged: false }
+    );
+    screenProps.onSearchUrlStateChange(
+      { q: "", sort: "newest", types: [] },
+      { sortChanged: false, tagChanged: false, typesChanged: false }
+    );
+    expect(url()).toBe("/trash");
+    expect(await back()).toBe("/");
+  });
+
+  test("a search held back during a move that ends on this page is written then", async () => {
+    render("");
+    // The move is cancelled: the router settles without leaving "/".
+    spyOn(router, "navigate").mockImplementationOnce(() => Promise.resolve());
+    screenProps.onNavigateView("trash");
+    screenProps.onSearchUrlStateChange(
+      { q: "design", sort: "newest", types: [] },
+      { sortChanged: false, tagChanged: false, typesChanged: false }
+    );
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(url()).toBe("/?q=design");
+  });
+
+  test("an earlier move ending doesn't let a search write cancel a later one", async () => {
+    render("");
+    const navigate = spyOn(router, "navigate");
+    let endFirst: () => void = () => undefined;
+    navigate.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          endFirst = resolve;
+        })
+    );
+    navigate.mockImplementationOnce(() => new Promise<void>(() => undefined));
+    screenProps.onNavigateView("trash");
+    screenProps.onNavigateView("archive");
+    endFirst();
+    await Promise.resolve();
+    await Promise.resolve();
+    screenProps.onSearchUrlStateChange(
+      { q: "archive", sort: "newest", types: [] },
+      { sortChanged: false, tagChanged: false, typesChanged: false }
+    );
+    expect(navigate).toHaveBeenCalledTimes(2);
+  });
+
   test("Search everything reruns this page's search in the library and leaves this entry alone, so Back returns to it", async () => {
     render("q=tomato%20soup&type=link,image&card=card_1");
     screenProps.onSearchEverything();

@@ -24,6 +24,20 @@ export interface DemoCard {
   url?: string;
 }
 
+/** A note this short and without a heading line is set large, as in the web app. */
+export const SHORT_NOTE = 80;
+
+/** A note's first line is its heading, as in the web app's grid. */
+export const noteParts = (content = "") => {
+  const breakAt = content.indexOf("\n");
+  return breakAt === -1
+    ? { body: content.trim(), heading: "" }
+    : {
+        body: content.slice(breakAt).trim(),
+        heading: content.slice(0, breakAt).trim(),
+      };
+};
+
 export const DEMO_CARD_TYPES: Record<
   CardType,
   { icon: string; label: string }

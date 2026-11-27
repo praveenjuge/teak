@@ -85,8 +85,13 @@ export function parseSourceDate(
   if (!text) {
     return;
   }
-  return parseImportedTimestamp(
-    text.replace(/^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2})/, "$1T$2")
+  // `2024-01-02 10:00:00 UTC` (Rails) and `…+00` (Postgres) parse as written,
+  // but not once the space becomes a `T`.
+  return (
+    parseImportedTimestamp(text) ??
+    parseImportedTimestamp(
+      text.replace(/^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2})/, "$1T$2")
+    )
   );
 }
 

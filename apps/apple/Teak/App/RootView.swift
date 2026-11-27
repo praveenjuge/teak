@@ -2,6 +2,7 @@ import CoreSpotlight
 import PhotosUI
 import SwiftUI
 import TeakCore
+import TeakUI
 
 struct RootView: View {
     @Environment(AppModel.self) private var app
@@ -13,6 +14,12 @@ struct RootView: View {
     #endif
 
     private var isSignedIn: Bool { app.phase == .signedIn }
+
+    #if os(iOS)
+    init() {
+        Allo.styleSystemBars()
+    }
+    #endif
 
     var body: some View {
         Group {
@@ -160,7 +167,7 @@ struct MainView: View {
 
     private func banner(_ title: String, systemImage: String) -> some View {
         Label(title, systemImage: systemImage)
-            .font(.subheadline.weight(.medium))
+            .font(.allo(.subheadline).weight(.medium))
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
             .glassEffect(.regular, in: .capsule)
@@ -205,7 +212,7 @@ struct LibraryTab: View {
                 ZStack {
                     Rectangle().fill(.tint.opacity(0.08))
                     Label(tr("native.app.dropFiles"), systemImage: "arrow.down.doc")
-                        .font(.title3.weight(.semibold))
+                        .font(.allo(.title3).weight(.semibold))
                         .padding(.horizontal, 20)
                         .padding(.vertical, 14)
                         .glassEffect(.regular, in: .capsule)

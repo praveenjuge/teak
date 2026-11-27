@@ -21,16 +21,11 @@ describe("AudioWavePreview", () => {
     expect((markup.match(/width:2px/g) ?? []).length).toBe(AUDIO_WAVE_BARS);
   });
 
-  test("names the recording and its length under the waveform", () => {
+  test("shows the recording's length beside the waveform", () => {
     const markup = renderToStaticMarkup(
-      <AudioWavePreview
-        cardId="card_audio_1"
-        durationLabel="1:24"
-        title="Standup notes.m4a"
-      />
+      <AudioWavePreview cardId="card_audio_1" durationLabel="1:24" />
     );
-    expect(markup).toContain("Standup notes.m4a");
-    expect(markup).toContain("1:24");
+    expect(markup).toContain(">1:24</span>");
   });
 
   test("produces deterministic heights for the same card id", () => {

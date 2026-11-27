@@ -2,6 +2,7 @@ import Observation
 import SwiftUI
 import TeakCore
 import TeakSync
+import TeakUI
 
 @MainActor @Observable
 final class TagsModel {
@@ -164,10 +165,10 @@ struct TagsView: View {
                 Section {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(TagChangeText.running(operation.kind, from: operation.from, to: operation.to))
-                            .font(.subheadline.weight(.medium))
+                            .font(.allo(.subheadline).weight(.medium))
                         ProgressView(value: operation.total > 0 ? min(operation.processed / operation.total, 1) : 0)
                         Text(TagChangeText.progress(changed: Int(operation.changed), total: Int(operation.total)))
-                            .font(.footnote)
+                            .font(.allo(.footnote))
                             .foregroundStyle(.secondary)
                     }
                     .accessibilityElement(children: .combine)
@@ -259,7 +260,7 @@ private struct MergeTagView: View {
         NavigationStack {
             List {
                 Text(tr("native.tags.mergeMessage", source.name))
-                    .font(.footnote)
+                    .font(.allo(.footnote))
                     .foregroundStyle(.secondary)
                 ForEach(targets.prefix(200)) { tag in
                     Button {

@@ -4,7 +4,6 @@ import {
   getFileFormatBadge,
   isCardProcessing,
   mediaAspectRatio,
-  quoteSizeClass,
   readableTextOn,
   splitNotePreview,
 } from "../cardDisplay";
@@ -136,19 +135,5 @@ describe("mediaAspectRatio", () => {
     expect(mediaAspectRatio(undefined, 600, 4 / 3)).toBeCloseTo(4 / 3);
     expect(mediaAspectRatio(800, 0, 4 / 3)).toBeCloseTo(4 / 3);
     expect(mediaAspectRatio(-1, 600, 0.2)).toBeCloseTo(3 / 4);
-  });
-});
-
-describe("quoteSizeClass", () => {
-  test("sets short quotes large and long quotes small", () => {
-    expect(quoteSizeClass("Design is thinking made visual.")).toBe(
-      "text-[23px]"
-    );
-    expect(
-      quoteSizeClass(
-        "Styles come and go. Good design is a language, not a style."
-      )
-    ).toBe("text-[19px]");
-    expect(quoteSizeClass("x".repeat(200))).toBe("text-[15px]");
   });
 });

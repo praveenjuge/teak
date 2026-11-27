@@ -226,6 +226,20 @@ describe("normalizeAiTags", () => {
 });
 
 describe("sanitizeTranscript", () => {
+  test("drops Whisper's Amara.org credit on short audio", () => {
+    expect(
+      sanitizeTranscript("Subtitles by the Amara.org community", {
+        durationSeconds: 8,
+      })
+    ).toBeNull();
+    expect(
+      sanitizeTranscript(
+        "Thank you for watching. Subtitles by the Amara.org community",
+        { durationSeconds: 8 }
+      )
+    ).toBeNull();
+  });
+
   test.each([
     ["", undefined, null],
     ["...", undefined, null],

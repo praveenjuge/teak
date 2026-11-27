@@ -89,13 +89,26 @@ export const getCardQuotaEntitlement = async (
   return await readCardEntitlement(ctx, userId, deps.getSubscription);
 };
 
-export const authorizeCardCreation = async (
+/**
+ * Spends a card creation token and reads the plan, without the free plan's
+ * cap: a save that may only move an existing card to the top calls this,
+ * then `ensureCardUsageShards` once it knows it adds a card.
+ */
+export const authorizeCardSave = async (
   ctx: MutationCtx,
   userId: string,
   deps: CardCreationDeps = defaultCardCreationDeps
 ) => {
   await consumeCardCreationLimit(ctx, userId, deps.rateLimiter);
-  const hasPremium = await getCardQuotaEntitlement(ctx, userId, deps);
+  return { hasPremium: await getCardQuotaEntitlement(ctx, userId, deps) };
+};
+
+export const authorizeCardCreation = async (
+  ctx: MutationCtx,
+  userId: string,
+  deps: CardCreationDeps = defaultCardCreationDeps
+) => {
+  const { hasPremium } = await authorizeCardSave(ctx, userId, deps);
   await ensureCardUsageShards(ctx, userId, hasPremium);
   return { hasPremium };
 };

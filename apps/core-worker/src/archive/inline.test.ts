@@ -514,6 +514,14 @@ describe("buildPageArchive: images", () => {
       expected: "https://example.com/blog/c@2x.jpg",
     },
     {
+      name: "a srcset URL with commas in it, as image CDNs write them",
+      attributes: {
+        srcset:
+          "https://res.cloudinary.com/x/image/upload/w_400,c_fill/p.jpg 400w, https://res.cloudinary.com/x/image/upload/w_800,c_fill/p.jpg 800w",
+      },
+      expected: "https://res.cloudinary.com/x/image/upload/w_800,c_fill/p.jpg",
+    },
+    {
       name: "a lazy-loading data-src over a placeholder src",
       attributes: { dataSrc: "/real.jpg", src: "/blank.gif" },
       expected: "https://example.com/real.jpg",

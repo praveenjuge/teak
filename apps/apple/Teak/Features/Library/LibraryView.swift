@@ -1,5 +1,6 @@
 import SwiftUI
 import TeakCore
+import TeakUI
 
 struct LibraryView: View {
     @Bindable var library: LibraryModel
@@ -8,6 +9,7 @@ struct LibraryView: View {
     @Environment(AppRouter.self) private var router
     private var services: AppServices { AppServices.shared }
     @State private var width = 0.0
+    @State private var fold: ClosedRange<Double>?
     @State private var editing: CardRoute?
     @State private var exporting: CardFile?
     @State private var confirmingEmptyTrash = false
@@ -22,9 +24,16 @@ struct LibraryView: View {
 
     var body: some View {
         GeometryReader { proxy in
+            let currentFold = Self.fold(in: proxy)
             content
-                .onAppear { width = proxy.size.width }
+                .onAppear {
+                    width = proxy.size.width
+                    fold = currentFold
+                }
                 .onChange(of: proxy.size.width) { _, newWidth in width = newWidth }
+                .onChange(of: currentFold) { _, newFold in
+                    withAnimation(.smooth) { fold = newFold }
+                }
         }
             .navigationTitle(library.title)
             #if os(iOS)
@@ -143,12 +152,32 @@ struct LibraryView: View {
         #if os(macOS)
         false
         #else
-        columns >= 3 && !library.isTrash
+        // From the unfolded width, so folding iPhone Duo doesn't add the composer.
+        CardGrid.columnCount(width: width) >= 3 && !library.isTrash
         #endif
     }
 
-    private var columns: Int { CardGrid.columnCount(width: width) }
-    private var columnWidth: Double { max(0, CardGrid.columnWidth(width: width, columns: columns)) }
+    /// iPhone Duo's hinge while it's partly open, when it runs down this view.
+    /// Fully open or closed there's no active division, and the grid lays out as usual.
+    private static func fold(in proxy: GeometryProxy) -> ClosedRange<Double>? {
+        #if os(iOS)
+        if #available(iOS 27.1, *) {
+            guard let frame = proxy.reservedRegions(kind: .division).first?.frame,
+                  frame.height > frame.width else { return nil }
+            return frame.minX...frame.maxX
+        }
+        #endif
+        return nil
+    }
+
+    private var folded: CardGrid.FoldedColumns? {
+        fold.flatMap { CardGrid.foldedColumns(width: width, foldMinX: $0.lowerBound, foldMaxX: $0.upperBound) }
+    }
+
+    private var columns: Int { folded?.columns ?? CardGrid.columnCount(width: width) }
+    private var columnWidth: Double {
+        max(0, folded?.columnWidth ?? CardGrid.columnWidth(width: width, columns: columns))
+    }
 
     @ViewBuilder private var content: some View {
         let cards = library.cards
@@ -162,7 +191,7 @@ struct LibraryView: View {
             ScrollView {
                 if library.query.revealsHiddenCards {
                     Label(HiddenTags.searchHint, systemImage: "eye.slash")
-                        .font(.footnote)
+                        .font(.allo(.footnote))
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, CardGrid.edge + 4)
@@ -192,6 +221,7 @@ struct LibraryView: View {
     private func grid(_ cards: [CardSummary]) -> some View {
         let nearEnd = Set(cards.suffix(5).map(\.id))
         let laidOut = layout(cards)
+        let folded = folded
         return HStack(alignment: .top, spacing: CardGrid.gap) {
             ForEach(Array(laidOut.enumerated()), id: \.offset) { index, column in
                 LazyVStack(spacing: CardGrid.gap) {
@@ -206,9 +236,13 @@ struct LibraryView: View {
                     }
                 }
                 .frame(width: columnWidth)
+                // The first column after the fold starts clear of it.
+                .padding(.leading, index > 0 && index == folded?.leading ? (folded?.foldSpacing ?? 0) - CardGrid.gap : 0)
             }
         }
-        .padding(.horizontal, CardGrid.edge)
+        .padding(.leading, folded?.leadingInset ?? CardGrid.edge)
+        .padding(.trailing, folded == nil ? CardGrid.edge : 0)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.top, 8)
         .padding(.bottom, library.isSelecting ? 96 : 24)
     }
@@ -310,11 +344,11 @@ struct LibraryView: View {
     private var refreshFailed: some View {
         HStack {
             Label(tr("native.library.loadFailed.title"), systemImage: "exclamationmark.triangle")
-                .font(.footnote)
+                .font(.allo(.footnote))
                 .foregroundStyle(.secondary)
             Spacer(minLength: 8)
             Button(tr("common.retry")) { library.pager.retry() }
-                .font(.footnote.weight(.semibold))
+                .font(.allo(.footnote).weight(.semibold))
                 .buttonStyle(.borderless)
         }
         .padding(.horizontal, CardGrid.edge + 4)
@@ -323,7 +357,7 @@ struct LibraryView: View {
 
     private var loadMoreFailed: some View {
         VStack(spacing: 8) {
-            Text(tr("native.library.loadMoreFailed")).font(.footnote).foregroundStyle(.secondary)
+            Text(tr("native.library.loadMoreFailed")).font(.allo(.footnote)).foregroundStyle(.secondary)
             Button(tr("common.retry")) { library.pager.retry() }.buttonStyle(.bordered)
         }
         .padding(.bottom, 24)
@@ -589,10 +623,10 @@ struct StatusToast: View {
         HStack(spacing: 10) {
             Image(systemName: status.isError ? "exclamationmark.circle" : "checkmark.circle")
                 .foregroundStyle(status.isError ? .red : .green)
-            Text(status.text).font(.subheadline.weight(.medium))
+            Text(status.text).font(.allo(.subheadline).weight(.medium))
             if let undo = status.undo {
                 Button(tr("common.undo")) { undo() }
-                    .font(.subheadline.weight(.semibold))
+                    .font(.allo(.subheadline).weight(.semibold))
                     .buttonStyle(.borderless)
                     .accessibilityIdentifier("status.undo")
             }
@@ -624,9 +658,9 @@ struct FirstCardView: View {
                 .foregroundStyle(.primary)
                 .accessibilityLabel("Teak")
             VStack(spacing: 6) {
-                Text(tr("native.library.firstCard.title")).font(.headline)
+                Text(tr("native.library.firstCard.title")).font(.allo(.headline))
                 Text(tr("native.library.firstCard.message"))
-                    .font(.subheadline)
+                    .font(.allo(.subheadline))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }

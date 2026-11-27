@@ -1,6 +1,7 @@
 import SwiftUI
 import TeakCore
 import TeakSync
+import TeakUI
 
 enum Appearance: String, CaseIterable, Identifiable {
     case auto, light, dark
@@ -41,6 +42,7 @@ struct SettingsView: View {
                     LanguageFooter(showsDescription: false)
                     SafariExtension.hint
                 }
+                .font(.allo(.footnote))
             }
             AccountActions {
                 VersionRow()
@@ -95,12 +97,12 @@ struct AccountHeader: View {
                 monogram
                 VStack(alignment: .leading, spacing: 2) {
                     Text(email ?? tr("native.settings.notSignedIn"))
-                        .font(.headline)
+                        .font(.allo(.headline))
                         .lineLimit(1)
                         .truncationMode(.middle)
                         .textSelection(.enabled)
                     details
-                        .font(.subheadline)
+                        .font(.allo(.subheadline))
                         .foregroundStyle(.secondary)
                 }
             }
@@ -116,9 +118,9 @@ struct AccountHeader: View {
             .frame(width: 52, height: 52)
             .overlay {
                 if let initial {
-                    Text(initial).font(.title2.weight(.semibold))
+                    Text(initial).font(.allo(.title2).weight(.semibold))
                 } else {
-                    Image(systemName: "person.fill").font(.title2)
+                    Image(systemName: "person.fill").font(.allo(.title2))
                 }
             }
             .foregroundStyle(.white)
@@ -243,7 +245,10 @@ struct AccountActions<Rows: View, Footer: View>: View {
                     .disabled(app.user == nil)
                     .accessibilityIdentifier("settings.logOut")
             } footer: {
-                if let error { Text(error).foregroundStyle(.red) } else { footer }
+                Group {
+                    if let error { Text(error).foregroundStyle(.red) } else { footer }
+                }
+                .font(.allo(.footnote))
             }
             Section {
                 Button(isWorking ? tr("native.settings.deleting") : tr("native.settings.deleteAccount"), role: .destructive) {
@@ -334,7 +339,7 @@ private struct AboutSection: View {
         } header: {
             Text(tr("native.settings.about"))
         } footer: {
-            AboutCredit()
+            AboutCredit().font(.allo(.footnote))
         }
     }
 }

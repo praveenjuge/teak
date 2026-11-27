@@ -904,28 +904,29 @@ export const combineSearchQueries = (
   ).canonical;
 };
 
-const renameFolderLeaves = (
+const renameQualifierLeaves = (
   expression: SearchExpression,
-  fromNameKey: string,
-  toName: string
+  key: "folder" | "tag",
+  fromKey: string,
+  toValue: string
 ): SearchExpression => {
   switch (expression.op) {
     case "qualifier":
-      return expression.qualifier.key === "folder" &&
-        expression.qualifier.value.trim().toLowerCase() === fromNameKey
-        ? { op: "qualifier", qualifier: { key: "folder", value: toName } }
+      return expression.qualifier.key === key &&
+        expression.qualifier.value.trim().toLowerCase() === fromKey
+        ? { op: "qualifier", qualifier: { key, value: toValue } }
         : expression;
     case "not":
       return {
         op: "not",
-        item: renameFolderLeaves(expression.item, fromNameKey, toName),
+        item: renameQualifierLeaves(expression.item, key, fromKey, toValue),
       };
     case "and":
     case "or":
       return {
         op: expression.op,
         items: expression.items.map((item) =>
-          renameFolderLeaves(item, fromNameKey, toName)
+          renameQualifierLeaves(item, key, fromKey, toValue)
         ),
       };
     default:
@@ -952,28 +953,44 @@ export const searchExpressionQualifiers = (
   }
 };
 
-export const renameFolderInSearchQuery = (
+const renameQualifierInSearchQuery = (
   query: string,
-  fromNameKey: string,
-  toName: string
+  key: "folder" | "tag",
+  fromKey: string,
+  toValue: string
 ): string => {
   const parsed = parseSearchQuery(query);
   const named = [
-    ...parsed.folders,
+    ...(key === "folder" ? parsed.folders : parsed.tags),
     ...searchExpressionQualifiers(parsed.expression)
-      .filter((qualifier) => qualifier.key === "folder")
-      .map((qualifier) => qualifier.value.trim().toLowerCase()),
-  ];
-  if (!named.includes(fromNameKey)) {
+      .filter((qualifier) => qualifier.key === key)
+      .map((qualifier) => qualifier.value),
+  ].map((value) => value.trim().toLowerCase());
+  if (!named.includes(fromKey)) {
     return query;
   }
   const root = parseSearchTree(query);
   return root
     ? parseSearchQuery(
-        formatSearchExpression(renameFolderLeaves(root, fromNameKey, toName))
+        formatSearchExpression(
+          renameQualifierLeaves(root, key, fromKey, toValue)
+        )
       ).canonical
     : query;
 };
+
+export const renameFolderInSearchQuery = (
+  query: string,
+  fromNameKey: string,
+  toName: string
+): string => renameQualifierInSearchQuery(query, "folder", fromNameKey, toName);
+
+/** Points a search's `tag:` qualifiers for `fromKey` (any case) at `toTag`. */
+export const renameTagInSearchQuery = (
+  query: string,
+  fromKey: string,
+  toTag: string
+): string => renameQualifierInSearchQuery(query, "tag", fromKey, toTag);
 
 export const hasSearchQualifiers = (parsed: ParsedSearchQuery) =>
   parsed.qualifiers.length > 0;

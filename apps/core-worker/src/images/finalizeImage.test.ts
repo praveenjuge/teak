@@ -81,6 +81,31 @@ describe("finalize-image-upload", () => {
     expect(put?.httpMetadata).toEqual({ contentType: "image/png" });
   });
 
+  test("reads the format Image Resizing reports for a photo over the binding's 20 MB", async () => {
+    const env = makeEnv({
+      bytes: new Uint8Array(21 * 1024 * 1024),
+      contentType: "image/jpeg",
+      info: new Error("the binding must not read it"),
+    });
+    // format=json names the format only under `original`.
+    const probe = (async () =>
+      Response.json({
+        height: 4000,
+        original: {
+          file_size: 21 * 1024 * 1024,
+          format: "image/jpeg",
+          height: 4000,
+          width: 6000,
+        },
+        width: 6000,
+      })) as unknown as typeof fetch;
+
+    const result = await runOp(env, {}, probe);
+    expect(result.decodedFormat).toBe("image/jpeg");
+    expect(result.width).toBe(6000);
+    expect(result.height).toBe(4000);
+  });
+
   test("rejects spoofed MIME types that do not decode as images", async () => {
     const env = makeEnv({
       contentType: "text/plain",

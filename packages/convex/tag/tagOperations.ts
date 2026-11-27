@@ -13,6 +13,7 @@ import {
   getAccountDeletionState,
 } from "../accountDeletion/gate";
 import { patchCard } from "../card/cardWrites";
+import { readLiveFolders } from "../folder/folders";
 import {
   ownerMutation,
   ownerQuery,
@@ -20,6 +21,7 @@ import {
   sessionQuery,
 } from "../ownerOperation";
 import { getSessionUser } from "../securitySessions";
+import { renameTagInSearchQuery } from "../shared/search/qualifiers";
 import {
   explainInvalidTagName,
   explainInvalidTagSource,
@@ -133,6 +135,55 @@ const runningOperation = (ctx: QueryCtx, userId: string) =>
     )
     .first();
 
+/**
+ * Points folders at the tag's new name, as a folder rename does: auto-tags,
+ * smart folder searches and auto-file searches. A deleted tag leaves the
+ * auto-tags; a search naming it is kept, since dropping the qualifier would
+ * widen what it matches.
+ */
+const rewriteFolderTagRules = async (
+  ctx: MutationCtx,
+  userId: string,
+  rewrite: TagRewrite,
+  now: number
+) => {
+  for (const folder of await readLiveFolders(ctx, userId)) {
+    const patch: Partial<Doc<"folders">> = {};
+    const autoTags = rewriteTagList(folder.autoTags, rewrite);
+    if (autoTags) {
+      patch.autoTags = autoTags.length > 0 ? autoTags : undefined;
+      if (!patch.autoTags && folder.autoFileQuery === undefined) {
+        patch.hasRules = undefined;
+      }
+    }
+    if (rewrite.kind !== "delete") {
+      if (folder.kind === "smart" && folder.query !== undefined) {
+        const query = renameTagInSearchQuery(
+          folder.query,
+          rewrite.from,
+          rewrite.to
+        );
+        if (query !== folder.query) {
+          patch.query = query;
+        }
+      }
+      if (folder.autoFileQuery !== undefined) {
+        const query = renameTagInSearchQuery(
+          folder.autoFileQuery,
+          rewrite.from,
+          rewrite.to
+        );
+        if (query !== folder.autoFileQuery) {
+          patch.autoFileQuery = query;
+        }
+      }
+    }
+    if (Object.keys(patch).length > 0) {
+      await ctx.db.patch("folders", folder._id, { ...patch, updatedAt: now });
+    }
+  }
+};
+
 export const startTagOperationForUser = async (
   ctx: MutationCtx,
   userId: string,
@@ -225,6 +276,14 @@ export const startTagOperationForUser = async (
     0,
     internal.tag.tagOperations.runTagOperationBatch,
     { operationId }
+  );
+  await rewriteFolderTagRules(
+    ctx,
+    userId,
+    to === undefined
+      ? { kind: "delete", from }
+      : { kind: args.kind as "rename" | "merge", from, to },
+    now
   );
   const operation = await ctx.db.get("tagOperations", operationId);
   if (!operation) {

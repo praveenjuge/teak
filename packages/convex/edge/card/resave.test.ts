@@ -239,6 +239,39 @@ describe("saving a link that's already in Teak", () => {
     expect(await liveCards()).toHaveLength(FREE_TIER_LIMIT);
   });
 
+  test("works at the limit after Premium lapses, while the card count is inexact", async () => {
+    const { t, seed, seedLink, save, liveCards } = await setup();
+    const id = await seedLink();
+    await seed(
+      Array.from({ length: FREE_TIER_LIMIT + 5 }, (_, index) => ({
+        type: "text" as const,
+        content: `Filler ${index}`,
+        createdAt: FIRST_SAVED + index,
+      }))
+    );
+    // Counted while on Premium by a bounded scan, then the plan lapsed.
+    await t.run(async (ctx) => {
+      const usage = await ctx.db
+        .query("userCardUsage")
+        .withIndex("by_userId", (q) => q.eq("userId", "owner"))
+        .unique();
+      if (usage) {
+        await ctx.db.patch(usage._id, { isCountExact: false });
+      }
+    });
+    await expect(
+      save({ content: "https://example.com/not-saved-yet" })
+    ).rejects.toMatchObject({
+      data: expect.objectContaining({ code: "CARD_LIMIT_REACHED" }),
+    });
+
+    expect(await save({ content: VARIANT })).toEqual({
+      cardId: id,
+      outcome: "resaved",
+    });
+    expect(await liveCards()).toHaveLength(FREE_TIER_LIMIT + 6);
+  });
+
   test("spends a card creation token, like a new card", async () => {
     const { seedLink, save } = await setup();
     await seedLink();

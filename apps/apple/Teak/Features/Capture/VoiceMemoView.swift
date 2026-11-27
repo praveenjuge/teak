@@ -1,6 +1,7 @@
 import AVFoundation
 import SwiftUI
 import TeakCore
+import TeakUI
 
 @MainActor @Observable
 final class VoiceRecorder {
@@ -98,7 +99,7 @@ struct VoiceMemoView: View {
             VStack(spacing: 28) {
                 Spacer()
                 Text(CardSheet.formatDuration(recorder.elapsed))
-                    .font(.system(size: 56, weight: .medium, design: .rounded).monospacedDigit())
+                    .font(.allo(fixedSize: 56, weight: .medium).monospacedDigit())
                     .contentTransition(.numericText())
                     .accessibilityLabel(tr("native.capture.recordingTime", CardSheet.formatDuration(recorder.elapsed)))
                 Text(status).foregroundStyle(.secondary)
@@ -106,7 +107,7 @@ struct VoiceMemoView: View {
                     if recording != nil { upload() } else if recorder.isRecording { stop() } else { start() }
                 } label: {
                     Image(systemName: symbol)
-                        .font(.largeTitle)
+                        .font(.allo(.largeTitle))
                         .frame(width: 88, height: 88)
                         .symbolEffect(.pulse, isActive: recorder.isRecording)
                         .contentTransition(.symbolEffect(.replace))

@@ -751,7 +751,9 @@ export const scanCardsWithBaseQuery = async (
   decodedCursor: ApiCursor,
   scanLimit: number
 ) => {
-  if (decodedCursor.mode === "match") {
+  // A search's cursor doesn't continue a listing; read as the first page, it
+  // would hand the caller page one again.
+  if (decodedCursor.mode === "match" || decodedCursor.mode === "relevance") {
     throw invalidCursorError();
   }
   if (options.folderId) {

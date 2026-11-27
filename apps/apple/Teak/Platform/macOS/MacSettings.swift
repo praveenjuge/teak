@@ -2,6 +2,7 @@
 import AppKit
 import SwiftUI
 import TeakCore
+import TeakUI
 
 struct MacSettingsView: View {
     @Environment(AppModel.self) private var app
@@ -70,9 +71,9 @@ private struct MacAboutView: View {
                 .resizable()
                 .frame(width: 96, height: 96)
                 .accessibilityHidden(true)
-            Text(verbatim: "Teak").font(.title2.weight(.semibold))
+            Text(verbatim: "Teak").font(.allo(.title2).weight(.semibold))
             Text(tr("native.settings.versionValue", "\(app.config.version) (\(app.config.build))"))
-                .font(.callout)
+                .font(.allo(.callout))
                 .foregroundStyle(.secondary)
                 .textSelection(.enabled)
             Text(tr("native.settings.byAuthor", "@praveenjuge"))

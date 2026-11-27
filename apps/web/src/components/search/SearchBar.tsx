@@ -44,7 +44,6 @@ import { Input } from "@/components/ui/input";
 import { Kbd } from "@/components/ui/kbd";
 import { useAdoptTypedValue } from "@/hooks/useAdoptTypedValue";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import type { CardDensity } from "@/lib/cardDensity";
 import {
   isImeComposing,
   LIBRARY_SEARCH_ATTRIBUTE,
@@ -72,7 +71,6 @@ import { ReshuffleButton, ViewMenu } from "./ViewMenu";
 
 export interface SearchBarProps {
   canSortByRelevance?: boolean;
-  density?: CardDensity;
   filterTags: CardType[];
   HeaderActions?: ReactNode;
   hexFilters: string[];
@@ -83,7 +81,6 @@ export interface SearchBarProps {
   onActivate?: () => void;
   onAddQualifier?: (qualifier: string) => void;
   onClearAll: () => void;
-  onDensityChange?: (density: CardDensity) => void;
   onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   onRemoveFilter: (filter: CardType) => void;
   onRemoveHexFilter: (hex: string) => void;
@@ -264,8 +261,6 @@ export function SearchBar({
   placeholder: placeholderProp,
   sort = "newest",
   canSortByRelevance,
-  density,
-  onDensityChange,
   revisit,
   onSaveSearch,
   onSortChange,
@@ -610,13 +605,11 @@ export function SearchBar({
               <ViewMenu
                 activeTypes={filterTags}
                 canSortByRelevance={canSortByRelevance}
-                density={density}
                 onClearTypes={() => {
                   for (const filter of filterTags) {
                     onRemoveFilter(filter);
                   }
                 }}
-                onDensityChange={onDensityChange}
                 onSaveSearch={onSaveSearch}
                 onSortChange={onSortChange}
                 onToggleType={onToggleFilter}

@@ -927,8 +927,16 @@ cards
     await savePdf(id, globals(options));
   });
 
-const readBulkInput = async (file: string | undefined) =>
-  file && file !== "-" ? readFileSync(file, "utf8") : await readStdin();
+const readBulkInput = async (file: string | undefined) => {
+  if (!file || file === "-") {
+    return await readStdin();
+  }
+  try {
+    return readFileSync(file, "utf8");
+  } catch {
+    throw new InvalidArgumentError(`no file at ${file}`);
+  }
+};
 
 cards
   .command("bulk")

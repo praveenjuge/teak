@@ -817,6 +817,31 @@ describe("teak parity commands", () => {
     expect(result.stdout).toContain("ai tags: Web");
   });
 
+  test("tags add keeps the case typed and skips tags the card has in any case", async () => {
+    routes.set("GET /v1/cards/card_a", () =>
+      json(card("card_a", { tags: ["Design"] }))
+    );
+    routes.set("PATCH /v1/cards/card_a", () =>
+      json(card("card_a", { tags: ["Design", "GraphQL"] }))
+    );
+    const result = await teak("tags", "add", "card_a", "GraphQL", "design");
+    expect(result.code).toBe(0);
+    expect(JSON.parse(requests[1]?.body ?? "{}")).toEqual({
+      tags: ["Design", "GraphQL"],
+    });
+  });
+
+  test("add --file with no file there is a usage error, not a text card", async () => {
+    routes.set("POST /v1/cards", () => json({ status: "created" }));
+    const missing = join(workDirectory, "typo.png");
+
+    const result = await teak("add", "caption", "--file", missing);
+
+    expect(result.code).toBe(EXIT.usage);
+    expect(result.stderr).toContain(`no file at ${missing}`);
+    expect(requests).toHaveLength(0);
+  });
+
   test("update adds and removes palette colors as hex codes", async () => {
     routes.set("PATCH /v1/cards/card_a", () =>
       json(card("card_a", { type: "palette", colors: [{ hex: "#4ECDC4" }] }))
@@ -2127,6 +2152,15 @@ describe("teak batch and fallback behavior", () => {
     const result = await teak("cards", "bulk", "create", "--input", input);
 
     expect(result.code).toBe(EXIT.usage);
+    expect(requests).toHaveLength(0);
+  });
+
+  test("bulk --file with no file there is a usage error", async () => {
+    const missing = join(workDirectory, "missing.json");
+    const result = await teak("cards", "bulk", "create", "--file", missing);
+
+    expect(result.code).toBe(EXIT.usage);
+    expect(result.stderr).toContain(`no file at ${missing}`);
     expect(requests).toHaveLength(0);
   });
 });

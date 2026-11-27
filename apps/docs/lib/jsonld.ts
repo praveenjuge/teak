@@ -74,9 +74,11 @@ export function buildPageSchemas(opts: {
   return schemas;
 }
 
+// Google's merchant listings require `image` on a Product with offers.
 export function buildProductSchema(
   name: string,
   description: string,
+  image: string,
   offers: {
     name: string;
     price: string;
@@ -88,6 +90,7 @@ export function buildProductSchema(
     "@type": "Product",
     name,
     description,
+    image,
     brand: { "@type": "Brand", name: SITE_NAME },
     offers: offers.map((offer) => ({
       "@type": "Offer",

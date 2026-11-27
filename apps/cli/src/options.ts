@@ -347,12 +347,12 @@ export const CARD_LIST_FLAGS: Record<CardListParam, ListFlag> = {
   },
   createdAfter: {
     flags: "--created-after <TIME>",
-    help: `created after ${LIST_TIME_HELP}`,
+    help: `saved at or after ${LIST_TIME_HELP}`,
     parse: parseTimestamp,
   },
   createdBefore: {
     flags: "--created-before <TIME>",
-    help: `created before ${LIST_TIME_HELP}`,
+    help: `saved at or before ${LIST_TIME_HELP}`,
     parse: parseTimestamp,
   },
   include: {

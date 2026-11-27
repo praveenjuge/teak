@@ -262,10 +262,10 @@ function PinnedStripItem({
     <li
       className={cn(
         "relative w-48 shrink-0 cursor-grab touch-pan-x snap-start sm:w-56",
-        // Every card here is one tile of the same height, tall enough for a
-        // quote's five lines: pictures crop to it, and a link drops the name
-        // line under its tile.
-        "[--card-tile-height:10.5rem] [&_[data-link-name]]:hidden",
+        // Every card here is one tile of the same height: pictures crop to
+        // it, and links and documents drop their footer, so nothing here has
+        // a caption.
+        "[--card-tile-height:10.5rem] [&_[data-card-footer]]:hidden",
         isDragging && "z-30 cursor-grabbing opacity-80"
       )}
       data-pinned-card-id={card._id}

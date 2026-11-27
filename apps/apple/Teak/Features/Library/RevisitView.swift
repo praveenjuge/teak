@@ -2,6 +2,7 @@ import Observation
 import SwiftUI
 import TeakCore
 import TeakSync
+import TeakUI
 
 @MainActor @Observable
 final class RevisitModel {
@@ -174,7 +175,7 @@ struct RevisitView: View {
                     #if os(iOS)
                     if model.current != nil {
                         ToolbarItem(placement: .principal) {
-                            Text(model.position).font(.subheadline.weight(.medium)).monospacedDigit()
+                            Text(model.position).font(.allo(.subheadline).weight(.medium)).monospacedDigit()
                         }
                     }
                     #endif
@@ -232,7 +233,7 @@ struct RevisitView: View {
         VStack(spacing: 20) {
             #if os(macOS)
             // A Mac sheet's toolbar shows no principal item, so "3 of 20" leads the deck.
-            Text(model.position).font(.subheadline.weight(.medium)).monospacedDigit().foregroundStyle(.secondary)
+            Text(model.position).font(.allo(.subheadline).weight(.medium)).monospacedDigit().foregroundStyle(.secondary)
             #endif
             Spacer(minLength: 0)
             GeometryReader { proxy in
@@ -275,10 +276,10 @@ struct RevisitView: View {
             .disabled(model.isPending)
             .frame(maxWidth: 380)
             HStack(spacing: 12) {
-                Text(hint).font(.footnote).foregroundStyle(.secondary)
+                Text(hint).font(.allo(.footnote)).foregroundStyle(.secondary)
                 if model.lastArchived != nil {
                     Button(tr("common.undo")) { Task { await model.undo() } }
-                        .font(.footnote.weight(.medium))
+                        .font(.allo(.footnote).weight(.medium))
                         .buttonStyle(.borderless)
                 }
             }
@@ -299,7 +300,7 @@ struct RevisitView: View {
             Text(drag.width < -threshold ? tr("native.revisit.releaseToArchive")
                  : drag.width > threshold ? tr("native.revisit.releaseToKeep")
                  : drag.width < 0 ? tr("native.actions.archive") : tr("native.revisit.keep"))
-                .font(.footnote.weight(.semibold))
+                .font(.allo(.footnote).weight(.semibold))
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
                 .glassEffect(.regular, in: .capsule)
@@ -311,7 +312,7 @@ struct RevisitView: View {
         let saved = Date(timeIntervalSince1970: card.creationTime / 1000)
             .formatted(Date.FormatStyle(date: .abbreviated, time: .omitted).locale(AppLanguage.locale))
         return Label(tr("native.revisit.caption", card.type.label, saved), systemImage: card.type.symbol)
-            .font(.footnote)
+            .font(.allo(.footnote))
             .foregroundStyle(.secondary)
     }
 

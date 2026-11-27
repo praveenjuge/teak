@@ -1,6 +1,7 @@
 import PhotosUI
 import SwiftUI
 import TeakCore
+import TeakUI
 import UniformTypeIdentifiers
 
 struct AddView: View {
@@ -49,6 +50,7 @@ struct AddView: View {
                 Text(tr("native.capture.upload"))
             } footer: {
                 Text(tr("native.capture.dropHint"))
+                    .font(.allo(.footnote))
                     .foregroundStyle(.secondary)
             }
             if let upload = capture.upload {
@@ -151,7 +153,7 @@ private struct AddRowLabel: View {
             Text(title).foregroundStyle(.primary)
         } icon: {
             Image(systemName: symbol)
-                .font(.footnote.weight(.semibold))
+                .font(.allo(.footnote).weight(.semibold))
                 .foregroundStyle(.white)
                 .frame(width: 28, height: 28)
                 .background(color.gradient, in: .rect(cornerRadius: 7))

@@ -188,6 +188,11 @@ export const addCard = async (
     options.url
   );
   const uploadFile = candidate ? getUploadFileInfo(candidate) : null;
+  // `--file` names a file to upload; a mistyped path must not fall back to
+  // saving the other words as a text card.
+  if (options.file && !uploadFile) {
+    throw new InvalidArgumentError(`no file at ${options.file}`);
+  }
   if (candidate && uploadFile) {
     if (options.sourceUrl || options.sourceTitle) {
       throw new InvalidArgumentError(

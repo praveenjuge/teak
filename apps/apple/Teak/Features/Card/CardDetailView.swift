@@ -1,5 +1,6 @@
 import SwiftUI
 import TeakCore
+import TeakUI
 
 struct CardDetailView: View {
     let route: CardRoute
@@ -12,6 +13,7 @@ struct CardDetailView: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var model: CardDetailModel?
     @State private var showsInspector = true
+    @State private var width = 0.0
     @State private var showEditSheet = false
     @State private var exporting: CardFile?
     @State private var confirmDeleteForever = false
@@ -27,6 +29,7 @@ struct CardDetailView: View {
                 ProgressView()
             }
         }
+        .onGeometryChange(for: Double.self) { $0.size.width } action: { width = $0 }
         .modifier(CardTitle(title: title, editable: editsTitle) { [model] text in Task { await model?.saveTitle(text) } })
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
@@ -58,7 +61,10 @@ struct CardDetailView: View {
         #if os(macOS)
         true
         #else
-        sizeClass == .regular
+        // A regular width isn't always room for the card beside its Info
+        // inspector: beside the sidebar on an open iPhone Duo the card gets
+        // 587 points, and the inspector then covered the card, dimmed.
+        sizeClass == .regular && width >= 700
         #endif
     }
 
@@ -398,11 +404,14 @@ private struct EditLinkSheet: View {
                         .onSubmit(submit)
                         .accessibilityIdentifier("editLink.field")
                 } footer: {
-                    if let error {
-                        Text(error).foregroundStyle(.red)
-                    } else {
-                        Text(tr("native.card.editLink.message"))
+                    Group {
+                        if let error {
+                            Text(error).foregroundStyle(.red)
+                        } else {
+                            Text(tr("native.card.editLink.message"))
+                        }
                     }
+                    .font(.allo(.footnote))
                 }
             }
             .formStyle(.grouped)

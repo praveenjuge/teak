@@ -1057,8 +1057,7 @@
       "bulkDescription": "{count, plural, other {这将永久删除 # 张卡片及其文件。}}此操作无法撤销。"
     },
     "body": {
-      "emptyNote": "空笔记",
-      "recording": "录音"
+      "emptyNote": "空笔记"
     },
     "link": {
       "markedAs": "{verb, select, read {已标为已读} watched {已标为已看} listened {已标为已听} bought {已标为已买} cooked {已标为已做} played {已标为已玩} other {已标为已完成}}"
@@ -1091,8 +1090,7 @@
     },
     "trash": {
       "retention": "废纸篓中的卡片会在 {days, plural, other {# 天}}后永久删除。"
-    },
-    "pinnedMark": "已置顶"
+    }
   },
   "grids": {
     "masonry": {
@@ -1395,12 +1393,7 @@
       },
       "nothingToRevisit": "这里没有可回顾的内容",
       "saveAsSmartFolder": "保存为智能文件夹…",
-      "reshuffle": "重新随机",
-      "density": "密度",
-      "densities": {
-        "comfortable": "宽松",
-        "compact": "紧凑"
-      }
+      "reshuffle": "重新随机"
     },
     "dates": {
       "today": "今天",
@@ -1849,6 +1842,9 @@
         "type": "{type, select, text {文本} link {链接} image {图片} video {视频} audio {音频} document {文档} palette {调色板} quote {引用} other {{type}}}",
         "favorites": "收藏",
         "archived": "已归档",
+        "done": "已完成",
+        "todo": "待办",
+        "pinned": "置顶",
         "price": "价格 {bound}",
         "text": "文字“{text}”"
       }

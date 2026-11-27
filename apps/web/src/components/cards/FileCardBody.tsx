@@ -1,4 +1,4 @@
-import { useTranslations } from "@teak/i18n/react";
+import type { ReactNode } from "react";
 import { isGifCard } from "../../lib/cardTypes";
 import { formatDuration, getFileFormatBadge } from "./cardDisplay";
 import { AudioWavePreview } from "./previews/AudioWavePreview";
@@ -51,29 +51,21 @@ export function VideoCardBody({ card, isPriority }: FileCardBodyProps) {
   );
 }
 
-export function AudioCardBody({
-  card,
-  textInsets,
-}: Pick<FileCardBodyProps, "card"> & { textInsets?: string }) {
-  const t = useTranslations("cards.body");
+export function AudioCardBody({ card }: Pick<FileCardBodyProps, "card">) {
   return (
     <AudioWavePreview
       cardId={card._id}
       durationLabel={formatDuration(card.fileMetadata?.duration)}
-      formatBadge={getFileFormatBadge(
-        card.fileMetadata?.fileName,
-        card.fileMetadata?.mimeType
-      )}
-      textInsets={textInsets}
-      title={
-        card.metadataTitle || card.fileMetadata?.fileName || t("recording")
-      }
       waveformGrid={card.fileMetadata?.waveform?.grid}
     />
   );
 }
 
-export function DocumentCardBody({ card, isPriority }: FileCardBodyProps) {
+export function DocumentCardBody({
+  card,
+  isPriority,
+  marks,
+}: FileCardBodyProps & { marks?: ReactNode }) {
   return (
     <GridDocumentPreview
       cardId={card._id}
@@ -84,6 +76,7 @@ export function DocumentCardBody({ card, isPriority }: FileCardBodyProps) {
       )}
       height={card.fileMetadata?.height}
       isPriority={isPriority}
+      marks={marks}
       thumbnailKey={card.thumbnailKey}
       thumbnailUrl={card.thumbnailUrl ?? undefined}
       width={card.fileMetadata?.width}

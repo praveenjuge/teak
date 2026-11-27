@@ -76,7 +76,7 @@ export const loadAppSession = createServerFn({ method: "GET" })
     if (!auth.user) {
       // A page load goes straight to hosted AuthKit, with its PKCE cookie;
       // a client navigation can't follow that cross-origin hop, so it goes
-      // through /sign-in, which starts AuthKit as a page load.
+      // through /sign-in as a page load, since only the server answers it.
       if (data.pageLoad) {
         throw redirect({
           href: await getSignInUrl({
@@ -87,7 +87,10 @@ export const loadAppSession = createServerFn({ method: "GET" })
           }),
         });
       }
-      throw redirect({ href: signInPath({ next: data.path }) });
+      throw redirect({
+        href: signInPath({ next: data.path }),
+        reloadDocument: true,
+      });
     }
     const { accessToken, ...initialAuth } = auth;
     const locale = localeFromCookie(getCookie(LOCALE_COOKIE));

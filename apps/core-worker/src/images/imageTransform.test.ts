@@ -160,6 +160,17 @@ describe("Cloudflare image transformations", () => {
     expect(unavailable.status).toBe(415);
   });
 
+  test("serves an AVIF original when its transform fails for an app that accepts anything", async () => {
+    const response = await handleImageRequest(
+      await signedImageRequest("grid", "*/*"),
+      makeEnv("image/avif"),
+      async () => new Response(null, { status: 415 }),
+      NOW
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("image/avif");
+  });
+
   test("rasterizes signed SVG renditions for GET and HEAD", async () => {
     const request = await signedImageRequest("grid", "image/avif", SVG_KEY);
     const getResponse = await handleImageRequest(

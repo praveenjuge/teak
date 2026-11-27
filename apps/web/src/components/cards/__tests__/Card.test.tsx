@@ -679,7 +679,7 @@ describe("Cards/Card redesign", () => {
     expect(markup).not.toContain('aria-label="Favorite"');
   });
 
-  test("offers Pin to top with its key, and Unpin on a pinned card with its mark", () => {
+  test("offers Pin to top with its key, and Unpin on a pinned card, which carries no pin mark", () => {
     const unpinned = renderToStaticMarkup(
       <Card card={createLinkCard() as any} onTogglePin={() => undefined} />
     );
@@ -694,7 +694,7 @@ describe("Cards/Card redesign", () => {
       />
     );
     expect(pinned).toContain("Unpin<kbd>P</kbd>");
-    expect(pinned).toContain('aria-label="Pinned"');
+    expect(pinned).not.toContain('aria-label="Pinned"');
   });
 
   test("offers no Select where cards can't be selected, like the Pinned row", () => {
@@ -767,7 +767,7 @@ describe("Cards/Card redesign", () => {
     expect(markup).not.toContain("ref=1");
   });
 
-  test("names an audio card's recording and its length", () => {
+  test("shows an audio card's length, with no name or caption", () => {
     const markup = renderToStaticMarkup(
       <Card
         card={
@@ -779,8 +779,75 @@ describe("Cards/Card redesign", () => {
         }
       />
     );
-    expect(markup).toContain("Standup.m4a");
-    expect(markup).toContain("1:24");
+    expect(markup).toContain(">1:24</span>");
+    expect(markup).not.toContain(">Standup.m4a<");
+    expect(markup).not.toContain("data-card-footer");
+  });
+
+  // A document's footer is in GridDocumentPreview.test.tsx; it's mocked here.
+  test("names a link in a footer inside the card, and no note, picture or recording", () => {
+    const footerOf = (card: Record<string, unknown>) =>
+      renderToStaticMarkup(<Card card={card as any} />).includes(
+        "data-card-footer"
+      );
+    expect(footerOf(linkWithPreview())).toBe(true);
+    for (const type of ["text", "quote", "image", "video", "audio"]) {
+      expect(footerOf(createLinkCard({ type, url: undefined }))).toBe(false);
+    }
+    expect(
+      footerOf(
+        createLinkCard({
+          type: "palette",
+          url: undefined,
+          colors: [{ hex: "#112233" }],
+        })
+      )
+    ).toBe(false);
+  });
+
+  test("keeps a link's favorite and done marks together at the end of its footer", () => {
+    const markup = renderToStaticMarkup(
+      <Card
+        card={
+          linkWithPreview({
+            completedAt: 1,
+            isFavorited: true,
+            metadata: {
+              linkPreview: { status: "success", title: "A story" },
+              linkCategory: {
+                category: "article",
+                fetchedAt: 1,
+                sourceUrl: "https://www.example.com/story",
+              },
+            },
+          }) as any
+        }
+      />
+    );
+    const footer = markup.slice(markup.indexOf("data-card-footer"));
+    const marks = footer.slice(footer.indexOf("data-card-marks"));
+    expect(footer).toContain(">A story</p>");
+    expect(marks).toContain('aria-label="Marked as read"');
+    expect(marks).toContain("fill-destructive");
+  });
+
+  test("puts a favorite note's heart in the card's bottom right corner", () => {
+    const markup = renderToStaticMarkup(
+      <Card
+        card={
+          createLinkCard({
+            type: "text",
+            url: undefined,
+            content: "Call the framer",
+            isFavorited: true,
+          }) as any
+        }
+      />
+    );
+    expect(markup).not.toContain("data-card-footer");
+    expect(markup).toMatch(
+      /absolute right-2 bottom-2[^"]*"><span[^>]*data-card-marks=""/
+    );
   });
 
   test("shows a text-only social post's words on its cover", () => {

@@ -1,5 +1,6 @@
 import SwiftUI
 import TeakCore
+import TeakUI
 import WidgetKit
 
 /// One tap to start saving: a note, a voice memo, photos, the camera or
@@ -96,7 +97,7 @@ struct QuickCaptureView: View {
             ZStack {
                 AccessoryWidgetBackground()
                 Image(systemName: "square.and.pencil")
-                    .font(.title3.weight(.medium))
+                    .font(.allo(.title3).weight(.medium))
             }
             .widgetURL(TeakLink.newNote.url)
             .accessibilityLabel(actions[0].title)
@@ -134,7 +135,7 @@ private struct CaptureTile: View {
     var body: some View {
         Link(destination: action.link.url) {
             Image(systemName: action.symbol)
-                .font((large ? Font.title : .title3).weight(.medium))
+                .font(Font.allo(large ? .title : .title3).weight(.medium))
                 .foregroundStyle(.primary)
                 .widgetAccentable()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)

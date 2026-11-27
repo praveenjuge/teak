@@ -731,7 +731,7 @@ describe("Bulk card tags", () => {
       {
         userId: "owner",
         operation: "create",
-        items: [{ content: "Tagged in bulk", tags: ["  ux ", "ux", "", 7] }],
+        items: [{ content: "Tagged in bulk", tags: ["  ux ", "ux", ""] }],
       }
     );
     expect(result.summary).toEqual({ total: 1, succeeded: 1, failed: 0 });
@@ -791,7 +791,7 @@ describe("Bulk items follow the single-card rules", () => {
       "Unknown field `metadataTitle`",
       "Unknown field `isArchived`",
       "Each update item must include content, url, notes or tags",
-      "Each update item must include content, url, notes or tags",
+      "`content` must be a string",
     ]);
     const card = await t.run((ctx) => ctx.db.get("cards", cardId));
     expect(card?.isArchived).toBeUndefined();

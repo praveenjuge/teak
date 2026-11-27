@@ -1,3 +1,4 @@
+import { doneActionLabel } from "@teak/convex/shared/linkCategories";
 import type { TeakTranslator } from "@teak/i18n";
 import { useTranslations } from "@teak/i18n/react";
 import type { DragEvent, KeyboardEvent } from "react";
@@ -5,6 +6,7 @@ import { memo, use, useRef } from "react";
 import {
   ArrowUpRight,
   Check,
+  CircleCheck,
   Copy,
   Ellipsis,
   ExternalLink,
@@ -13,7 +15,6 @@ import {
   Heart,
   LoaderCircle,
   Pencil,
-  Pin,
   RefreshCw,
 } from "vadivam-react";
 import { CardContent, Card as UICard } from "@/components/ui/card";
@@ -53,7 +54,6 @@ import {
   cardFileFormat,
   cardTitle,
   linkCardTitle as linkTitleOf,
-  showsPictureTile,
 } from "../../lib/cardTypes";
 import { CARD_DRAG_TYPE } from "../../lib/folders";
 import { isCopyCardKey } from "../../lib/gridKeys";
@@ -73,13 +73,13 @@ import {
   cardActionIcon,
   cardActionIconClass,
 } from "./CardActionIcon";
-import { CardBody } from "./CardBody";
+import { CardBody, hasCardFooter } from "./CardBody";
 import {
   CardMenuEntries,
   type CardMenuEntry,
   QuickActionButton,
 } from "./CardMenu";
-import { isCardProcessing } from "./cardDisplay";
+import { CARD_MARK, isCardProcessing } from "./cardDisplay";
 import { CARD_ID_ATTRIBUTE } from "./cardElement";
 import { FirstPaintCopyContext } from "./firstPaintCopy";
 import { useLinkCardImage } from "./linkCardImage";
@@ -229,21 +229,20 @@ export const Card = memo(function Card({
 
   const isProcessing =
     !(isOptimistic || card.isDeleted) && isCardProcessing(card);
-  const showFavoriteMark = Boolean(card.isFavorited && !isOptimistic);
-  const showPinMark = card.pinPosition !== undefined && !isOptimistic;
   const showQuickActions = !(isOptimistic || isSelectionMode);
-  // Text makes room for the heart and pin marks, and on touch screens for
-  // the More button that keeps showing beside them.
-  const marks = Number(showFavoriteMark) + Number(showPinMark);
-  let textInsets = ["", "pr-11", "pr-19"][marks] ?? "";
-  if (showQuickActions) {
-    textInsets = cn(
-      textInsets,
-      ["pointer-coarse:pr-11", "pointer-coarse:pr-20", "pointer-coarse:pr-28"][
-        marks
-      ]
-    );
-  }
+  const marks = isOptimistic ? null : (
+    <CardMarks
+      doneLabel={
+        card.completedAt === undefined
+          ? undefined
+          : t("link.markedAs", {
+              verb: doneActionLabel(card.metadata?.linkCategory?.category),
+            })
+      }
+      isFavorited={Boolean(card.isFavorited)}
+    />
+  );
+  const footer = hasCardFooter(card);
 
   const canDrag =
     nativeDrag && !(isOptimistic || isSelectionMode || card.isDeleted);
@@ -376,10 +375,6 @@ export const Card = memo(function Card({
 
   const showHoverSelect =
     !(isOptimistic || isSelectionMode) && offers("select");
-  const isMediaCard =
-    showsPictureTile(card.type) ||
-    (card.type === "link" && Boolean(linkImage)) ||
-    (card.type === "palette" && Boolean(card.colors?.length));
 
   return (
     <ContextMenu disabled={isOptimistic}>
@@ -438,7 +433,7 @@ export const Card = memo(function Card({
                     onImageError: handleLinkImageError,
                     title: linkCardTitle,
                   }}
-                  textInsets={textInsets}
+                  marks={footer ? marks : undefined}
                 />
               </CardContent>
               {isProcessing ? (
@@ -481,44 +476,11 @@ export const Card = memo(function Card({
               </ShortcutTooltip>
             ) : null}
 
-            {showFavoriteMark || showPinMark ? (
-              <div
-                className={cn(
-                  "pointer-events-none absolute top-2.5 right-2.5 z-10 flex items-center gap-1 transition-opacity duration-150",
-                  showQuickActions &&
-                    "pointer-coarse:right-11 group-hover/card:opacity-0 group-has-[[data-slot=card]:focus-visible]/card:opacity-0"
-                )}
-              >
-                {showPinMark ? (
-                  <span
-                    className={cn(
-                      "flex size-7 items-center justify-center rounded-full",
-                      isMediaCard &&
-                        "bg-background/85 shadow-sm ring-1 ring-black/5 backdrop-blur-md dark:ring-white/10"
-                    )}
-                    data-pin-mark=""
-                  >
-                    <Pin
-                      aria-label={t("pinnedMark")}
-                      className="size-3.5 fill-foreground text-foreground"
-                      role="img"
-                    />
-                  </span>
-                ) : null}
-                {showFavoriteMark ? (
-                  <span
-                    aria-hidden="true"
-                    className={cn(
-                      "flex size-7 items-center justify-center rounded-full",
-                      isMediaCard &&
-                        "bg-background/85 shadow-sm ring-1 ring-black/5 backdrop-blur-md dark:ring-white/10"
-                    )}
-                  >
-                    <Heart className="size-3.5 fill-destructive text-destructive" />
-                  </span>
-                ) : null}
+            {footer ? null : (
+              <div className="pointer-events-none absolute right-2 bottom-2 z-10">
+                {marks}
               </div>
-            ) : null}
+            )}
 
             {showQuickActions && (
               <div className="pointer-events-none pointer-coarse:pointer-events-auto absolute top-2.5 right-2.5 z-20 flex items-center gap-1 opacity-0 pointer-coarse:opacity-100 transition-opacity duration-150 group-hover/card:pointer-events-auto group-hover/card:opacity-100 has-data-popup-open:pointer-events-auto has-data-popup-open:opacity-100 group-has-[[data-slot=card]:focus-visible]/card:opacity-100">
@@ -583,3 +545,34 @@ export const Card = memo(function Card({
     </ContextMenu>
   );
 });
+
+/**
+ * A card's favorite and done marks, in one spot on every card: its bottom
+ * right corner, or the end of a link's or document's footer. Pinned cards
+ * have their own row, so they carry no mark.
+ */
+function CardMarks({
+  doneLabel,
+  isFavorited,
+}: {
+  doneLabel?: string;
+  isFavorited: boolean;
+}) {
+  if (!(doneLabel || isFavorited)) {
+    return null;
+  }
+  return (
+    <span className="flex shrink-0 items-center gap-1" data-card-marks="">
+      {doneLabel ? (
+        <span className={CARD_MARK}>
+          <CircleCheck aria-label={doneLabel} role="img" />
+        </span>
+      ) : null}
+      {isFavorited ? (
+        <span aria-hidden="true" className={CARD_MARK}>
+          <Heart className="fill-destructive text-destructive" />
+        </span>
+      ) : null}
+    </span>
+  );
+}

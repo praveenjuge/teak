@@ -203,29 +203,34 @@ interface ImageCandidate {
   width?: number;
 }
 
+// A candidate's URL runs to whitespace and may hold commas (image CDNs write
+// `w_800,c_fill`); a comma ends the candidate only after its descriptor, or
+// at the very end of a URL that has none.
+const SRCSET_CANDIDATE = /[\s,]*([^\s,]\S*?)(,+(?=\s|$)|\s+([^,]*)|$)/gu;
+
 const parseSrcset = (srcset: string, base: string): ImageCandidate[] =>
-  srcset
-    .split(/,(?=\s*\S)/u)
-    .map((entry) => entry.trim().split(/\s+/u))
-    .flatMap(([url, descriptor]): ImageCandidate[] => {
-      const resolved = url ? resolveHttpUrl(url, base) : null;
-      if (!resolved) {
-        return [];
-      }
-      const widthMatch = /^(\d+)w$/iu.exec(descriptor ?? "");
-      if (widthMatch) {
-        return [{ url: resolved, width: Number(widthMatch[1]) }];
-      }
-      const densityMatch = /^(\d+(?:\.\d+)?)x$/iu.exec(descriptor ?? "1x");
-      return [
-        {
-          url: resolved,
-          width: densityMatch
-            ? Math.round(Number(densityMatch[1]) * 800)
-            : undefined,
-        },
-      ];
-    });
+  Array.from(srcset.matchAll(SRCSET_CANDIDATE), (match) => [
+    match[1],
+    match[3]?.trim().split(/\s+/u)[0] || undefined,
+  ]).flatMap(([url, descriptor]): ImageCandidate[] => {
+    const resolved = url ? resolveHttpUrl(url, base) : null;
+    if (!resolved) {
+      return [];
+    }
+    const widthMatch = /^(\d+)w$/iu.exec(descriptor ?? "");
+    if (widthMatch) {
+      return [{ url: resolved, width: Number(widthMatch[1]) }];
+    }
+    const densityMatch = /^(\d+(?:\.\d+)?)x$/iu.exec(descriptor ?? "1x");
+    return [
+      {
+        url: resolved,
+        width: densityMatch
+          ? Math.round(Number(densityMatch[1]) * 800)
+          : undefined,
+      },
+    ];
+  });
 
 /**
  * One image from `srcset`, `src` or a lazy-loading attribute: the widest

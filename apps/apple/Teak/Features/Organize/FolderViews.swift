@@ -1,5 +1,6 @@
 import SwiftUI
 import TeakCore
+import TeakUI
 
 enum FolderPrompt: Identifiable, Equatable {
     case create
@@ -155,7 +156,7 @@ struct FolderLabel: View {
                 Spacer(minLength: 8)
                 if !folder.isSmart {
                     Text(Int(folder.activeCardCount), format: .number.locale(AppLanguage.locale))
-                        .font(.footnote)
+                        .font(.allo(.footnote))
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
                 }

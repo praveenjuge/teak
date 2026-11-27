@@ -34,6 +34,7 @@ let package = Package(
         .target(
             name: "TeakUI",
             dependencies: ["TeakCore"],
+            resources: [.process("Resources")],
             swiftSettings: strict
         ),
         .testTarget(

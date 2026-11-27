@@ -470,10 +470,13 @@ export const CARD_LIST_PARAMS = {
     max: MAX_SHUFFLE_SEED,
     doc: "Required with sort shuffle: the same seed gives the same order, a new one reshuffles",
   },
-  createdAfter: { kind: "timestamp", doc: "Created after this time (Unix ms)" },
+  createdAfter: {
+    kind: "timestamp",
+    doc: "Saved at or after this time (Unix ms): the card's savedAt, its creation time unless saved again",
+  },
   createdBefore: {
     kind: "timestamp",
-    doc: "Created before this time (Unix ms)",
+    doc: "Saved at or before this time (Unix ms), by savedAt",
   },
   limit: {
     kind: "integer",

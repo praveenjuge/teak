@@ -24,11 +24,13 @@ export const readCloudflareImageInfo = (value: unknown): RasterInfo | null => {
   const info = value as {
     format?: unknown;
     height?: unknown;
-    original?: { height?: unknown; width?: unknown };
+    original?: { format?: unknown; height?: unknown; width?: unknown };
     width?: unknown;
   };
+  // The binding names the format at the top; format=json only in `original`.
+  const format = info.format ?? info.original?.format;
   return {
-    format: typeof info.format === "string" ? info.format : "",
+    format: typeof format === "string" ? format : "",
     height: positiveDimension(info.original?.height ?? info.height),
     width: positiveDimension(info.original?.width ?? info.width),
   };

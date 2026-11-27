@@ -3,6 +3,7 @@ import AppKit
 import Carbon.HIToolbox
 import SwiftUI
 import TeakCore
+import TeakUI
 import UniformTypeIdentifiers
 
 enum MacPreferences {
@@ -107,9 +108,9 @@ enum CaptureHUD {
     /// AppKit rather than SwiftUI: a hosting view as a borderless panel's content kept
     /// resizing the panel to its corner safe areas until AppKit threw (macOS 26).
     private static func hudView(message: String, isError: Bool) -> NSView {
-        let font = NSFont.systemFont(ofSize: NSFont.systemFontSize, weight: .medium)
+        let font = Allo.platformFont(size: NSFont.systemFontSize, weight: 500) as NSFont
         let label = NSTextField(wrappingLabelWithString: message)
-        label.font = font.fontDescriptor.withDesign(.rounded).flatMap { NSFont(descriptor: $0, size: font.pointSize) } ?? font
+        label.font = font
         label.preferredMaxLayoutWidth = 420
         let icon = NSImageView(image: NSImage(systemSymbolName: isError ? "exclamationmark.circle.fill" : "checkmark.circle.fill",
                                               accessibilityDescription: nil) ?? NSImage())
@@ -170,7 +171,7 @@ final class QuickCapturePanel: NSObject, NSWindowDelegate {
         panel.contentView = NSHostingView(rootView: QuickCaptureView(onClose: { [weak self] in self?.close() })
             .environment(services.capture)
             .environment(services.app)
-            .fontDesign(.rounded)
+            .font(.allo(.body))
             .tint(.accentColor))
         return panel
     }
@@ -187,7 +188,7 @@ private struct QuickCaptureView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             TextEditor(text: $text)
-                .font(.body)
+                .font(.allo(.body))
                 .scrollContentBackground(.hidden)
                 .focused($focused)
                 .disabled(capture.isSavingText)

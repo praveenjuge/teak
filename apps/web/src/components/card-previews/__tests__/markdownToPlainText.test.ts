@@ -106,11 +106,33 @@ describe("markdownToPlainText", () => {
     expect(markdownToPlainText("![alt text](https://example.com/x.png)")).toBe(
       "alt text"
     );
+    // The editor writes a URL's parentheses as they are.
+    expect(
+      markdownToPlainText(
+        "See [Mercury](https://en.wikipedia.org/wiki/Mercury_(planet)) for details"
+      )
+    ).toBe("See Mercury for details");
+    expect(
+      markdownToPlainText("![chart](https://example.com/a_(1).png) caption")
+    ).toBe("chart caption");
   });
 
   test("removes inline emphasis and code markers", () => {
     expect(markdownToPlainText("**bold** and *italic* and `code`")).toBe(
       "bold and italic and code"
+    );
+    expect(markdownToPlainText("__bold__ and _italic_, *a*")).toBe(
+      "bold and italic, a"
+    );
+  });
+
+  test("keeps underscores and asterisks that aren't emphasis", () => {
+    // Text saved through the API, CLI or MCP isn't escaped.
+    expect(
+      markdownToPlainText("rename my_file_name.txt and call snake_case_names")
+    ).toBe("rename my_file_name.txt and call snake_case_names");
+    expect(markdownToPlainText("2 * 3 * 4 and a ** b ** c")).toBe(
+      "2 * 3 * 4 and a ** b ** c"
     );
   });
 

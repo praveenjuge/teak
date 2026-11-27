@@ -97,9 +97,18 @@ export const searchCards = query({
       const command = resolveQuickSearchCommand(searchQuery);
       if (command) {
         const view = quickCommandList(command, favoritesOnly);
+        // Filter in the read, so cards the filters drop don't use up `limit`.
         const listed = await takeCardList(
           ctx,
-          { userId: user.teakUserId, ...view.list },
+          {
+            userId: user.teakUserId,
+            ...view.list,
+            favoritesOnly: view.favoritesOnly,
+            types,
+            savedAt: createdAtRange
+              ? { gte: createdAtRange.start, lt: createdAtRange.end }
+              : undefined,
+          },
           order,
           limit
         );

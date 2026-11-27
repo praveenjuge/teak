@@ -208,7 +208,7 @@ export const suggestSmartFolderName = (
         case "is":
           return qualifier.value === "fav"
             ? t("suggestedName.favorites")
-            : t("suggestedName.archived");
+            : t(`suggestedName.${qualifier.value}`);
         case "price": {
           const bound = parsePriceBound(qualifier.value);
           return bound

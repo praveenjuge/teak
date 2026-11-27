@@ -2599,6 +2599,7 @@ title: Notes
             "style": "form",
           },
           {
+            "description": "Only cards saved at or after this time (Unix ms): the card's \`savedAt\`, which is when it was created unless the same link was saved again since.",
             "in": "query",
             "name": "createdAfter",
             "schema": {
@@ -2606,6 +2607,7 @@ title: Notes
             },
           },
           {
+            "description": "Only cards saved at or before this time (Unix ms), by \`savedAt\`.",
             "in": "query",
             "name": "createdBefore",
             "schema": {
@@ -5583,7 +5585,7 @@ exports[`published API contract the MCP tool list stays as published 1`] = `
   },
   {
     "annotations": {
-      "destructiveHint": false,
+      "destructiveHint": true,
       "idempotentHint": false,
       "openWorldHint": false,
       "readOnlyHint": false,
@@ -6812,13 +6814,13 @@ exports[`published API contract the MCP tool list stays as published 1`] = `
   },
   {
     "annotations": {
-      "destructiveHint": false,
+      "destructiveHint": true,
       "idempotentHint": true,
       "openWorldHint": false,
       "readOnlyHint": false,
       "title": "Reset a link's image",
     },
-    "description": "Go back to the image Teak found for a link card, deleting the one that replaced it. Changes nothing when the card has its own image.",
+    "description": "Go back to the image Teak found for a link card, deleting the uploaded one that replaced it. Link cards only; a link without a chosen image is left as it is.",
     "inputSchema": {
       "additionalProperties": false,
       "properties": {

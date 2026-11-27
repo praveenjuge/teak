@@ -1057,8 +1057,7 @@
       "bulkDescription": "{count, plural, one {Esto elimina de forma permanente # tarjeta y sus archivos.} other {Esto elimina de forma permanente # tarjetas y sus archivos.}} Esta acción no se puede deshacer."
     },
     "body": {
-      "emptyNote": "Nota vacía",
-      "recording": "Grabación"
+      "emptyNote": "Nota vacía"
     },
     "link": {
       "markedAs": "{verb, select, read {Marcado como leído} watched {Marcado como visto} listened {Marcado como escuchado} bought {Marcado como comprado} cooked {Marcado como cocinado} played {Marcado como jugado} other {Marcado como hecho}}"
@@ -1091,8 +1090,7 @@
     },
     "trash": {
       "retention": "Las tarjetas de la papelera se eliminan definitivamente después de {days, plural, one {# día} other {# días}}."
-    },
-    "pinnedMark": "Fijada"
+    }
   },
   "grids": {
     "masonry": {
@@ -1395,12 +1393,7 @@
       },
       "nothingToRevisit": "No hay nada que repasar aquí",
       "saveAsSmartFolder": "Guardar como carpeta inteligente…",
-      "reshuffle": "Volver a mezclar",
-      "density": "Densidad",
-      "densities": {
-        "comfortable": "Amplia",
-        "compact": "Compacta"
-      }
+      "reshuffle": "Volver a mezclar"
     },
     "dates": {
       "today": "Hoy",
@@ -1849,6 +1842,9 @@
         "type": "{type, select, text {Textos} link {Enlaces} image {Imágenes} video {Vídeos} audio {Audios} document {Documentos} palette {Paletas} quote {Citas} other {{type}}}",
         "favorites": "Favoritas",
         "archived": "Archivadas",
+        "done": "Hechas",
+        "todo": "Pendientes",
+        "pinned": "Fijadas",
         "price": "Precio {bound}",
         "text": "Texto «{text}»"
       }

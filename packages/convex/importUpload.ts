@@ -136,6 +136,7 @@ export const createImportUpload = action({
         uploadExpiresAt: Date.now() + IMPORT_UPLOAD_TTL_MS,
       }
     );
+    let uploadId: string;
     try {
       const creation = await callCoreWorkerOp({
         op: "create-multipart",
@@ -147,18 +148,20 @@ export const createImportUpload = action({
       if (creation.kind !== "ok" || !creation.data.uploadId) {
         throw new Error("R2 did not return an upload ID");
       }
-      const created = { UploadId: creation.data.uploadId };
-      await ctx.runMutation(internal.dataImport.attachMultipart, {
-        jobId,
-        uploadId: created.UploadId,
-      });
-      const parts = await signMissingParts({
-        key: sourceKey,
-        uploadId: created.UploadId,
-        fileSize: args.fileSize,
-        uploaded: [],
-      });
-      return { jobId, partSize: IMPORT_PART_BYTES, uploadedParts: [], parts };
+      uploadId = creation.data.uploadId;
+      const attached: boolean = await ctx.runMutation(
+        internal.dataImport.attachMultipart,
+        { jobId, uploadId }
+      );
+      if (attached) {
+        const parts = await signMissingParts({
+          key: sourceKey,
+          uploadId,
+          fileSize: args.fileSize,
+          uploaded: [],
+        });
+        return { jobId, partSize: IMPORT_PART_BYTES, uploadedParts: [], parts };
+      }
     } catch (error) {
       await ctx.runMutation(internal.dataImport.finishJob, {
         jobId,
@@ -167,6 +170,15 @@ export const createImportUpload = action({
       });
       throw error;
     }
+    // Canceled while R2 created the upload; `attachMultipart` ended the job.
+    await callCoreWorkerOp({
+      op: "abort-multipart",
+      params: { key: sourceKey, uploadId },
+    });
+    throw new ConvexError({
+      code: "IMPORT_CANCELED",
+      message: "The import was canceled",
+    });
   },
 });
 

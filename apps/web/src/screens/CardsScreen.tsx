@@ -65,7 +65,6 @@ import { PinnedStrip } from "../components/pinned";
 import { ConnectedRevisitDeck } from "../components/revisit/ConnectedRevisitDeck";
 import { focusRevisitDeck } from "../components/revisit/RevisitDeck";
 import { type GridCardAction, useCardActions } from "../hooks/useCardActions";
-import { useCardDensity } from "../hooks/useCardDensity";
 import type { CloseCardOptions } from "../hooks/useCardQueryParamState";
 import { useCardTagEditor } from "../hooks/useCardTagEditor";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
@@ -167,7 +166,6 @@ export function CardsScreen({
   const t = useTranslations("screens.cards");
   const tc = useTranslations("common");
   const tv = useTranslations("lib.libraryViews");
-  const density = useCardDensity();
   const [tagManagementCardId, setTagManagementCardId] = useState<string | null>(
     null
   );
@@ -689,7 +687,7 @@ export function CardsScreen({
       searchController.isSearchPending ||
       (displayCards.length === 0 && semanticSearch.isPending)
     ) {
-      return <CardsGridSkeleton {...density.layout} />;
+      return <CardsGridSkeleton />;
     }
 
     if (isSmartFolder && displayCards.length === 0 && hasNoSearchFilters) {
@@ -747,7 +745,7 @@ export function CardsScreen({
 
     if (displayCards.length === 0 && hasNoFilters) {
       if (vaultSetup === "loading") {
-        return <CardsGridSkeleton {...density.layout} />;
+        return <CardsGridSkeleton />;
       }
       return (
         <>
@@ -851,7 +849,6 @@ export function CardsScreen({
       ) : (
         <CardsSearchHeader
           {...searchBarProps}
-          density={density.density}
           HeaderActions={isTrashView ? <EmptyTrashButton /> : <AddCardButton />}
           leading={headerLeading}
           lockedChips={
@@ -864,7 +861,6 @@ export function CardsScreen({
               />
             ) : undefined
           }
-          onDensityChange={density.setDensity}
           onSaveSearch={
             saveableQuery === null
               ? undefined
@@ -928,7 +924,6 @@ export function CardsScreen({
             cardsStatus === "CanLoadMore" || cardsStatus === "LoadingMore"
           }
           isLoadingMore={cardsStatus === "LoadingMore"}
-          layout={density.layout}
           {...gridHandlers}
           ref={gridRef}
           resetKey={resetKey}

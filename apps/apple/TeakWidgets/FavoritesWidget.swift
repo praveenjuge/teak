@@ -1,6 +1,7 @@
 import ImageIO
 import SwiftUI
 import TeakCore
+import TeakUI
 import WidgetKit
 
 /// The newest favorites, from the snapshot the app keeps in the app group.
@@ -73,7 +74,7 @@ struct FavoritesView: View {
 
     var body: some View {
         content
-            .fontDesign(.rounded)
+            .font(.allo(.body))
             .containerBackground(.background, for: .widget)
     }
 
@@ -89,7 +90,7 @@ struct FavoritesView: View {
                 } icon: {
                     Image(systemName: "heart.fill").widgetAccentable()
                 }
-                .font(.headline)
+                .font(.allo(.headline))
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .widgetURL(first.link)
             case .accessoryInline:
@@ -137,10 +138,10 @@ struct FavoritesView: View {
         default:
             VStack(spacing: 8) {
                 Image(systemName: "heart")
-                    .font(.title2.weight(.medium))
+                    .font(.allo(.title2).weight(.medium))
                     .widgetAccentable()
                 Text(tr("native.widgets.favoritesEmpty"))
-                    .font(.subheadline.weight(.medium))
+                    .font(.allo(.subheadline).weight(.medium))
             }
             .foregroundStyle(.secondary)
             .multilineTextAlignment(.center)
@@ -192,12 +193,12 @@ private struct FavoriteTile: View {
                 // Only the small widget has room for the type's symbol; a tile gives it to the words.
                 if fillsWidget {
                     Image(systemName: card.type.symbol)
-                        .font(.body.weight(.semibold))
+                        .font(.allo(.body).weight(.semibold))
                         .foregroundStyle(.secondary)
                         .widgetAccentable()
                 }
                 Text(card.title)
-                    .font(fillsWidget ? .headline : .footnote.weight(.semibold))
+                    .font(fillsWidget ? .allo(.headline) : .allo(.footnote).weight(.semibold))
                     .foregroundStyle(.primary)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)

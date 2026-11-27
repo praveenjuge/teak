@@ -344,7 +344,7 @@ export const TEAK_TOOLS = [
     title: "Merge tags",
     description:
       "Replace one tag with another on every card; a card with both keeps one. Runs in the background: poll teak_v1_get_tag_operation.",
-    annotations: WRITES,
+    annotations: DESTRUCTIVE,
     schema: bodyToolSchema("mergeTags"),
     call: (input) => ({
       operationId: "mergeTags",
@@ -633,8 +633,8 @@ export const TEAK_TOOLS = [
     name: "teak_v1_reset_card_thumbnail",
     title: "Reset a link's image",
     description:
-      "Go back to the image Teak found for a link card, deleting the one that replaced it. Changes nothing when the card has its own image.",
-    annotations: IDEMPOTENT_WRITE,
+      "Go back to the image Teak found for a link card, deleting the uploaded one that replaced it. Link cards only; a link without a chosen image is left as it is.",
+    annotations: { ...DESTRUCTIVE, idempotentHint: true },
     schema: cardIdSchema,
     call: (input) => ({
       operationId: "resetCardThumbnail",

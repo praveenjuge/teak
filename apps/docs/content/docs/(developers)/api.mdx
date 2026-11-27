@@ -328,11 +328,11 @@ these query parameters:
 </ParamField>
 
 <ParamField query="createdAfter" type="number">
-  Only cards created after this timestamp.
+  Only cards saved at or after this time (Unix ms). A card's saved time is when it was created, or when the same link was last [saved again](#create-behavior); it is the card's `savedAt`.
 </ParamField>
 
 <ParamField query="createdBefore" type="number">
-  Only cards created before this timestamp.
+  Only cards saved at or before this time (Unix ms), by the same `savedAt` as `createdAfter`.
 </ParamField>
 
 <ParamField query="limit" type="number">
@@ -746,6 +746,10 @@ background.
   already uses.
 - `POST /v1/tags/delete` with `{ "tag": "old" }` removes a tag. The cards are
   kept.
+
+Folder rules and smart folders follow: a rename or merge rewrites the tag in
+`autoTags`, smart folder searches and auto-file searches, and a delete removes
+it from `autoTags`.
 
 A new name (`to`, `into`) is 1 to 64 characters; the tag you change (`from`, `tag`) can be up to 256. A tag no card has returns `404 NOT_FOUND`. One change runs at a time per account: starting another while one runs returns `409 TAG_OPERATION_RUNNING`.
 

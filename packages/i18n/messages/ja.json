@@ -1057,8 +1057,7 @@
       "bulkDescription": "{count, plural, other {#件のカードとそのファイルが完全に削除されます。}}この操作は元に戻せません。"
     },
     "body": {
-      "emptyNote": "空のメモ",
-      "recording": "録音"
+      "emptyNote": "空のメモ"
     },
     "link": {
       "markedAs": "{verb, select, read {既読} watched {視聴済み} listened {聴取済み} bought {購入済み} cooked {調理済み} played {プレイ済み} other {完了}}"
@@ -1091,8 +1090,7 @@
     },
     "trash": {
       "retention": "ゴミ箱のカードは{days, plural, other {#日}}後に完全に削除されます。"
-    },
-    "pinnedMark": "ピン留め済み"
+    }
   },
   "grids": {
     "masonry": {
@@ -1395,12 +1393,7 @@
       },
       "nothingToRevisit": "振り返るカードはありません",
       "saveAsSmartFolder": "スマートフォルダとして保存…",
-      "reshuffle": "もう一度シャッフル",
-      "density": "表示密度",
-      "densities": {
-        "comfortable": "標準",
-        "compact": "コンパクト"
-      }
+      "reshuffle": "もう一度シャッフル"
     },
     "dates": {
       "today": "今日",
@@ -1849,6 +1842,9 @@
         "type": "{type, select, text {テキスト} link {リンク} image {画像} video {動画} audio {音声} document {ドキュメント} palette {パレット} quote {引用} other {{type}}}",
         "favorites": "お気に入り",
         "archived": "アーカイブ済み",
+        "done": "完了",
+        "todo": "未完了",
+        "pinned": "ピン留め",
         "price": "価格 {bound}",
         "text": "テキスト「{text}」"
       }

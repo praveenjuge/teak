@@ -9,9 +9,15 @@ test("llms, OpenAPI, and OAuth metadata are fresh", async () => {
   expect(llms).toContain(
     "Use Teak when a person wants to keep knowledge beyond the current conversation"
   );
-  expect(
-    await fetch(`${published.siteUrl}/robots.txt`).then((r) => r.status)
-  ).toBe(200);
+  const robotsResponse = await fetch(`${published.siteUrl}/robots.txt`);
+  expect(robotsResponse.status).toBe(200);
+  // The API reference prints signed-in API URLs in its code samples, and
+  // Blume's page data holds `/v1/...` path templates and `./public/fonts/...`
+  // config paths; Google must not crawl any of them as pages.
+  const robots = await robotsResponse.text();
+  for (const rule of ["/api/v1/", "/mcp", "/v1", "/*public/fonts/"]) {
+    expect(robots).toContain(`\nDisallow: ${rule}\n`);
+  }
   expect(
     await fetch(`${published.siteUrl}/agent-readability.json`).then(
       (r) => r.status

@@ -155,6 +155,28 @@ describe("publicApi", () => {
     expect(pagination.requestedCursors).toEqual([null, null]);
   });
 
+  test("scanCardsPageForUser refuses a search's cursor instead of restarting at page one", async () => {
+    const pagination = buildSinglePaginateContext({
+      continueCursor: "",
+      isDone: true,
+      page: [buildBaseCard({ _id: "card_1", createdAt: 1, updatedAt: 1 })],
+    });
+    const handler =
+      (scanCardsPageForUser as any).handler ?? scanCardsPageForUser;
+    const relevanceCursor = btoa(
+      JSON.stringify({ mode: "relevance", offset: 1, ranked: false })
+    );
+
+    pagination.beginInvocation();
+    await expect(
+      handler(pagination.ctx, {
+        cursor: relevanceCursor,
+        scanLimit: 100,
+        userId: "user_1",
+      })
+    ).rejects.toThrow("Query parameter `cursor` is invalid");
+  });
+
   test("scanCardsPageForUser advances to the next physical page", async () => {
     const requestedCursors: Array<string | null> = [];
     let invocationPaginateCalls = 0;
@@ -515,6 +537,43 @@ describe("publicApi", () => {
     expect(result.results[0]).toMatchObject({
       error: "Each favorite item must include `isFavorited` as a boolean",
       index: 0,
+      status: "error",
+    });
+  });
+
+  test("executeBulkCardsForUser fails items whose fields have the wrong type, as POST and PATCH do", async () => {
+    const handler =
+      (executeBulkCardsForUser as any).handler ?? executeBulkCardsForUser;
+    const run = (operation: string, items: unknown[]) =>
+      handler(
+        {
+          db: withSearchSyncDb({
+            normalizeId: mock().mockReturnValue("card_1"),
+          }),
+        },
+        { items, operation, userId: "user_1" }
+      );
+
+    const created = await run("create", [
+      { content: "x", cardType: "text", tags: "design" },
+      { content: "x", cardType: "text", tags: ["a", 5] },
+      { content: "x", cardType: "text", notes: 5 },
+      { url: "https://example.com", sourceTitle: 7 },
+    ]);
+    expect(created.summary).toEqual({ failed: 4, succeeded: 0, total: 4 });
+    expect(created.results.map((result: any) => result.error)).toEqual([
+      "`tags` must be an array of strings",
+      "`tags` must be an array of strings",
+      "`notes` must be a string or null",
+      "`sourceTitle` must be a string",
+    ]);
+
+    const updated = await run("update", [
+      { cardId: "card_1", content: 5, notes: "n" },
+    ]);
+    expect(updated.results[0]).toMatchObject({
+      code: "INVALID_INPUT",
+      error: "`content` must be a string",
       status: "error",
     });
   });

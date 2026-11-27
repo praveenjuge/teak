@@ -115,7 +115,7 @@ On the web, the sidebar holds:
 - **New**, under the Teak logo: a note or link (`N`), file uploads (`U`), or an audio recording.
 - **Everything**, **Favorites** and **Tags**, then your folders (with their color and card count; smart folders show a search icon), then **Archive**, **Trash** and **Settings**. Each is a page you can bookmark or share. Drag a card onto a folder to add it.
 
-Every page has the same header: its name on the left, the search box in the middle, and its buttons, such as **View**, on the right. **View** narrows the page to card types (pick several to combine them), changes the order, switches between **Comfortable** and **Compact** cards (Compact fits up to seven columns), and saves the search as a smart folder. Selecting cards swaps the header for the selection's actions.
+Every page has the same header: its name on the left, the search box in the middle, and its buttons, such as **View**, on the right. **View** narrows the page to card types (pick several to combine them), changes the order, and saves the search as a smart folder. Selecting cards swaps the header for the selection's actions.
 
 ![The View menu open beside the search box, with card types, sort order, Shuffle, Revisit and Save as smart folder](./images/view-menu.webp)
 
@@ -123,7 +123,7 @@ Drag the sidebar's edge to resize it (double-click to reset), or collapse it to 
 
 ### Grid
 
-Cards show in a masonry grid. Notes, quotes, links, palettes, voice memos and documents are tiles of one size; photos and videos keep their own shape. A note shows its first line as a heading, a quote is set large or small to fit, and a link shows its picture with its site's icon and title under it (a link without a picture shows its title on the tile instead). A price, a video's or recording's length, and a document's file type sit in the tile's bottom corner. Rest the pointer on a card to open its link, favorite it, or open **More** (`⋯`); on touch screens the **⋯** menu always shows.
+Cards show in a masonry grid, two columns wide on a phone and up to five on a wide screen. Notes, quotes, palettes and voice memos are tiles of one size, and photos and videos keep their own shape; none of them has a caption. A note shows its first line as a heading, and a voice memo shows its length. Links and documents name themselves in a row along the bottom of the card: a link shows its picture (or its site's icon and address) above its site's icon, title and price, and a document shows its first page above its name and file type. A heart for a favorite and a check for a [done](#read-watch-and-buy) link sit in the bottom right corner of every card. A video shows its length while the pointer rests on it. Rest the pointer on a card to open its link, favorite it, or open **More** (`⋯`); on touch screens the **⋯** menu always shows.
 
 Click a card to open it. The details beside it show where it's from and its type (click the type to see every card of that type), its title (click a link's title to rename it), and one main button: **Open** for a link or **Download** for a file. Next to it are **Favorite**, the [done button](#read-watch-and-buy) for a link, **Copy**, **Folder** and **More** (`⋯`): Save PDF, More like this, Refresh details, Pin to top, Archive and Move to Trash. These stay pinned while you scroll.
 
@@ -137,9 +137,9 @@ To act on many cards, click the circle in a card's corner (or right-click it and
 
 Pin up to 12 cards to keep them at the top of **Everything**: choose **Pin to top** from a card's menu, or press `P`. Pinned cards sit in a **Pinned** row above the grid, newest pin first. Drag to reorder them (on a touch screen, hold first), or focus one and press `Alt` with `←` or `→`. Pinning a 13th card is refused; unpin one first.
 
-![The Pinned row above the grid, with three pinned cards, each with a pin in its corner](./images/pinned-cards.webp)
+![The Pinned row above the grid, with three pinned cards and no captions](./images/pinned-cards.webp)
 
-- The row shows only on **Everything** with no search or filter and the **Newest** order. Elsewhere a pinned card stays where it ranks, with a pin in its corner.
+- The row shows only on **Everything** with no search or filter and the **Newest** order. Elsewhere a pinned card stays where it ranks. Cards in the row show no caption.
 - Search `is:pinned` to list them.
 - Archiving a card or moving it to Trash unpins it; **Undo** on that toast pins it again in its old place. Favorites and pins are separate.
 - Pin on the web, or with `PATCH /v1/cards/:cardId/pin` and `isPinned: true` in the [API](/docs/api#pinned-cards), MCP, SDK or CLI. The Mac, iPhone, iPad and Android apps can search `is:pinned` but don't pin or show the row.
@@ -282,7 +282,7 @@ Teak tags cards automatically, and you can add your own. Filter by type from **V
 - **Merge into…** replaces it with another tag.
 - **Delete…** removes it from every card. The cards are kept.
 
-Changes run in the background, one at a time. Merges and deletes can't be undone, so Teak asks first.
+Folders follow the change: a rename or merge updates folders' auto-tags and searches, and a delete removes the tag from auto-tags. Changes run in the background, one at a time. Merges and deletes can't be undone, so Teak asks first.
 
 ### Archive
 
@@ -298,7 +298,7 @@ Tag a card `secret` or `hidden` to hide it from your library, Favorites, Archive
 
 ### Read, watch and buy
 
-Mark a link done when you've finished with it: open it and click the done button beside **Favorite**, or press `D`. It says **Mark as read** for articles, news, books and papers, **Mark as watched** for films and shows, **Mark as listened** for podcasts and music, **Mark as bought** for products, **Mark as cooked** for recipes, **Mark as played** for games, and **Mark as done** for anything else. The link's tile shows a check.
+Mark a link done when you've finished with it: open it and click the done button beside **Favorite**, or press `D`. It says **Mark as read** for articles, news, books and papers, **Mark as watched** for films and shows, **Mark as listened** for podcasts and music, **Mark as bought** for products, **Mark as cooked** for recipes, **Mark as played** for games, and **Mark as done** for anything else. The link's card shows a check at the end of its footer, beside the heart if it's a favorite.
 
 Search `is:todo` for what's left (articles, news, books, films, shows, podcasts, music, products, recipes, courses, events, apps and games you haven't marked done) and `is:done` for what you've finished. Both work in smart folders, so `is:todo folder:"Reading list"` is what's left to read there. Only links can be marked done.
 

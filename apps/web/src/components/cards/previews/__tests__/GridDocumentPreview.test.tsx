@@ -43,11 +43,18 @@ describe("GridDocumentPreview", () => {
     expect(eager).toContain('fetchPriority="high"');
   });
 
-  test("names the file with its format badge", () => {
+  test("names the file and its format in the footer, with the card's marks", () => {
     const markup = renderToStaticMarkup(
-      <GridDocumentPreview fileName="Annual report.pdf" formatBadge="PDF" />
+      <GridDocumentPreview
+        fileName="Annual report.pdf"
+        formatBadge="PDF"
+        marks={<span data-mark="" />}
+        thumbnailUrl={thumbnail}
+      />
     );
-    expect(markup).toContain("Annual report.pdf");
-    expect(markup).toContain(">PDF<");
+    const footer = markup.slice(markup.indexOf("data-card-footer"));
+    expect(footer).toContain(">Annual report.pdf</p>");
+    expect(footer).toContain(">PDF</span>");
+    expect(footer).toContain("data-mark");
   });
 });

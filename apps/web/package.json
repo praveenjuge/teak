@@ -1,6 +1,6 @@
 {
   "name": "@teak/web",
-  "version": "1.0.95",
+  "version": "1.0.97",
   "private": true,
   "sideEffects": [
     "*.css",

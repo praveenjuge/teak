@@ -1,8 +1,14 @@
 import type { CardType } from "@teak/convex/shared/constants";
-import { DEMO_CARD_TYPES, type DemoCard } from "../lib/home-demo-cards";
+import {
+  DEMO_CARD_TYPES,
+  type DemoCard,
+  noteParts,
+  SHORT_NOTE,
+} from "../lib/home-demo-cards";
 
-const badgeClass =
-  "inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-full border bg-background px-3 py-1 text-sm font-medium whitespace-nowrap text-foreground hover:bg-accent dark:bg-input/30 [&_svg]:size-3.5";
+/** A tag in the card view, as in the web app's card details. */
+const tagClass =
+  "inline-flex h-7 shrink-0 cursor-pointer items-center gap-1 rounded-md bg-muted px-2 text-[13px] whitespace-nowrap text-foreground hover:bg-accent [&_svg]:size-3 [&_svg]:text-muted-foreground";
 const activeChipClass =
   "inline-flex h-8 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-full bg-primary px-2.5 text-sm font-medium whitespace-nowrap text-primary-foreground transition-all hover:bg-primary/90 [&_svg]:size-3.5";
 
@@ -249,24 +255,52 @@ export function mountHomeAppDemo(root: HTMLElement) {
     button.dataset.type = "text";
     button.dataset.search = `${content} text note`.toLowerCase();
     button.setAttribute("aria-label", `Text: ${content}`);
-    const heart = el(
-      "span",
-      "demo-heart absolute top-3 right-3 z-10 text-destructive"
-    );
-    heart.append(icon("heart"));
-    // The same tile as a server-rendered note (HomeAppDemo.astro).
+    // The same tile and favorite chip as a server-rendered note
+    // (HomeAppDemo.astro).
     const body = el(
       "span",
-      "relative flex aspect-[4/3] w-full flex-col overflow-hidden rounded-2xl border bg-card p-4"
+      "relative flex aspect-[4/3] w-full flex-col overflow-hidden rounded-[14px] border border-border/80 bg-card p-4"
     );
-    body.append(
-      el(
+    const { body: text, heading } = noteParts(content);
+    if (!heading && text.length <= SHORT_NOTE) {
+      body.append(
+        el(
+          "span",
+          "flex flex-1 items-center text-[17px] leading-snug font-semibold tracking-[-0.01em] text-balance break-words",
+          text
+        )
+      );
+    } else {
+      const words = el(
         "span",
-        "min-h-0 flex-1 overflow-hidden text-[13.5px] leading-relaxed font-medium [mask-image:linear-gradient(to_bottom,#000_55%,transparent_92%)]",
-        content
-      )
+        "min-h-0 flex-1 space-y-1.5 overflow-hidden [mask-image:linear-gradient(to_bottom,#000_65%,transparent)]"
+      );
+      if (heading) {
+        words.append(
+          el(
+            "span",
+            "line-clamp-2 block text-[17px] leading-snug font-semibold tracking-[-0.01em] break-words",
+            heading
+          )
+        );
+      }
+      words.append(
+        el(
+          "span",
+          `block text-[13px] leading-relaxed whitespace-pre-line break-words${heading ? " text-muted-foreground" : ""}`,
+          text
+        )
+      );
+      body.append(words);
+    }
+    const corner = el(
+      "span",
+      "pointer-events-none absolute right-2 bottom-2 z-10"
     );
-    button.append(heart, body);
+    const heart = el("span", "demo-heart");
+    heart.append(icon("heart"));
+    corner.append(heart);
+    button.append(body, corner);
     item.append(button);
     noteItem.after(item);
 
@@ -289,11 +323,17 @@ export function mountHomeAppDemo(root: HTMLElement) {
   });
 
   const modalTitle = $<HTMLElement>("[data-demo-modal-title]");
+  const modalType = $<HTMLButtonElement>("[data-demo-modal-type]");
   const modalPreview = $<HTMLElement>("[data-demo-modal-preview]");
   const modalSummary = $<HTMLElement>("[data-demo-modal-summary]");
   const modalBadges = $<HTMLElement>("[data-demo-modal-badges]");
+  const tagsSection = $<HTMLElement>("[data-demo-modal-tags-section]");
+  const modalColors = $<HTMLElement>("[data-demo-modal-colors]");
+  const colorsSection = $<HTMLElement>("[data-demo-modal-colors-section]");
   const favoriteAction = $<HTMLButtonElement>("[data-demo-modal-favorite]");
+  const copyAction = $<HTMLButtonElement>("[data-demo-modal-copy]");
   const linkAction = $<HTMLAnchorElement>("[data-demo-modal-link]");
+  const downloadAction = $<HTMLAnchorElement>("[data-demo-modal-download]");
   const closeButton = $<HTMLButtonElement>("[data-demo-close]");
 
   const cardButton = (id: string) =>
@@ -309,7 +349,7 @@ export function mountHomeAppDemo(root: HTMLElement) {
         card.type === "document") &&
       image
     ) {
-      const frame = el("span", "relative block overflow-hidden rounded-2xl");
+      const frame = el("span", "relative block overflow-hidden rounded-xl");
       frame.style.aspectRatio = `${image.width} / ${image.height}`;
       frame.style.width = `min(100cqw, 100cqh * ${image.width / image.height})`;
       const img = el("img", "h-full w-full object-cover");
@@ -336,7 +376,7 @@ export function mountHomeAppDemo(root: HTMLElement) {
     if (card.type === "link") {
       const wrap = el("span", "flex w-full max-w-xl flex-col gap-3");
       if (image) {
-        const img = el("img", "w-full rounded-2xl border object-cover");
+        const img = el("img", "w-full rounded-xl border object-cover");
         img.src = image.src;
         img.alt = card.title ?? "";
         wrap.append(img);
@@ -358,7 +398,7 @@ export function mountHomeAppDemo(root: HTMLElement) {
     if (card.type === "palette") {
       const wrap = el(
         "span",
-        "grid w-full max-w-xl grid-cols-5 overflow-hidden rounded-2xl border"
+        "grid w-full max-w-xl grid-cols-5 overflow-hidden rounded-xl border"
       );
       for (const hex of card.colors ?? []) {
         const swatch = el(
@@ -422,23 +462,15 @@ export function mountHomeAppDemo(root: HTMLElement) {
     if (label) {
       label.textContent = isFavorite ? "Unfavorite" : "Favorite";
     }
-    favoriteAction
-      .querySelector("svg")
-      ?.classList.toggle("demo-filled", isFavorite);
+    favoriteAction.classList.toggle("demo-filled", isFavorite);
   };
 
-  const addBadge = (content: Node[], onClick?: () => void, title?: string) => {
-    const badge = el("button", badgeClass);
-    badge.type = "button";
-    if (title) {
-      badge.title = title;
-      badge.setAttribute("aria-label", title);
-    }
-    badge.append(...content);
-    if (onClick) {
-      badge.addEventListener("click", onClick);
-    }
-    modalBadges.append(badge);
+  const addTag = (content: Node[], onClick: () => void) => {
+    const tag = el("button", tagClass);
+    tag.type = "button";
+    tag.append(...content);
+    tag.addEventListener("click", onClick);
+    modalBadges.append(tag);
   };
 
   const closeModal = () => {
@@ -453,6 +485,13 @@ export function mountHomeAppDemo(root: HTMLElement) {
     render();
   };
 
+  const filterByKeyword = (tag: string) => () =>
+    filterFromModal(() => {
+      if (!state.keywords.includes(tag)) {
+        state.keywords = [...state.keywords, tag];
+      }
+    });
+
   const openModal = (id: string, trigger: HTMLElement) => {
     const card = cards[id];
     if (!card) {
@@ -462,53 +501,49 @@ export function mountHomeAppDemo(root: HTMLElement) {
     returnFocus = trigger;
     modalTitle.textContent =
       card.title ?? card.content ?? DEMO_CARD_TYPES[card.type].label;
+    modalType.replaceChildren(
+      icon(card.type),
+      el("span", undefined, DEMO_CARD_TYPES[card.type].label)
+    );
     modalSummary.textContent = card.summary ?? "";
     renderPreview(card);
 
     modalBadges.replaceChildren();
-    addBadge(
-      [
-        icon(card.type),
-        el("span", undefined, DEMO_CARD_TYPES[card.type].label),
-      ],
-      () =>
-        filterFromModal(() => {
-          if (!state.types.includes(card.type)) {
-            state.types = [...state.types, card.type];
-          }
-        })
-    );
     for (const tag of card.tags ?? []) {
-      addBadge([el("span", undefined, tag)], () =>
-        filterFromModal(() => {
-          if (!state.keywords.includes(tag)) {
-            state.keywords = [...state.keywords, tag];
-          }
-        })
-      );
-    }
-    if (card.type !== "palette") {
-      for (const hex of card.colors ?? []) {
-        const dot = el("span", "size-3.5 rounded-full border border-black/10");
-        dot.style.backgroundColor = hex;
-        addBadge([dot], undefined, hex);
-        modalBadges.lastElementChild?.classList.replace("px-3", "px-2");
-      }
+      addTag([el("span", undefined, tag)], filterByKeyword(tag));
     }
     for (const tag of card.aiTags ?? []) {
-      addBadge([icon("sparkles"), el("span", undefined, tag)], () =>
-        filterFromModal(() => {
-          if (!state.keywords.includes(tag)) {
-            state.keywords = [...state.keywords, tag];
-          }
-        })
+      addTag(
+        [icon("sparkles"), el("span", undefined, tag)],
+        filterByKeyword(tag)
       );
     }
+    tagsSection.hidden = modalBadges.childElementCount === 0;
+
+    modalColors.replaceChildren();
+    if (card.type !== "palette") {
+      for (const hex of card.colors ?? []) {
+        const dot = el("span", "size-6 rounded-full border border-black/10");
+        dot.style.backgroundColor = hex;
+        dot.title = hex;
+        modalColors.append(dot);
+      }
+    }
+    colorsSection.hidden = modalColors.childElementCount === 0;
 
     renderFavorite(id);
+    const file = card.type === "link" ? undefined : card.image;
     linkAction.hidden = !card.url;
     if (card.url) {
       linkAction.href = card.url;
+    }
+    downloadAction.hidden = !file;
+    if (file) {
+      downloadAction.href = file.full ?? file.src;
+    }
+    const copyLabel = copyAction.querySelector("span");
+    if (copyLabel) {
+      copyLabel.textContent = "Copy";
     }
     modal.hidden = false;
     closeButton.focus({ preventScroll: true });
@@ -530,6 +565,31 @@ export function mountHomeAppDemo(root: HTMLElement) {
     button.toggleAttribute("data-favorite");
     renderFavorite(openCardId);
     render();
+  });
+  modalType.addEventListener("click", () => {
+    const card = openCardId ? cards[openCardId] : null;
+    if (!card) {
+      return;
+    }
+    filterFromModal(() => {
+      if (!state.types.includes(card.type)) {
+        state.types = [...state.types, card.type];
+      }
+    });
+  });
+  copyAction.addEventListener("click", () => {
+    const card = openCardId ? cards[openCardId] : null;
+    const text = card?.url ?? card?.content ?? card?.title;
+    const label = copyAction.querySelector("span");
+    if (!(text && label)) {
+      return;
+    }
+    navigator.clipboard
+      .writeText(text)
+      .then(() => {
+        label.textContent = "Copied";
+      })
+      .catch(() => undefined);
   });
   closeButton.addEventListener("click", closeModal);
   modal.addEventListener("click", (event) => {

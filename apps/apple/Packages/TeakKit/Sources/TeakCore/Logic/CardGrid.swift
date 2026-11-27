@@ -23,6 +23,35 @@ public enum CardGrid {
         ((width - edge * 2 - gap * Double(columns - 1)) / Double(max(1, columns))).rounded(.down)
     }
 
+    /// Columns kept clear of a fold that runs down the grid, such as iPhone
+    /// Duo's hinge when it's partly open.
+    public struct FoldedColumns: Equatable, Sendable {
+        /// Columns before the fold and after it.
+        public let leading: Int, trailing: Int
+        public let columnWidth: Double
+        /// From the grid's leading edge to its first column.
+        public let leadingInset: Double
+        /// From the last column before the fold to the first one after it.
+        public let foldSpacing: Double
+
+        public var columns: Int { leading + trailing }
+    }
+
+    /// Lays columns out on each side of a fold from `foldMinX` to `foldMaxX`,
+    /// all the same width, with an edge's margin on both sides of the fold.
+    /// The narrower side sets the width and the wider one fits as many as it
+    /// can; a side too narrow for a column stays empty.
+    public static func foldedColumns(width: Double, foldMinX: Double, foldMaxX: Double) -> FoldedColumns? {
+        let sides = [foldMinX, width - foldMaxX].map { $0 - edge * 2 >= 120 ? $0 : 0 }
+        guard let narrowest = sides.filter({ $0 > 0 }).min() else { return nil }
+        let columnWidth = CardGrid.columnWidth(width: narrowest, columns: narrowest < 360 ? 1 : columnCount(width: narrowest))
+        let counts = sides.map { side in side > 0 ? max(1, Int((side - edge * 2 + gap) / (columnWidth + gap))) : 0 }
+        let leadingWidth = Double(counts[0]) * columnWidth + gap * Double(max(0, counts[0] - 1))
+        return FoldedColumns(leading: counts[0], trailing: counts[1], columnWidth: columnWidth,
+                             leadingInset: counts[0] > 0 ? foldMinX - edge - leadingWidth : foldMaxX + edge,
+                             foldSpacing: foldMaxX - foldMinX + edge * 2)
+    }
+
     public static func tileImageURL(_ card: CardSummary) -> String? {
         switch card.type {
         case .link: card.linkPreviewImageUrl ?? card.screenshotUrl

@@ -1,7 +1,7 @@
 {
   "$schema": "https://www.raycast.com/schemas/extension.json",
   "name": "teak-raycast",
-  "version": "1.0.95",
+  "version": "1.0.97",
   "private": true,
   "description": "Save notes, links, files, clipboard and browser tabs to Teak, search cards by content or tags, browse favorites, folders and tags, with AI tools.",
   "categories": [

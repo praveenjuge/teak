@@ -3,15 +3,10 @@ import {
   normalizeUrlHost,
 } from "@teak/convex/shared/utils/urlHost";
 import { useTranslations } from "@teak/i18n/react";
+import type { ReactNode } from "react";
 import { markdownToPlainText } from "../../lib/markdownToPlainText";
 import { cn } from "../../lib/utils";
-import {
-  CARD_TILE,
-  quoteSizeClass,
-  readableTextOn,
-  splitNotePreview,
-  TEXT_TILE,
-} from "./cardDisplay";
+import { CARD_TILE, readableTextOn, splitNotePreview } from "./cardDisplay";
 import {
   AudioCardBody,
   DocumentCardBody,
@@ -22,6 +17,10 @@ import { LinkCardBody } from "./LinkCardBody";
 import type { LinkCardImage } from "./linkCardImage";
 import type { CardWithUrls } from "./types";
 
+/** Links and documents name themselves in a footer; every other card doesn't. */
+export const hasCardFooter = (card: Pick<CardWithUrls, "type">): boolean =>
+  card.type === "link" || card.type === "document";
+
 interface CardBodyProps {
   card: CardWithUrls;
   isPriority: boolean;
@@ -30,28 +29,24 @@ interface CardBodyProps {
     onImageError: (failedUrl: string) => void;
     title: string;
   };
-  textInsets: string;
+  /** The card's marks, for the footer of a card that has one. */
+  marks?: ReactNode;
 }
 
-export function CardBody({
-  card,
-  isPriority,
-  link,
-  textInsets,
-}: CardBodyProps) {
+export function CardBody({ card, isPriority, link, marks }: CardBodyProps) {
   switch (card.type) {
     case "text":
-      return <TextCardBody card={card} textInsets={textInsets} />;
+      return <TextCardBody card={card} />;
     case "quote":
-      return <QuoteCardBody card={card} textInsets={textInsets} />;
+      return <QuoteCardBody card={card} />;
     case "link":
       return (
         <LinkCardBody
           card={card}
           image={link.image}
           isPriority={isPriority}
+          marks={marks}
           onImageError={link.onImageError}
-          textInsets={textInsets}
           title={link.title}
         />
       );
@@ -60,9 +55,11 @@ export function CardBody({
     case "video":
       return <VideoCardBody card={card} isPriority={isPriority} />;
     case "audio":
-      return <AudioCardBody card={card} textInsets={textInsets} />;
+      return <AudioCardBody card={card} />;
     case "document":
-      return <DocumentCardBody card={card} isPriority={isPriority} />;
+      return (
+        <DocumentCardBody card={card} isPriority={isPriority} marks={marks} />
+      );
     case "palette":
       if (card.colors?.length) {
         return <PaletteCardBody colors={card.colors} />;
@@ -71,44 +68,41 @@ export function CardBody({
     default:
       break;
   }
-  return <PlainCardBody card={card} textInsets={textInsets} />;
+  return <PlainCardBody card={card} />;
 }
 
-interface TextBodyProps {
-  card: CardWithUrls;
-  textInsets: string;
-}
+/** Words in a tile: 17px for a heading or a short line, 13px for the rest. */
+const WORDS_TILE = `${CARD_TILE} flex flex-col p-4`;
 
-function TextCardBody({ card, textInsets }: TextBodyProps) {
+function TextCardBody({ card }: { card: CardWithUrls }) {
   const { heading, body } = splitNotePreview(card.content);
   const headingText = markdownToPlainText(heading);
   const bodyText = markdownToPlainText(body) || card.fileMetadata?.fileName;
   const t = useTranslations("cards.body");
   if (!(headingText || bodyText)) {
     return (
-      <div className={cn(TEXT_TILE, "flex flex-col p-4", textInsets)}>
-        <p className="flex flex-1 items-center justify-center text-muted-foreground italic">
+      <div className={WORDS_TILE}>
+        <p className="flex flex-1 items-center justify-center text-[13px] text-muted-foreground italic">
           {t("emptyNote")}
         </p>
-        <SourceFooter sourceUrl={card.sourceUrl} />
       </div>
     );
   }
   const isShort = !headingText && (bodyText?.length ?? 0) <= SHORT_NOTE;
   return (
-    <div className={cn(TEXT_TILE, "flex flex-col p-4 pb-3", textInsets)}>
+    <div className={WORDS_TILE}>
       {isShort ? (
         <p
-          className="flex flex-1 items-center text-balance break-words font-semibold text-lg leading-snug tracking-[-0.01em]"
+          className="flex flex-1 items-center text-balance break-words font-semibold text-[17px] leading-snug tracking-[-0.01em]"
           dir="auto"
         >
           {bodyText}
         </p>
       ) : (
-        <div className="min-h-0 flex-1 space-y-1.5 overflow-hidden [mask-image:linear-gradient(to_bottom,#000_55%,transparent_92%)] card-grid:[mask-image:none]">
+        <div className="min-h-0 flex-1 space-y-1.5 overflow-hidden [mask-image:linear-gradient(to_bottom,#000_65%,transparent)]">
           {headingText ? (
             <p
-              className="card-grid:line-clamp-2 break-words font-semibold text-[15px] leading-snug"
+              className="line-clamp-2 break-words font-semibold text-[17px] leading-snug tracking-[-0.01em]"
               dir="auto"
             >
               {headingText}
@@ -116,8 +110,8 @@ function TextCardBody({ card, textInsets }: TextBodyProps) {
           ) : null}
           <p
             className={cn(
-              "card-grid:line-clamp-6 whitespace-pre-line break-words text-[13.5px] leading-relaxed",
-              headingText ? "text-muted-foreground" : "font-medium"
+              "whitespace-pre-line break-words text-[13px] leading-relaxed",
+              headingText && "text-muted-foreground"
             )}
             dir="auto"
           >
@@ -142,27 +136,18 @@ function SourceFooter({ sourceUrl }: { sourceUrl?: string }) {
   ) : null;
 }
 
-function QuoteCardBody({ card, textInsets }: TextBodyProps) {
+function QuoteCardBody({ card }: { card: CardWithUrls }) {
   const quote = markdownToPlainText(card.content);
   return (
-    <figure
-      className={cn(
-        TEXT_TILE,
-        "m-0 flex flex-col justify-center px-4 pt-4 pb-3",
-        textInsets
-      )}
-    >
+    <figure className={cn(WORDS_TILE, "m-0 justify-center")}>
       <span
         aria-hidden="true"
-        className="pointer-events-none h-5 select-none font-serif text-[42px] text-primary leading-[0.6]"
+        className="pointer-events-none h-4 select-none font-bold text-[40px] text-primary leading-[0.75]"
       >
         &ldquo;
       </span>
       <blockquote
-        className={cn(
-          "line-clamp-5 text-pretty break-words font-serif leading-[1.22] tracking-[-0.01em]",
-          quoteSizeClass(quote)
-        )}
+        className="m-0 line-clamp-4 text-pretty break-words font-medium text-[17px] leading-snug tracking-[-0.01em]"
         dir="auto"
       >
         {quote}
@@ -204,10 +189,13 @@ function PaletteCardBody({ colors }: { colors: Array<{ hex: string }> }) {
   );
 }
 
-function PlainCardBody({ card, textInsets }: TextBodyProps) {
+function PlainCardBody({ card }: { card: CardWithUrls }) {
   return (
-    <div className={cn(TEXT_TILE, "p-4", textInsets)}>
-      <p className="line-clamp-5 break-words font-medium" dir="auto">
+    <div className={WORDS_TILE}>
+      <p
+        className="line-clamp-5 break-words font-medium text-[13px]"
+        dir="auto"
+      >
         {markdownToPlainText(card.content) || card.fileMetadata?.fileName}
       </p>
     </div>
