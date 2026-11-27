@@ -23,6 +23,7 @@ const savings = `${yearlySavingsPercent()}%`;
 const registerHref = SIGN_UP_URL;
 const githubHref = "https://github.com/praveenjuge/teak";
 const selfHostingHref = "/docs/self-hosting";
+const PRO_EMOJI_SRC = "/emojis/pricing-pro-crown.webp";
 
 const pricingPlans = [
   {
@@ -47,7 +48,7 @@ const pricingPlans = [
     id: "pro",
     name: "Pro",
     emojiAlt: "Crown emoji",
-    emojiSrc: "/emojis/pricing-pro-crown.webp",
+    emojiSrc: PRO_EMOJI_SRC,
     price: {
       monthly: { amount: monthly, period: "month", note: "Billed monthly" },
       yearly: {
@@ -196,7 +197,8 @@ const pricingFaqs = [
 const productSchema = buildProductSchema(
   "Teak Pro",
   "Unlimited cards in Teak for saving and finding links, images, notes, and files.",
-  `${SITE_URL}/hero-image.png`,
+  // The Pro card's own image: Google wants marked-up content visible.
+  `${SITE_URL}${PRO_EMOJI_SRC}`,
   [
     { name: "Teak Pro - Monthly", price: PRO_MONTHLY_PRICE.toFixed(2) },
     { name: "Teak Pro - Yearly", price: PRO_YEARLY_PRICE.toFixed(2) },
