@@ -17,7 +17,7 @@ export function wantsMarkdown(accept: string | null): boolean {
       return false;
     }
     const q = params
-      .map((param) => param.trim())
+      .map((param) => param.trim().toLowerCase())
       .find((param) => param.startsWith("q="));
     return q ? Number.parseFloat(q.slice(2)) > 0 : true;
   });
@@ -77,6 +77,7 @@ function markdownMiss(pageExists: boolean, method: string): Response {
     status: pageExists ? 406 : 404,
     headers: {
       ...SITE_HEADERS,
+      "Cache-Control": "private, no-store",
       "Content-Type": MARKDOWN_CONTENT_TYPE,
       Vary: "Accept",
     },
