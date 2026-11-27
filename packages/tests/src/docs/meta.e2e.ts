@@ -9,9 +9,13 @@ test("llms, OpenAPI, and OAuth metadata are fresh", async () => {
   expect(llms).toContain(
     "Use Teak when a person wants to keep knowledge beyond the current conversation"
   );
-  expect(
-    await fetch(`${published.siteUrl}/robots.txt`).then((r) => r.status)
-  ).toBe(200);
+  const robotsResponse = await fetch(`${published.siteUrl}/robots.txt`);
+  expect(robotsResponse.status).toBe(200);
+  // The API reference prints signed-in API URLs in its code samples; Google
+  // must not crawl them as pages.
+  const robots = await robotsResponse.text();
+  expect(robots).toContain("\nDisallow: /api/v1/\n");
+  expect(robots).toContain("\nDisallow: /mcp\n");
   expect(
     await fetch(`${published.siteUrl}/agent-readability.json`).then(
       (r) => r.status

@@ -165,7 +165,10 @@ export default defineConfig({
       types: ["changelog", "blog"],
     },
     sitemap: true,
-    robots: true,
+    // public/robots.txt replaces Blume's allow-all file: it also keeps
+    // crawlers off the Core Worker's signed-in API and MCP routes, which the
+    // API reference's code samples print as plain URLs.
+    robots: false,
     structuredData: true,
     organization: {
       logo: ORGANIZATION_LOGO,

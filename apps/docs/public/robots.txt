@@ -1,0 +1,7 @@
+User-agent: *
+Content-Signal: search=yes, ai-input=yes, ai-train=yes
+Disallow: /api/v1/
+Disallow: /mcp
+Allow: /
+
+Sitemap: https://teakvault.com/sitemap.xml
