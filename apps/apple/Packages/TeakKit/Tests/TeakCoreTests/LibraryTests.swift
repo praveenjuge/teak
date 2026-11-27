@@ -286,6 +286,22 @@ struct TimeSearchRows: Decodable, Sendable {
         }
     }
 
+    @Test func keepsColumnsOffTheFold() {
+        // Whole inner display, fold at its center: two even columns each side.
+        #expect(CardGrid.foldedColumns(width: 951, foldMinX: 460, foldMaxX: 490)
+                == .init(leading: 2, trailing: 2, columnWidth: 208, leadingInset: 16, foldSpacing: 62))
+        // Beside the sidebar the fold is off-center: one column before it, two after, all as narrow as the narrowest.
+        #expect(CardGrid.foldedColumns(width: 570, foldMinX: 160, foldMaxX: 190)
+                == .init(leading: 1, trailing: 2, columnWidth: 128, leadingInset: 16, foldSpacing: 62))
+        // What the iPhone Duo simulator reports beside the sidebar: the wider side fits two columns of the narrow side's width.
+        #expect(CardGrid.foldedColumns(width: 567, foldMinX: 175.5, foldMaxX: 215.5)
+                == .init(leading: 1, trailing: 2, columnWidth: 143, leadingInset: 16.5, foldSpacing: 72))
+        // A sliver before the fold gets no column; the grid starts after it.
+        #expect(CardGrid.foldedColumns(width: 570, foldMinX: 40, foldMaxX: 70)
+                == .init(leading: 0, trailing: 2, columnWidth: 228, leadingInset: 86, foldSpacing: 62))
+        #expect(CardGrid.foldedColumns(width: 200, foldMinX: 90, foldMaxX: 110) == nil)
+    }
+
     @Test func placesEachTileInTheShortestColumn() {
         #expect(CardGrid.distribute([300.0, 100, 100, 100], columns: 2, gap: 0) { $0 } == [[300], [100, 100, 100]])
         #expect(CardGrid.distribute([100.0, 100], columns: 2, gap: 0, reservedTopHeights: [150]) { $0 } == [[], [100, 100]],
