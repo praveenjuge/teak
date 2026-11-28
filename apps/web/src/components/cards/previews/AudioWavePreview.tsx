@@ -73,7 +73,8 @@ export function AudioWavePreview({
         ))}
       </div>
       {durationLabel ? (
-        <span className="shrink-0 text-muted-foreground text-xs tabular-nums">
+        // Muted text on the muted tile falls short of WCAG AA contrast.
+        <span className="shrink-0 text-foreground/70 text-xs tabular-nums">
           {durationLabel}
         </span>
       ) : null}
