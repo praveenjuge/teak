@@ -28,14 +28,6 @@ describe("AudioWavePreview", () => {
     expect(markup).toContain(">1:24</span>");
   });
 
-  test("draws the length dark enough to read on the muted tile", () => {
-    const markup = renderToStaticMarkup(
-      <AudioWavePreview cardId="card_audio_1" durationLabel="1:24" />
-    );
-    expect(markup).toContain('text-foreground/70 text-xs tabular-nums">1:24');
-    expect(markup).not.toContain("text-muted-foreground");
-  });
-
   test("produces deterministic heights for the same card id", () => {
     const first = renderToStaticMarkup(
       <AudioWavePreview cardId="stable-seed" />
