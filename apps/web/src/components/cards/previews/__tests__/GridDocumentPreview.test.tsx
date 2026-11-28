@@ -57,4 +57,14 @@ describe("GridDocumentPreview", () => {
     expect(footer).toContain(">PDF</span>");
     expect(footer).toContain("data-mark");
   });
+
+  test("draws the format on the empty page dark enough to read", () => {
+    const markup = renderToStaticMarkup(
+      <GridDocumentPreview fileName="Notes.txt" formatBadge="TXT" />
+    );
+    const page = markup.slice(0, markup.indexOf("data-card-footer"));
+    expect(page).toContain(
+      'font-semibold text-foreground/70 text-xs tracking-wide">TXT</span>'
+    );
+  });
 });

@@ -81,7 +81,7 @@ export function GridDocumentPreview({
             strokeWidth={1.5}
           />
           {formatBadge ? (
-            <span className="font-semibold text-muted-foreground text-xs tracking-wide">
+            <span className="font-semibold text-foreground/70 text-xs tracking-wide">
               {formatBadge}
             </span>
           ) : null}
